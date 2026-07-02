@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tienda de Productos Tecnológicos</title>
+</head>
+
+<body>
+
+    <!-- HEADER -->
+    <header>
+
+        <h1>Tienda TechStore</h1>
+
+        <nav>
+            <ul>
+                <li><a href="#inicio">Inicio</a></li>
+                <li><a href="#formulario">Registro</a></li>
+                <li><a href="#productos">Productos</a></li>
+                <li><a href="#contacto">Contacto</a></li>
+            </ul>
+        </nav>
+
+    </header>
+
+    <!-- MAIN -->
+    <main>
+
+        <!-- SECCIÓN PRINCIPAL -->
+        <section id="inicio">
+
+            <h2>Bienvenidos a TechStore</h2>
+
+            <p>
+                Página de ejemplo utilizando HTML semántico,
+                formularios con fieldset y tablas.
+            </p>
+
+        </section>
+
+        <hr>
+
+        <!-- FORMULARIO -->
+        <section id="formulario">
+
+            <h2>Formulario de Compra</h2>
+
+            <form action="#" method="post">
+
+                <fieldset>
+
+                    <legend>Datos del Cliente</legend>
+
+                    <p>
+                        <label for="nombre">Nombre:</label>
+                        <input type="text" id="nombre" name="nombre">
+                    </p>
+
+                    <p>
+                        <label for="apellido">Apellido:</label>
+                        <input type="text" id="apellido" name="apellido">
+                    </p>
+
+                    <p>
+                        <label for="correo">Correo Electrónico:</label>
+                        <input type="email" id="correo" name="correo">
+                    </p>
+
+                    <p>
+                        <label for="telefono">Teléfono:</label>
+                        <input type="tel" id="telefono" name="telefono">
+                    </p>
+
+                </fieldset>
+
+                <fieldset>
+
+                    <legend>Información de Compra</legend>
+
+                    <!-- SELECT AGREGADO -->
+                    <p>
+                        <label for="categoria">Categoría:</label>
+
+                        <select id="categoria" name="categoria">
+
+                            <option value="">Seleccione una categoría</option>
+                            <option value="computadoras">Computadoras</option>
+                            <option value="celulares">Celulares</option>
+                            <option value="audio">Audio</option>
+                            <option value="accesorios">Accesorios</option>
+                            <option value="almacenamiento">Almacenamiento</option>
+
+                        </select>
+                    </p>
+
+                    <p>
+                        <label for="producto">Producto:</label>
+
+                        <select id="producto" name="producto">
+                            <option value="">Seleccione</option>
+                            <option>Laptop HP</option>
+                            <option>iPhone 15</option>
+                            <option>Tablet Samsung</option>
+                            <option>Audífonos Sony</option>
+                        </select>
+                    </p>
+
+                    <p>
+                        <label for="cantidad">Cantidad:</label>
+                        <input type="number" id="cantidad" name="cantidad">
+                    </p>
+
+                    <p>
+                        <label>Método de pago:</label>
+
+                        <input type="radio" id="tarjeta" name="pago">
+                        <label for="tarjeta">Tarjeta</label>
+
+                        <input type="radio" id="efectivo" name="pago">
+                        <label for="efectivo">Efectivo</label>
+                    </p>
+
+                </fieldset>
+
+                <button type="submit">Enviar Compra</button>
+                <button type="reset">Limpiar</button>
+
+            </form>
+
+        </section>
+
+        <hr>
+
+        <!-- TABLA -->
+        <section id="productos">
+
+            <h2>Listado de Productos</h2>
+
+            <table border="1">
+
+                <thead>
+
+                    <tr>
+                        <th>#</th>
+                        <th>Producto</th>
+                        <th>Categoría</th>
+                        <th>Precio</th>
+                        <th>Stock</th>
+                    </tr>
+
+                </thead>
+
+                <tbody>
+
+                    <tr>
+                        <td>1</td>
+                        <td>Laptop HP</td>
+                        <td>Computadoras</td>
+                        <td>$850</td>
+                        <td>10</td>
+                    </tr>
+
+                    <tr>
+                        <td>2</td>
+                        <td>iPhone 15</td>
+                        <td>Celulares</td>
+                        <td>$1200</td>
+                        <td>5</td>
+                    </tr>
+
+                    <tr>
+                        <td>3</td>
+                        <td>Tablet Samsung</td>
+                        <td>Tablets</td>
+                        <td>$450</td>
+                        <td>8</td>
+                    </tr>
+
+                    <tr>
+                        <td>4</td>
+                        <td>Mouse Gamer</td>
+                        <td>Accesorios</td>
+                        <td>$35</td>
+                        <td>20</td>
+                    </tr>
+
+                    <tr>
+                        <td>5</td>
+                        <td>Teclado Mecánico</td>
+                        <td>Accesorios</td>
+                        <td>$60</td>
+                        <td>15</td>
+                    </tr>
+
+                    <tr>
+                        <td>6</td>
+                        <td>Monitor LG</td>
+                        <td>Monitores</td>
+                        <td>$300</td>
+                        <td>7</td>
+                    </tr>
+
+                    <tr>
+                        <td>7</td>
+                        <td>Audífonos Sony</td>
+                        <td>Audio</td>
+                        <td>$90</td>
+                        <td>12</td>
+                    </tr>
+
+                    <tr>
+                        <td>8</td>
+                        <td>Impresora Epson</td>
+                        <td>Impresoras</td>
+                        <td>$250</td>
+                        <td>6</td>
+                    </tr>
+
+                    <tr>
+                        <td>9</td>
+                        <td>Smartwatch Xiaomi</td>
+                        <td>Wearables</td>
+                        <td>$110</td>
+                        <td>18</td>
+                    </tr>
+
+                    <tr>
+                        <td>10</td>
+                        <td>Disco SSD 1TB</td>
+                        <td>Almacenamiento</td>
+                        <td>$140</td>
+                        <td>9</td>
+                    </tr>
+
+                </tbody>
+
+                <tfoot>
+
+                    <tr>
+                        <td colspan="5">
+                            Total de productos registrados: 10
+                        </td>
+                    </tr>
+
+                </tfoot>
+
+            </table>
+
+        </section>
+
+    </main>
+
+</body>
+
+</html>
