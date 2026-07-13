@@ -1,42 +1,77 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
-import { router } from '@inertiajs/vue3'
+import { computed } from 'vue'
+import { router, usePage } from '@inertiajs/vue3'
 import type { NavigationMenuItem } from '@nuxt/ui'
 import TeamsMenu from '../components/TeamsMenu.vue'
 import UserMenu from '../components/UserMenu.vue'
 import { useAppConfig } from '../composables/useAppConfig'
 import { useFlash } from '../composables/useFlash'
+import { onMounted, ref } from 'vue'
 
 const open = ref(false)
 const appConfig = useAppConfig()
+const page = usePage()
 
 onMounted(() => {
-  console.log('Layout mounted with colors:', appConfig.value.ui.colors)
-  // Initialize flash messages
   useFlash()
 })
+
+const role = computed(() => (page.props as any).auth?.user?.role as string | undefined)
 
 const navigateTo = (url: string) => {
   router.visit(url)
   open.value = false
 }
 
-const links = [[{
-  label: 'Home',
-  icon: 'i-lucide-house',
-  to: '/dashboard',
-  onSelect: () => navigateTo('/dashboard')
-}, {
-  label: 'Clientes',
-  icon: 'i-lucide-users-round',
-  to: '/clientes',
-  onSelect: () => navigateTo('/clientes')
-}]] satisfies NavigationMenuItem[][]
+const links = computed(() => {
+  const items: NavigationMenuItem[] = [{
+    label: 'Home',
+    icon: 'i-lucide-house',
+    to: '/dashboard',
+    onSelect: () => navigateTo('/dashboard')
+  }]
+
+  if (role.value === 'administrador' || role.value === 'recepcionista') {
+    items.push(
+      {
+        label: 'Clientes',
+        icon: 'i-lucide-users-round',
+        to: '/clientes',
+        onSelect: () => navigateTo('/clientes')
+      },
+      {
+        label: 'Vehículos',
+        icon: 'i-lucide-car',
+        to: '/vehiculos',
+        onSelect: () => navigateTo('/vehiculos')
+      }
+    )
+  }
+
+  if (role.value === 'administrador') {
+    items.push(
+      {
+        label: 'Mecánicos',
+        icon: 'i-lucide-wrench',
+        to: '/mecanicos',
+        onSelect: () => navigateTo('/mecanicos')
+      },
+      {
+        label: 'Usuarios',
+        icon: 'i-lucide-shield-user',
+        to: '/usuarios',
+        onSelect: () => navigateTo('/usuarios')
+      }
+    )
+  }
+
+  return [items]
+})
 
 const groups = computed(() => [{
   id: 'links',
   label: 'Go to',
-  items: links.flat()
+  items: links.value.flat()
 }])
 </script>
 
@@ -73,7 +108,6 @@ const groups = computed(() => [{
       <UDashboardSearch :groups="groups" />
 
       <slot />
-
     </UDashboardGroup>
   </UApp>
 </template>

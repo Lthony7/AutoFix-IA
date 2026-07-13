@@ -3,6 +3,7 @@ import { reactive, computed, ref } from 'vue'
 import { router, usePage } from '@inertiajs/vue3'
 import { route } from 'ziggy-js'
 import FormField from '../../components/FormField.vue'
+import AppLogo from '../../components/AppLogo.vue'
 
 // Definir que esta página no usa layout
 defineOptions({
@@ -54,10 +55,8 @@ const handleSubmit = () => {
     <div class="w-full max-w-md">
       <UCard>
         <template #header>
-          <div class="flex items-center gap-3 mb-2">
-            <div class="flex items-center justify-center w-12 h-12 rounded-full bg-primary-100 dark:bg-primary-900">
-              <i class="i-lucide-user-plus text-primary-600 dark:text-primary-400 text-xl"></i>
-            </div>
+          <div class="space-y-4 mb-2">
+            <AppLogo size="lg" />
             <div>
               <h2 class="text-2xl font-bold">Crear Cuenta</h2>
               <p class="text-sm text-muted">Completa el formulario para registrarte en el sistema</p>

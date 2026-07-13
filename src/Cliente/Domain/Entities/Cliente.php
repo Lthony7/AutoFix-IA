@@ -1,40 +1,26 @@
 <?php
 
 namespace Src\Cliente\Domain\Entities;
+
 use DateTimeImmutable;
 
 class Cliente
 {
-    private string $id;
-    private string $tipoDocumento;
-    private string $numeroDocumento;
-    private string $razonSocial;
-    private string $direccion;
-    private string $telefono;
-    private string $email;
-    private DateTimeImmutable $createdAt;
-    private DateTimeImmutable $updatedAt;
-
     public function __construct(
-        string $id,
-        string $tipoDocumento,
-        string $numeroDocumento,
-        string $razonSocial,
-        string $direccion,
-        string $telefono,
-        string $email,
-        DateTimeImmutable $createdAt,
-        DateTimeImmutable $updatedAt
+        private string $id,
+        private string $tipoDocumento,
+        private string $numeroDocumento,
+        private string $razonSocial,
+        private ?string $nombres,
+        private ?string $apellidos,
+        private string $direccion,
+        private string $telefono,
+        private string $email,
+        private bool $estado,
+        private ?string $userId,
+        private DateTimeImmutable $createdAt,
+        private DateTimeImmutable $updatedAt
     ) {
-        $this->id = $id;
-        $this->tipoDocumento = $tipoDocumento;
-        $this->numeroDocumento = $numeroDocumento;
-        $this->razonSocial = $razonSocial;
-        $this->direccion = $direccion;
-        $this->telefono = $telefono;
-        $this->email = $email;
-        $this->createdAt = $createdAt;
-        $this->updatedAt = $updatedAt;
     }
 
     public function getId(): string
@@ -57,6 +43,16 @@ class Cliente
         return $this->razonSocial;
     }
 
+    public function getNombres(): ?string
+    {
+        return $this->nombres;
+    }
+
+    public function getApellidos(): ?string
+    {
+        return $this->apellidos;
+    }
+
     public function getDireccion(): string
     {
         return $this->direccion;
@@ -72,44 +68,21 @@ class Cliente
         return $this->email;
     }
 
-    public function getCreatedAt(): DateTimeImmutable
+    public function isEstado(): bool
     {
-        return $this->createdAt;
+        return $this->estado;
     }
 
-    public function getUpdatedAt(): DateTimeImmutable
+    public function getUserId(): ?string
     {
-        return $this->updatedAt;
+        return $this->userId;
     }
 
-    public function updateTipoDocumento(string $tipoDocumento): void
+    public function getNombreCompleto(): string
     {
-        $this->tipoDocumento = $tipoDocumento;
-    }
+        $completo = trim(($this->nombres ?? '') . ' ' . ($this->apellidos ?? ''));
 
-    public function updateNumeroDocumento(string $numeroDocumento): void
-    {
-        $this->numeroDocumento = $numeroDocumento;
-    }
-
-    public function updateRazonSocial(string $razonSocial): void
-    {
-        $this->razonSocial = $razonSocial;
-    }
-
-    public function updateDireccion(string $direccion): void
-    {
-        $this->direccion = $direccion;
-    }
-
-    public function updateTelefono(string $telefono): void
-    {
-        $this->telefono = $telefono;
-    }
-
-    public function updateEmail(string $email): void
-    {
-        $this->email = $email;
+        return $completo !== '' ? $completo : $this->razonSocial;
     }
 
     public function toArray(): array
@@ -119,9 +92,14 @@ class Cliente
             'tipoDocumento' => $this->tipoDocumento,
             'numeroDocumento' => $this->numeroDocumento,
             'razonSocial' => $this->razonSocial,
+            'nombres' => $this->nombres,
+            'apellidos' => $this->apellidos,
+            'nombreCompleto' => $this->getNombreCompleto(),
             'direccion' => $this->direccion,
             'telefono' => $this->telefono,
             'email' => $this->email,
+            'estado' => $this->estado,
+            'userId' => $this->userId,
             'createdAt' => $this->createdAt->format('Y-m-d H:i:s'),
             'updatedAt' => $this->updatedAt->format('Y-m-d H:i:s'),
         ];

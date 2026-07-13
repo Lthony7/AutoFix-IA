@@ -2,6 +2,7 @@
 
 namespace Src\Auth\Application\Controllers;
 
+use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -20,7 +21,9 @@ class AuthController extends Controller
         $user = UserEloquentModel::create([
             'name' => $data['name'],
             'email' => $data['email'],
-            'password' => Hash::make($data['password']),
+            'password' => $data['password'],
+            'role' => UserRole::Cliente,
+            'activo' => true,
         ]);
 
         $token = $user->createToken('auth_token')->plainTextToken;
@@ -46,6 +49,13 @@ class AuthController extends Controller
                 'success' => false,
                 'message' => 'Credenciales inválidas',
             ], 401);
+        }
+
+        if (!$user->activo) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Usuario inactivo',
+            ], 403);
         }
 
         $token = $user->createToken('auth_token')->plainTextToken;

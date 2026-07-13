@@ -2,42 +2,33 @@
 
 namespace App\Providers;
 
-use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\ServiceProvider;
 
 class BoundedContextServiceProvider extends ServiceProvider
 {
-    /**
-     * Register services.
-     */
     public function register(): void
     {
         //
     }
 
-    /**
-     * Bootstrap services.
-     */
     public function boot(): void
     {
         $this->loadBoundedContextRoutes();
         $this->loadBoundedContextMigrations();
     }
 
-    /**
-     * Cargar las rutas de cada bounded context
-     */
     protected function loadBoundedContextRoutes(): void
     {
         $boundedContexts = [
             'Auth',
             'Cliente',
-            'Factura',
+            'Vehiculo',
+            'Mecanico',
             'Producto',
         ];
 
         foreach ($boundedContexts as $context) {
-            // Cargar rutas de API
             $apiRoutesPath = base_path("src/{$context}/api.php");
             if (file_exists($apiRoutesPath)) {
                 Route::prefix('api/v1')
@@ -45,7 +36,6 @@ class BoundedContextServiceProvider extends ServiceProvider
                     ->group($apiRoutesPath);
             }
 
-            // Cargar rutas Web
             $webRoutesPath = base_path("src/{$context}/web.php");
             if (file_exists($webRoutesPath)) {
                 Route::middleware('web')
@@ -54,18 +44,14 @@ class BoundedContextServiceProvider extends ServiceProvider
         }
     }
 
-    /**
-     * Cargar las migraciones de cada bounded context
-     */
     protected function loadBoundedContextMigrations(): void
     {
         $boundedContexts = [
             'Auth',
             'Cliente',
-            'Categoria',
+            'Vehiculo',
+            'Mecanico',
             'Producto',
-            'Factura',
-            'Producto'
         ];
 
         foreach ($boundedContexts as $context) {

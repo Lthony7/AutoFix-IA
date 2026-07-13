@@ -3,7 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use Src\Cliente\Application\Controllers\ClienteController;
 
-Route::middleware('auth:sanctum')->group(function () {
+Route::middleware(['auth:sanctum', 'role:administrador,recepcionista'])->group(function () {
     Route::apiResource('clientes', ClienteController::class)->names([
         'index' => 'api.clientes.index',
         'store' => 'api.clientes.store',

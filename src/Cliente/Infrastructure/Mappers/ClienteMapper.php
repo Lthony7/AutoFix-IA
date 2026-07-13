@@ -14,9 +14,13 @@ class ClienteMapper
             tipoDocumento: $model->tipo_documento,
             numeroDocumento: $model->numero_documento,
             razonSocial: $model->razon_social,
+            nombres: $model->nombres,
+            apellidos: $model->apellidos,
             direccion: $model->direccion,
             telefono: $model->telefono,
             email: $model->email,
+            estado: (bool) $model->estado,
+            userId: $model->user_id,
             createdAt: new \DateTimeImmutable($model->created_at->toDateTimeString()),
             updatedAt: new \DateTimeImmutable($model->updated_at->toDateTimeString())
         );
@@ -29,9 +33,13 @@ class ClienteMapper
             'tipo_documento' => $cliente->getTipoDocumento(),
             'numero_documento' => $cliente->getNumeroDocumento(),
             'razon_social' => $cliente->getRazonSocial(),
+            'nombres' => $cliente->getNombres(),
+            'apellidos' => $cliente->getApellidos(),
             'direccion' => $cliente->getDireccion(),
             'telefono' => $cliente->getTelefono(),
             'email' => $cliente->getEmail(),
+            'estado' => $cliente->isEstado(),
+            'user_id' => $cliente->getUserId(),
         ];
     }
 }

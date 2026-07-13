@@ -2,11 +2,11 @@
 
 namespace Src\Auth\Application\Controllers;
 
+use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Hash;
 use Inertia\Inertia;
 use Inertia\Response;
 use Src\Auth\Infrastructure\Models\UserEloquentModel;
@@ -33,6 +33,16 @@ class WebAuthController extends Controller
             ])->onlyInput('email');
         }
 
+        $user = Auth::user();
+
+        if ($user && !$user->activo) {
+            Auth::logout();
+
+            return back()->withErrors([
+                'email' => 'Tu usuario está inactivo. Contacta al administrador.',
+            ])->onlyInput('email');
+        }
+
         $request->session()->regenerate();
 
         return redirect()->intended(route('dashboard'))
@@ -46,7 +56,9 @@ class WebAuthController extends Controller
         $user = UserEloquentModel::create([
             'name' => $data['name'],
             'email' => $data['email'],
-            'password' => Hash::make($data['password']),
+            'password' => $data['password'],
+            'role' => UserRole::Cliente,
+            'activo' => true,
         ]);
 
         Auth::login($user);

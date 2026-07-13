@@ -18,7 +18,7 @@ import * as nuxtCompat from './composables/nuxt-compat';
 // Importar plugin de Nuxt UI
 import NuxtUIPlugin from './plugins/nuxt-ui';
 
-const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
+const appName = import.meta.env.VITE_APP_NAME || 'AUTOFIX IA';
 
 // Crear router vacío que sincroniza con Inertia
 const router = createRouter({

@@ -3,14 +3,14 @@
 namespace Src\Cliente\Application\Controllers;
 
 use App\Http\Controllers\Controller;
-use Src\Cliente\Infrastructure\Models\ClienteEloquentModel;
-use Src\Cliente\Infrastructure\Mappers\ClienteMapper;
-use Src\Cliente\Infrastructure\Requests\StoreClienteRequest;
-use Src\Cliente\Infrastructure\Requests\UpdateClienteRequest;
+use Exception;
+use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
 use Inertia\Response;
-use Illuminate\Http\RedirectResponse;
-use Exception;
+use Src\Cliente\Infrastructure\Mappers\ClienteMapper;
+use Src\Cliente\Infrastructure\Models\ClienteEloquentModel;
+use Src\Cliente\Infrastructure\Requests\StoreClienteRequest;
+use Src\Cliente\Infrastructure\Requests\UpdateClienteRequest;
 
 class ClienteWebController extends Controller
 {
@@ -19,8 +19,10 @@ class ClienteWebController extends Controller
         $clientes = ClienteEloquentModel::all();
 
         $clientesData = $clientes->map(
-            fn($model) => ClienteMapper::toDomain($model)->toArray()
+            fn ($model) => ClienteMapper::toDomain($model)->toArray()
         )->toArray();
+
+        $active = collect($clientesData)->where('estado', true)->count();
 
         return Inertia::render('Cliente/index', [
             'customers' => [
@@ -30,19 +32,16 @@ class ClienteWebController extends Controller
                     'total' => count($clientesData),
                     'per_page' => count($clientesData),
                     'current_page' => 1,
-                ]
+                ],
             ],
             'stats' => [
                 'total' => count($clientesData),
-                'active' => count($clientesData),
-                'inactive' => 0,
+                'active' => $active,
+                'inactive' => count($clientesData) - $active,
             ],
         ]);
     }
 
-    /**
-     * Mostrar formulario de creación
-     */
     public function create(): Response
     {
         return Inertia::render('Cliente/create');
@@ -69,7 +68,7 @@ class ClienteWebController extends Controller
         $cliente = ClienteEloquentModel::findOrFail($id);
 
         return Inertia::render('Cliente/edit', [
-            'cliente' => ClienteMapper::toDomain($cliente)->toArray()
+            'cliente' => ClienteMapper::toDomain($cliente)->toArray(),
         ]);
     }
 
@@ -100,11 +99,10 @@ class ClienteWebController extends Controller
                 ->with('error', 'Cliente no encontrado');
         }
 
-        // Verificar si tiene facturas asociadas usando la relación Eloquent
-        if ($cliente->facturas()->exists()) {
+        if ($cliente->vehiculos()->exists()) {
             return redirect()
                 ->back()
-                ->with('error', 'No se puede eliminar este cliente porque tiene facturas asociadas');
+                ->with('error', 'No se puede eliminar este cliente porque tiene vehículos asociados');
         }
 
         $cliente->delete();

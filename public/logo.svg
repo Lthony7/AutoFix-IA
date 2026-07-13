@@ -1,0 +1,73 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 80" fill="none" role="img" aria-label="AUTOFIX IA">
+  <!-- Circuitos izquierdos -->
+  <g stroke="#14532d" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M6 26 H22 L30 34 H40"/>
+    <path d="M10 40 H24 L34 50"/>
+    <path d="M6 54 H20 L28 46"/>
+    <circle cx="6" cy="26" r="2.4" fill="#14532d"/>
+    <circle cx="10" cy="40" r="2.4" fill="#14532d"/>
+    <circle cx="6" cy="54" r="2.4" fill="#14532d"/>
+    <circle cx="40" cy="34" r="2.2" fill="#14532d"/>
+    <circle cx="34" cy="50" r="2.2" fill="#14532d"/>
+    <circle cx="28" cy="46" r="2.2" fill="#14532d"/>
+  </g>
+
+  <!-- Circuitos derechos -->
+  <g stroke="#14532d" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M88 34 H98 L106 26 H122"/>
+    <path d="M94 50 L104 40 H118"/>
+    <path d="M100 46 L108 54 H122"/>
+    <circle cx="88" cy="34" r="2.2" fill="#14532d"/>
+    <circle cx="94" cy="50" r="2.2" fill="#14532d"/>
+    <circle cx="100" cy="46" r="2.2" fill="#14532d"/>
+    <circle cx="122" cy="26" r="2.4" fill="#14532d"/>
+    <circle cx="118" cy="40" r="2.4" fill="#14532d"/>
+    <circle cx="122" cy="54" r="2.4" fill="#14532d"/>
+  </g>
+
+  <!-- Escudo -->
+  <path fill="#166534" d="M64 4 L96 17 V40c0 18-12.5 30.5-32 35.5C44.5 70.5 32 58 32 40 V17 L64 4Z"/>
+
+  <!-- Definición: A con clip para huella -->
+  <defs>
+    <path id="letterA" d="M64 16 L80 58 H72.5 L69 46 H59 L55.5 58 H48 L64 16Z"/>
+    <clipPath id="clipA">
+      <use href="#letterA"/>
+    </clipPath>
+  </defs>
+
+  <!-- A blanca -->
+  <use href="#letterA" fill="#ffffff"/>
+
+  <!-- Hueco de la A -->
+  <path fill="#166534" d="M64 27 L67.2 37 H60.8 Z"/>
+
+  <!-- Huella de neumático (patrón) dentro de la A -->
+  <g clip-path="url(#clipA)" stroke="#111" stroke-width="1.6" stroke-linecap="round">
+    <!-- Diagonal izquierda -->
+    <path d="M54 24 L49 56"/>
+    <path d="M57 22 L52 56"/>
+    <path d="M60 22 L55 56"/>
+    <path d="M52 28 h6"/>
+    <path d="M51 32 h7"/>
+    <path d="M50 36 h8"/>
+    <path d="M49 40 h8"/>
+    <path d="M48 44 h9"/>
+    <path d="M48 48 h9"/>
+    <path d="M47 52 h9"/>
+    <!-- Diagonal derecha -->
+    <path d="M74 24 L79 56"/>
+    <path d="M71 22 L76 56"/>
+    <path d="M68 22 L73 56"/>
+    <path d="M70 28 h6"/>
+    <path d="M70 32 h7"/>
+    <path d="M70 36 h8"/>
+    <path d="M71 40 h8"/>
+    <path d="M71 44 h9"/>
+    <path d="M71 48 h9"/>
+    <path d="M72 52 h9"/>
+  </g>
+
+  <!-- Barra de la A -->
+  <rect x="57.5" y="41" width="13" height="3.8" rx="0.8" fill="#ffffff"/>
+</svg>

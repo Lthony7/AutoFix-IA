@@ -62,10 +62,10 @@ class ClienteController extends Controller
             ], 404);
         }
 
-        if ($cliente->facturas()->exists()) {
+        if ($cliente->vehiculos()->exists()) {
             return response()->json([
                 'success' => false,
-                'message' => 'No se puede eliminar este cliente porque tiene facturas asociadas'
+                'message' => 'No se puede eliminar este cliente porque tiene vehículos asociados'
             ], 400);
         }
 

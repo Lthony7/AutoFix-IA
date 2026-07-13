@@ -4,8 +4,10 @@ namespace Src\Cliente\Infrastructure\Models;
 
 use App\Traits\HasUuid;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Src\Factura\Infrastructure\Models\FacturaEloquentModel;
+use Src\Auth\Infrastructure\Models\UserEloquentModel;
+use Src\Vehiculo\Infrastructure\Models\VehiculoEloquentModel;
 
 class ClienteEloquentModel extends Model
 {
@@ -18,18 +20,28 @@ class ClienteEloquentModel extends Model
         'tipo_documento',
         'numero_documento',
         'razon_social',
+        'nombres',
+        'apellidos',
         'direccion',
         'telefono',
-        'email'
+        'email',
+        'estado',
+        'user_id',
     ];
 
     protected $casts = [
+        'estado' => 'boolean',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
     ];
 
-    public function facturas(): HasMany
+    public function user(): BelongsTo
     {
-        return $this->hasMany(FacturaEloquentModel::class, 'cliente_id', 'id');
+        return $this->belongsTo(UserEloquentModel::class, 'user_id');
+    }
+
+    public function vehiculos(): HasMany
+    {
+        return $this->hasMany(VehiculoEloquentModel::class, 'cliente_id', 'id');
     }
 }

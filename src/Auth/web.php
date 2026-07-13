@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use Src\Auth\Application\Controllers\UsuarioWebController;
 use Src\Auth\Application\Controllers\WebAuthController;
 
 Route::middleware('guest')->group(function () {
@@ -17,4 +18,8 @@ Route::middleware('guest')->group(function () {
 
 Route::middleware('auth')->group(function () {
     Route::post('/logout', [WebAuthController::class, 'logout'])->name('logout');
+});
+
+Route::middleware(['auth', 'role:administrador'])->group(function () {
+    Route::resource('usuarios', UsuarioWebController::class)->except(['show']);
 });
