@@ -7,13 +7,15 @@ use Illuminate\Database\Seeder;
 use Src\Auth\Infrastructure\Models\UserEloquentModel;
 use Src\Cliente\Infrastructure\Models\ClienteEloquentModel;
 use Src\Mecanico\Infrastructure\Models\MecanicoEloquentModel;
+use Src\Producto\Infrastructure\Models\ProductoEloquentModel;
+use Src\Servicio\Infrastructure\Models\ServicioEloquentModel;
 use Src\Vehiculo\Infrastructure\Models\VehiculoEloquentModel;
 
 class AutofixWeek1Seeder extends Seeder
 {
     public function run(): void
     {
-        $admin = UserEloquentModel::updateOrCreate(
+        UserEloquentModel::updateOrCreate(
             ['email' => 'admin@autofix.test'],
             [
                 'name' => 'Administrador Autofix',
@@ -23,7 +25,7 @@ class AutofixWeek1Seeder extends Seeder
             ]
         );
 
-        $recepcionista = UserEloquentModel::updateOrCreate(
+        UserEloquentModel::updateOrCreate(
             ['email' => 'recepcion@autofix.test'],
             [
                 'name' => 'Ana Recepción',
@@ -78,7 +80,7 @@ class AutofixWeek1Seeder extends Seeder
                 'color' => 'Gris',
                 'kilometraje' => 145000,
                 'tipo_combustible' => 'gasolina',
-                'observaciones' => 'Vehículo de demostración Semana 1',
+                'observaciones' => 'Vehículo de demostración',
                 'activo' => true,
             ]
         );
@@ -97,11 +99,56 @@ class AutofixWeek1Seeder extends Seeder
             ]
         );
 
-        $this->command?->info('Usuarios demo Semana 1 (password: password):');
-        $this->command?->info('- admin@autofix.test (administrador)');
-        $this->command?->info('- recepcion@autofix.test (recepcionista)');
-        $this->command?->info('- mecanico@autofix.test (mecanico)');
-        $this->command?->info('- cliente@autofix.test (cliente)');
-        $this->command?->info("Admin ID: {$admin->id} / Recepción ID: {$recepcionista->id}");
+        $servicios = [
+            ['nombre' => 'Cambio de aceite', 'descripcion' => 'Cambio de aceite y filtro', 'precio_base' => 35.00],
+            ['nombre' => 'Revisión de frenos', 'descripcion' => 'Inspección y ajuste de frenos', 'precio_base' => 45.00],
+            ['nombre' => 'Alineación y balanceo', 'descripcion' => 'Alineación y balanceo de llantas', 'precio_base' => 40.00],
+            ['nombre' => 'Sistema eléctrico', 'descripcion' => 'Diagnóstico eléctrico', 'precio_base' => 50.00],
+            ['nombre' => 'Motor', 'descripcion' => 'Revisión de motor', 'precio_base' => 60.00],
+            ['nombre' => 'Suspensión', 'descripcion' => 'Revisión de suspensión', 'precio_base' => 55.00],
+            ['nombre' => 'Transmisión', 'descripcion' => 'Revisión de transmisión', 'precio_base' => 70.00],
+            ['nombre' => 'Aire acondicionado', 'descripcion' => 'Revisión de A/C', 'precio_base' => 45.00],
+        ];
+
+        foreach ($servicios as $servicio) {
+            ServicioEloquentModel::updateOrCreate(
+                ['nombre' => $servicio['nombre']],
+                array_merge($servicio, ['activo' => true])
+            );
+        }
+
+        ProductoEloquentModel::updateOrCreate(
+            ['codigo' => 'PAST-001'],
+            [
+                'nombre' => 'Pastillas de freno delanteras',
+                'descripcion' => 'Juego de pastillas cerámicas',
+                'precio' => 28.50,
+                'stock' => 20,
+                'stock_minimo' => 5,
+                'activo' => true,
+                'tipo_producto' => 'repuesto',
+                'categoria' => 'Frenos',
+                'proveedor' => 'AutoParts SA',
+            ]
+        );
+
+        ProductoEloquentModel::updateOrCreate(
+            ['codigo' => 'ACEI-001'],
+            [
+                'nombre' => 'Aceite 5W-30 sintético',
+                'descripcion' => 'Aceite motor 4L',
+                'precio' => 22.00,
+                'stock' => 40,
+                'stock_minimo' => 10,
+                'activo' => true,
+                'tipo_producto' => 'repuesto',
+                'categoria' => 'Lubricantes',
+                'proveedor' => 'LubriCenter',
+            ]
+        );
+
+        $this->command?->info('Usuarios demo (password: password):');
+        $this->command?->info('- admin@autofix.test / recepcion@autofix.test / mecanico@autofix.test / cliente@autofix.test');
+        $this->command?->info('Catálogo: 8 servicios + 2 repuestos de ejemplo');
     }
 }

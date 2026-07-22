@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import { router, usePage } from '@inertiajs/vue3'
 import type { NavigationMenuItem } from '@nuxt/ui'
+import { route } from 'ziggy-js'
 import TeamsMenu from '../components/TeamsMenu.vue'
 import UserMenu from '../components/UserMenu.vue'
 import { useAppConfig } from '../composables/useAppConfig'
@@ -23,45 +24,54 @@ const navigateTo = (url: string) => {
   open.value = false
 }
 
-const links = computed(() => {
-  const items: NavigationMenuItem[] = [{
-    label: 'Home',
-    icon: 'i-lucide-house',
-    to: '/dashboard',
-    onSelect: () => navigateTo('/dashboard')
-  }]
+const item = (label: string, icon: string, path: string, routeName?: string): NavigationMenuItem => ({
+  label,
+  icon,
+  to: path,
+  onSelect: () => navigateTo(routeName ? route(routeName) : path)
+})
 
-  if (role.value === 'administrador' || role.value === 'recepcionista') {
-    items.push(
-      {
-        label: 'Clientes',
-        icon: 'i-lucide-users-round',
-        to: '/clientes',
-        onSelect: () => navigateTo('/clientes')
-      },
-      {
-        label: 'Vehículos',
-        icon: 'i-lucide-car',
-        to: '/vehiculos',
-        onSelect: () => navigateTo('/vehiculos')
-      }
-    )
-  }
+const links = computed(() => {
+  const items: NavigationMenuItem[] = [
+    item('Home', 'i-lucide-house', '/dashboard')
+  ]
 
   if (role.value === 'administrador') {
     items.push(
-      {
-        label: 'Mecánicos',
-        icon: 'i-lucide-wrench',
-        to: '/mecanicos',
-        onSelect: () => navigateTo('/mecanicos')
-      },
-      {
-        label: 'Usuarios',
-        icon: 'i-lucide-shield-user',
-        to: '/usuarios',
-        onSelect: () => navigateTo('/usuarios')
-      }
+      item('Clientes', 'i-lucide-users-round', '/clientes', 'clientes.index'),
+      item('Vehículos', 'i-lucide-car', '/vehiculos', 'vehiculos.index'),
+      item('Mecánicos', 'i-lucide-wrench', '/mecanicos', 'mecanicos.index'),
+      item('Servicios', 'i-lucide-cog', '/servicios', 'servicios.index'),
+      item('Repuestos', 'i-lucide-package', '/repuestos', 'repuestos.index'),
+      item('Órdenes', 'i-lucide-clipboard-list', '/ordenes', 'ordenes.index'),
+      item('Diagnóstico IA', 'i-lucide-brain', '/diagnosticos-ia/create', 'diagnosticos-ia.create'),
+      item('Facturas', 'i-lucide-file-text', '/facturas', 'facturas.index'),
+      item('Pagos', 'i-lucide-wallet', '/pagos', 'pagos.index'),
+      item('Reportes', 'i-lucide-bar-chart-3', '/reportes', 'reportes.index'),
+      item('Usuarios', 'i-lucide-shield-user', '/usuarios', 'usuarios.index')
+    )
+  } else if (role.value === 'recepcionista') {
+    items.push(
+      item('Clientes', 'i-lucide-users-round', '/clientes', 'clientes.index'),
+      item('Vehículos', 'i-lucide-car', '/vehiculos', 'vehiculos.index'),
+      item('Servicios', 'i-lucide-cog', '/servicios', 'servicios.index'),
+      item('Repuestos', 'i-lucide-package', '/repuestos', 'repuestos.index'),
+      item('Órdenes', 'i-lucide-clipboard-list', '/ordenes', 'ordenes.index'),
+      item('Diagnóstico IA', 'i-lucide-brain', '/diagnosticos-ia/create', 'diagnosticos-ia.create'),
+      item('Facturas', 'i-lucide-file-text', '/facturas', 'facturas.index'),
+      item('Pagos', 'i-lucide-wallet', '/pagos', 'pagos.index'),
+      item('Historial', 'i-lucide-history', '/vehiculos', 'vehiculos.index'),
+      item('Reportes', 'i-lucide-bar-chart-3', '/reportes', 'reportes.index')
+    )
+  } else if (role.value === 'mecanico') {
+    items.push(
+      item('Órdenes', 'i-lucide-clipboard-list', '/ordenes', 'ordenes.index'),
+      item('Diagnóstico IA', 'i-lucide-brain', '/diagnosticos-ia/create', 'diagnosticos-ia.create')
+    )
+  } else if (role.value === 'cliente') {
+    items.push(
+      item('Mis vehículos', 'i-lucide-car', '/portal/mis-vehiculos', 'portal.mis-vehiculos'),
+      item('Mis órdenes', 'i-lucide-clipboard-list', '/portal/mis-ordenes', 'portal.mis-ordenes')
     )
   }
 

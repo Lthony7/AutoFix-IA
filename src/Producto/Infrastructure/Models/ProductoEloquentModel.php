@@ -17,11 +17,18 @@ class ProductoEloquentModel extends Model
         'descripcion',
         'precio',
         'stock',
+        'stock_minimo',
         'activo',
-        'tipo_producto'
+        'tipo_producto',
+        'categoria',
+        'proveedor',
     ];
 
     protected $casts = [
+        'precio' => 'decimal:2',
+        'stock' => 'integer',
+        'stock_minimo' => 'integer',
+        'activo' => 'boolean',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
     ];

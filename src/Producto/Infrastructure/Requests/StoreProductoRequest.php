@@ -15,13 +15,16 @@ class StoreProductoRequest extends FormRequest
     {
         // Convert camelCase to snake_case for validation
         $this->merge([
-            'tipo_producto' => $this->tipoProducto,
+            'tipo_producto' => $this->tipoProducto ?? $this->tipo_producto,
             'codigo' => $this->codigo,
             'nombre' => $this->nombre,
             'descripcion' => $this->descripcion,
             'precio' => $this->precio,
             'stock' => $this->stock,
+            'stock_minimo' => $this->stockMinimo ?? $this->stock_minimo ?? 0,
             'activo' => $this->activo,
+            'categoria' => $this->categoria,
+            'proveedor' => $this->proveedor,
         ]);
     }
 
@@ -33,8 +36,11 @@ class StoreProductoRequest extends FormRequest
             'nombre' => 'required|string|max:255',
             'descripcion' => 'required|string|max:255',
             'precio' => 'required|numeric',
-            'stock' => 'required|integer',
-            'activo' => 'required|boolean'
+            'stock' => 'required|integer|min:0',
+            'stock_minimo' => 'sometimes|integer|min:0',
+            'activo' => 'required|boolean',
+            'categoria' => 'nullable|string|max:255',
+            'proveedor' => 'nullable|string|max:255',
         ];
     }
 

@@ -64,6 +64,7 @@ const destroy = (id: string) => {
                   </UBadge>
                 </td>
                 <td class="py-3 flex gap-2">
+                  <UButton size="xs" variant="ghost" icon="i-lucide-history" :to="route('historial.vehiculo', item.id)" />
                   <UButton size="xs" variant="ghost" icon="i-lucide-pencil" :to="route('vehiculos.edit', item.id)" />
                   <UButton size="xs" color="error" variant="ghost" icon="i-lucide-trash" @click="destroy(item.id)" />
                 </td>

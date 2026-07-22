@@ -40,8 +40,20 @@ class UpdateProductoRequest extends FormRequest
             $data['activo'] = $this->activo;
         }
 
-        if ($this->has('tipo_producto')) {
-            $data['tipo_producto'] = $this->tipoProducto;
+        if ($this->has('tipoProducto') || $this->has('tipo_producto')) {
+            $data['tipo_producto'] = $this->tipoProducto ?? $this->tipo_producto;
+        }
+
+        if ($this->has('stockMinimo') || $this->has('stock_minimo')) {
+            $data['stock_minimo'] = $this->stockMinimo ?? $this->stock_minimo;
+        }
+
+        if ($this->has('categoria')) {
+            $data['categoria'] = $this->categoria;
+        }
+
+        if ($this->has('proveedor')) {
+            $data['proveedor'] = $this->proveedor;
         }
 
         $this->merge($data);
@@ -58,8 +70,11 @@ class UpdateProductoRequest extends FormRequest
             'nombre' => 'sometimes|string|max:255',
             'descripcion' => 'sometimes|string|max:255',
             'precio' => 'sometimes|numeric',
-            'stock' => 'sometimes|integer',
-            'activo' => 'sometimes|boolean'
+            'stock' => 'sometimes|integer|min:0',
+            'stock_minimo' => 'sometimes|integer|min:0',
+            'activo' => 'sometimes|boolean',
+            'categoria' => 'nullable|string|max:255',
+            'proveedor' => 'nullable|string|max:255',
         ];
     }
 

@@ -35,4 +35,12 @@ return [
         ],
     ],
 
+    'groq' => [
+        'key' => env('GROQ_API_KEY'),
+        'url' => env('GROQ_API_URL', 'https://api.groq.com/openai/v1'),
+        'model' => env('GROQ_MODEL', 'llama-3.3-70b-versatile'),
+        'mock' => filter_var(env('GROQ_MOCK', true), FILTER_VALIDATE_BOOLEAN),
+        'ssl_verify' => filter_var(env('GROQ_SSL_VERIFY', true), FILTER_VALIDATE_BOOLEAN),
+    ],
+
 ];

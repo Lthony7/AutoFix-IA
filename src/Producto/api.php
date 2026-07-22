@@ -3,7 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use Src\Producto\Application\Controllers\ProductoController;
 
-Route::middleware('auth:sanctum')->group(function () {
+Route::middleware(['auth:sanctum', 'role:administrador,recepcionista'])->group(function () {
     Route::apiResource('productos', ProductoController::class)->names([
         'index' => 'api.productos.index',
         'store' => 'api.productos.store',
