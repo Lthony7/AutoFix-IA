@@ -44,9 +44,10 @@ const links = computed(() => {
       item('Servicios', 'i-lucide-cog', '/servicios', 'servicios.index'),
       item('Repuestos', 'i-lucide-package', '/repuestos', 'repuestos.index'),
       item('Órdenes', 'i-lucide-clipboard-list', '/ordenes', 'ordenes.index'),
-      item('Diagnóstico IA', 'i-lucide-brain', '/diagnosticos-ia/create', 'diagnosticos-ia.create'),
+      item('Diagnóstico IA', 'i-lucide-brain', '/diagnosticos-ia', 'diagnosticos-ia.index'),
       item('Facturas', 'i-lucide-file-text', '/facturas', 'facturas.index'),
       item('Pagos', 'i-lucide-wallet', '/pagos', 'pagos.index'),
+      item('Historial', 'i-lucide-history', '/historial', 'historial.index'),
       item('Reportes', 'i-lucide-bar-chart-3', '/reportes', 'reportes.index'),
       item('Usuarios', 'i-lucide-shield-user', '/usuarios', 'usuarios.index')
     )
@@ -57,16 +58,16 @@ const links = computed(() => {
       item('Servicios', 'i-lucide-cog', '/servicios', 'servicios.index'),
       item('Repuestos', 'i-lucide-package', '/repuestos', 'repuestos.index'),
       item('Órdenes', 'i-lucide-clipboard-list', '/ordenes', 'ordenes.index'),
-      item('Diagnóstico IA', 'i-lucide-brain', '/diagnosticos-ia/create', 'diagnosticos-ia.create'),
+      item('Diagnóstico IA', 'i-lucide-brain', '/diagnosticos-ia', 'diagnosticos-ia.index'),
       item('Facturas', 'i-lucide-file-text', '/facturas', 'facturas.index'),
       item('Pagos', 'i-lucide-wallet', '/pagos', 'pagos.index'),
-      item('Historial', 'i-lucide-history', '/vehiculos', 'vehiculos.index'),
+      item('Historial', 'i-lucide-history', '/historial', 'historial.index'),
       item('Reportes', 'i-lucide-bar-chart-3', '/reportes', 'reportes.index')
     )
   } else if (role.value === 'mecanico') {
     items.push(
       item('Órdenes', 'i-lucide-clipboard-list', '/ordenes', 'ordenes.index'),
-      item('Diagnóstico IA', 'i-lucide-brain', '/diagnosticos-ia/create', 'diagnosticos-ia.create')
+      item('Diagnóstico IA', 'i-lucide-brain', '/diagnosticos-ia', 'diagnosticos-ia.index')
     )
   } else if (role.value === 'cliente') {
     items.push(

@@ -23,6 +23,33 @@ class DiagnosticoIaWebController extends Controller
     ) {
     }
 
+    public function index(): Response
+    {
+        $diagnosticos = DiagnosticoIaEloquentModel::with(['ordenTrabajo.cliente', 'ordenTrabajo.vehiculo'])
+            ->orderByDesc('created_at')
+            ->get()
+            ->map(fn (DiagnosticoIaEloquentModel $d) => [
+                'id' => $d->id,
+                'ordenTrabajoId' => $d->orden_trabajo_id,
+                'ordenNumero' => $d->ordenTrabajo?->numero,
+                'clienteNombre' => $d->ordenTrabajo?->cliente?->razon_social,
+                'vehiculoPlaca' => $d->ordenTrabajo?->vehiculo?->placa,
+                'prioridad' => $d->prioridad,
+                'servicioRecomendado' => $d->servicio_recomendado,
+                'estado' => $d->estado?->value ?? $d->estado,
+                'estadoLabel' => $d->estado?->label(),
+                'esSimulado' => $d->es_simulado,
+                'createdAt' => $d->created_at?->format('Y-m-d H:i:s'),
+            ])->toArray();
+
+        return Inertia::render('DiagnosticoIA/index', [
+            'diagnosticos' => [
+                'data' => $diagnosticos,
+                'meta' => ['total' => count($diagnosticos)],
+            ],
+        ]);
+    }
+
     public function create(Request $request): Response
     {
         $ordenId = $request->query('ordenTrabajoId');

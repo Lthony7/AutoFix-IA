@@ -8,6 +8,8 @@ use Illuminate\Validation\Rule;
 
 class UpdateOrdenTrabajoRequest extends FormRequest
 {
+    use ValidatesRepuestoStock;
+
     public function authorize(): bool
     {
         return true;
@@ -47,5 +49,10 @@ class UpdateOrdenTrabajoRequest extends FormRequest
             'repuestos.*.cantidad' => 'required_with:repuestos|integer|min:1',
             'repuestos.*.precioUnitario' => 'required_with:repuestos|numeric|min:0',
         ];
+    }
+
+    public function withValidator($validator): void
+    {
+        $validator->after(fn ($v) => $this->validateRepuestoStock($v));
     }
 }

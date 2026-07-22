@@ -4,6 +4,8 @@ namespace Src\OrdenTrabajo\Application\Controllers;
 
 use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
+use App\Services\OrdenEstadoNotifier;
+use App\Services\OrdenRepuestoStockService;
 use Exception;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -12,7 +14,6 @@ use Inertia\Inertia;
 use Inertia\Response;
 use Src\Cliente\Infrastructure\Models\ClienteEloquentModel;
 use Src\Mecanico\Infrastructure\Models\MecanicoEloquentModel;
-use Src\OrdenTrabajo\Infrastructure\Models\OrdenRepuestoEloquentModel;
 use Src\OrdenTrabajo\Infrastructure\Models\OrdenServicioEloquentModel;
 use Src\OrdenTrabajo\Infrastructure\Models\OrdenTrabajoEloquentModel;
 use Src\OrdenTrabajo\Infrastructure\Requests\AsignarMecanicoRequest;
@@ -25,6 +26,11 @@ use Src\Vehiculo\Infrastructure\Models\VehiculoEloquentModel;
 
 class OrdenTrabajoWebController extends Controller
 {
+    public function __construct(
+        private readonly OrdenRepuestoStockService $stockService,
+        private readonly OrdenEstadoNotifier $estadoNotifier,
+    ) {
+    }
     public function index(Request $request): Response
     {
         $user = $request->user();
@@ -75,7 +81,7 @@ class OrdenTrabajoWebController extends Controller
                 ]));
 
                 $this->syncServicios($orden, $request->input('servicios', []));
-                $this->syncRepuestos($orden, $request->input('repuestos', []));
+                $this->stockService->aplicarNuevos($orden, $request->input('repuestos', []));
             });
 
             return redirect()->route('ordenes.index')->with('success', 'Orden de trabajo creada exitosamente');
@@ -127,8 +133,7 @@ class OrdenTrabajoWebController extends Controller
                     }
 
                     if ($repuestos !== null) {
-                        $orden->ordenRepuestos()->delete();
-                        $this->syncRepuestos($orden, $repuestos);
+                        $this->stockService->reemplazar($orden, $repuestos);
                     }
                 }
             });
@@ -141,7 +146,7 @@ class OrdenTrabajoWebController extends Controller
 
     public function destroy(Request $request, string $id): RedirectResponse
     {
-        $orden = OrdenTrabajoEloquentModel::find($id);
+        $orden = OrdenTrabajoEloquentModel::with('ordenRepuestos')->find($id);
 
         if (!$orden) {
             return redirect()->back()->with('error', 'Orden no encontrada');
@@ -151,7 +156,10 @@ class OrdenTrabajoWebController extends Controller
             abort(403, 'No tienes permiso para eliminar órdenes.');
         }
 
-        $orden->delete();
+        DB::transaction(function () use ($orden) {
+            $this->stockService->restaurar($orden);
+            $orden->delete();
+        });
 
         return redirect()->route('ordenes.index')->with('success', 'Orden eliminada exitosamente');
     }
@@ -166,8 +174,10 @@ class OrdenTrabajoWebController extends Controller
 
     public function cambiarEstado(CambiarEstadoOrdenRequest $request, string $id): RedirectResponse
     {
-        $orden = OrdenTrabajoEloquentModel::findOrFail($id);
+        $orden = OrdenTrabajoEloquentModel::with(['cliente', 'vehiculo'])->findOrFail($id);
+        $estadoAnterior = $orden->estado instanceof \BackedEnum ? $orden->estado->value : (string) $orden->estado;
         $orden->update(['estado' => $request->validated('estado')]);
+        $this->estadoNotifier->notifyIfChanged($orden->fresh(['cliente', 'vehiculo']), $estadoAnterior);
 
         return redirect()->back()->with('success', 'Estado de la orden actualizado');
     }
@@ -240,18 +250,6 @@ class OrdenTrabajoWebController extends Controller
                 'orden_trabajo_id' => $orden->id,
                 'servicio_id' => $item['servicioId'] ?? $item['servicio_id'],
                 'precio' => $item['precio'],
-            ]);
-        }
-    }
-
-    private function syncRepuestos(OrdenTrabajoEloquentModel $orden, array $repuestos): void
-    {
-        foreach ($repuestos as $item) {
-            OrdenRepuestoEloquentModel::create([
-                'orden_trabajo_id' => $orden->id,
-                'producto_id' => $item['productoId'] ?? $item['producto_id'],
-                'cantidad' => $item['cantidad'],
-                'precio_unitario' => $item['precioUnitario'] ?? $item['precio_unitario'],
             ]);
         }
     }

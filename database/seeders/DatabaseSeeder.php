@@ -13,6 +13,7 @@ class DatabaseSeeder extends Seeder
     {
         $this->call([
             AutofixWeek1Seeder::class,
+            AutofixDemoSeeder::class,
         ]);
     }
 }

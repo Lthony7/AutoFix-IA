@@ -3,8 +3,9 @@
 namespace Src\OrdenTrabajo\Application\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Services\OrdenEstadoNotifier;
+use App\Services\OrdenRepuestoStockService;
 use Illuminate\Support\Facades\DB;
-use Src\OrdenTrabajo\Infrastructure\Models\OrdenRepuestoEloquentModel;
 use Src\OrdenTrabajo\Infrastructure\Models\OrdenServicioEloquentModel;
 use Src\OrdenTrabajo\Infrastructure\Models\OrdenTrabajoEloquentModel;
 use Src\OrdenTrabajo\Infrastructure\Requests\AsignarMecanicoRequest;
@@ -15,6 +16,12 @@ use Src\OrdenTrabajo\Infrastructure\Resources\OrdenTrabajoResource;
 
 class OrdenTrabajoController extends Controller
 {
+    public function __construct(
+        private readonly OrdenRepuestoStockService $stockService,
+        private readonly OrdenEstadoNotifier $estadoNotifier,
+    ) {
+    }
+
     public function index()
     {
         $ordenes = OrdenTrabajoEloquentModel::with(['cliente', 'vehiculo', 'mecanico'])
@@ -35,7 +42,7 @@ class OrdenTrabajoController extends Controller
             ]));
 
             $this->syncServicios($orden, $request->input('servicios', []));
-            $this->syncRepuestos($orden, $request->input('repuestos', []));
+            $this->stockService->aplicarNuevos($orden, $request->input('repuestos', []));
 
             return $orden;
         });
@@ -82,8 +89,7 @@ class OrdenTrabajoController extends Controller
             }
 
             if ($repuestos !== null) {
-                $orden->ordenRepuestos()->delete();
-                $this->syncRepuestos($orden, $repuestos);
+                $this->stockService->reemplazar($orden, $repuestos);
             }
         });
 
@@ -94,13 +100,16 @@ class OrdenTrabajoController extends Controller
 
     public function destroy(string $id)
     {
-        $orden = OrdenTrabajoEloquentModel::find($id);
+        $orden = OrdenTrabajoEloquentModel::with('ordenRepuestos')->find($id);
 
         if (!$orden) {
             return response()->json(['success' => false, 'message' => 'Orden no encontrada'], 404);
         }
 
-        $orden->delete();
+        DB::transaction(function () use ($orden) {
+            $this->stockService->restaurar($orden);
+            $orden->delete();
+        });
 
         return response()->json(['success' => true, 'message' => 'Orden eliminada exitosamente'], 200);
     }
@@ -121,13 +130,15 @@ class OrdenTrabajoController extends Controller
 
     public function cambiarEstado(CambiarEstadoOrdenRequest $request, string $id)
     {
-        $orden = OrdenTrabajoEloquentModel::find($id);
+        $orden = OrdenTrabajoEloquentModel::with(['cliente', 'vehiculo'])->find($id);
 
         if (!$orden) {
             return response()->json(['success' => false, 'message' => 'Orden no encontrada'], 404);
         }
 
+        $estadoAnterior = $orden->estado instanceof \BackedEnum ? $orden->estado->value : (string) $orden->estado;
         $orden->update(['estado' => $request->validated('estado')]);
+        $this->estadoNotifier->notifyIfChanged($orden->fresh(['cliente', 'vehiculo']), $estadoAnterior);
 
         return new OrdenTrabajoResource($orden);
     }
@@ -139,18 +150,6 @@ class OrdenTrabajoController extends Controller
                 'orden_trabajo_id' => $orden->id,
                 'servicio_id' => $item['servicioId'] ?? $item['servicio_id'],
                 'precio' => $item['precio'],
-            ]);
-        }
-    }
-
-    private function syncRepuestos(OrdenTrabajoEloquentModel $orden, array $repuestos): void
-    {
-        foreach ($repuestos as $item) {
-            OrdenRepuestoEloquentModel::create([
-                'orden_trabajo_id' => $orden->id,
-                'producto_id' => $item['productoId'] ?? $item['producto_id'],
-                'cantidad' => $item['cantidad'],
-                'precio_unitario' => $item['precioUnitario'] ?? $item['precio_unitario'],
             ]);
         }
     }

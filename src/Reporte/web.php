@@ -7,6 +7,7 @@ use Src\Reporte\Application\Controllers\ReporteWebController;
 
 Route::middleware(['auth', 'role:administrador,recepcionista'])->group(function () {
     Route::get('reportes', [ReporteWebController::class, 'index'])->name('reportes.index');
+    Route::get('historial', [HistorialWebController::class, 'index'])->name('historial.index');
     Route::get('historial/vehiculos/{vehiculoId}', [HistorialWebController::class, 'show'])->name('historial.vehiculo');
 });
 

@@ -53,7 +53,7 @@ const estadoColor = (estado: string) => {
           <UDashboardSidebarCollapse />
         </template>
         <template #right>
-          <UButton variant="ghost" icon="i-lucide-arrow-left" label="Vehículos" :to="route('vehiculos.index')" />
+          <UButton variant="ghost" icon="i-lucide-arrow-left" label="Historial" :to="route('historial.index')" />
         </template>
       </UDashboardNavbar>
     </template>

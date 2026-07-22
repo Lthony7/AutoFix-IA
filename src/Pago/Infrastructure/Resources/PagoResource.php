@@ -12,6 +12,7 @@ class PagoResource extends JsonResource
         return [
             'id' => $this->id,
             'ordenTrabajoId' => $this->orden_trabajo_id,
+            'facturaId' => $this->factura_id,
             'valorServicios' => (float) $this->valor_servicios,
             'valorRepuestos' => (float) $this->valor_repuestos,
             'descuento' => (float) $this->descuento,
