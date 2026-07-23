@@ -50,7 +50,7 @@ const estadoColor = (estado: string) => {
 </script>
 
 <template>
-  <UDashboardPanel id="factura-show">
+  <AppDashboardPanel id="factura-show">
     <template #header>
       <UDashboardNavbar :title="`Factura ${factura.numero}`">
         <template #leading>
@@ -143,5 +143,5 @@ const estadoColor = (estado: string) => {
         </p>
       </UCard>
     </template>
-  </UDashboardPanel>
+  </AppDashboardPanel>
 </template>

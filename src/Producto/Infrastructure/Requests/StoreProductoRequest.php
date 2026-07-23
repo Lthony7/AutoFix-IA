@@ -35,9 +35,9 @@ class StoreProductoRequest extends FormRequest
             'codigo' => 'required|string|unique:productos,codigo',
             'nombre' => 'required|string|max:255',
             'descripcion' => 'required|string|max:255',
-            'precio' => 'required|numeric',
-            'stock' => 'required|integer|min:0',
-            'stock_minimo' => 'sometimes|integer|min:0',
+            'precio' => 'required|numeric|min:0|max:999999999',
+            'stock' => 'required|integer|min:0|max:999999',
+            'stock_minimo' => 'sometimes|integer|min:0|max:999999',
             'activo' => 'required|boolean',
             'categoria' => 'nullable|string|max:255',
             'proveedor' => 'nullable|string|max:255',
@@ -67,8 +67,11 @@ class StoreProductoRequest extends FormRequest
             'nombre.required' => 'El nombre es obligatorio',
             'descripcion.required' => 'La descripción es obligatoria',
             'precio.required' => 'El precio es obligatorio',
+            'precio.min' => 'El precio no puede ser negativo',
             'stock.required' => 'El stock es obligatorio',
-            'activo.required' => 'El estado activo es obligatorio'
+            'stock.min' => 'El stock no puede ser negativo',
+            'activo.required' => 'El estado activo es obligatorio',
         ];
     }
 }
+

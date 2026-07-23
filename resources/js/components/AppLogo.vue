@@ -2,9 +2,11 @@
 withDefaults(defineProps<{
   size?: 'sm' | 'md' | 'lg' | 'xl'
   showText?: boolean
+  stacked?: boolean
 }>(), {
   size: 'md',
-  showText: true
+  showText: true,
+  stacked: false
 })
 
 const sizeClass = {
@@ -18,7 +20,7 @@ const titleClass = {
   sm: 'text-sm',
   md: 'text-sm',
   lg: 'text-lg',
-  xl: 'text-xl'
+  xl: 'text-2xl'
 }
 
 const subtitleClass = {
@@ -30,7 +32,10 @@ const subtitleClass = {
 </script>
 
 <template>
-  <div class="flex items-center gap-3 min-w-0">
+  <div
+    class="flex min-w-0 items-center gap-3"
+    :class="stacked ? 'flex-col text-center' : ''"
+  >
     <img
       src="/logo.png"
       alt="AUTOFIX IA"
@@ -38,7 +43,11 @@ const subtitleClass = {
       :class="sizeClass[size]"
     >
 
-    <div v-if="showText" class="min-w-0 text-left">
+    <div
+      v-if="showText"
+      class="min-w-0"
+      :class="stacked ? 'text-center' : 'text-left'"
+    >
       <p class="truncate font-semibold tracking-tight leading-tight" :class="titleClass[size]">
         AUTOFIX <span class="text-emerald-700 dark:text-emerald-400">IA</span>
       </p>

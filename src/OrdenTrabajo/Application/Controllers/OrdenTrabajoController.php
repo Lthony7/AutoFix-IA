@@ -2,6 +2,7 @@
 
 namespace Src\OrdenTrabajo\Application\Controllers;
 
+use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
 use App\Services\OrdenEstadoNotifier;
 use App\Services\OrdenRepuestoStockService;
@@ -39,6 +40,8 @@ class OrdenTrabajoController extends Controller
 
             $orden = OrdenTrabajoEloquentModel::create(array_merge($data, [
                 'numero' => OrdenTrabajoEloquentModel::generarNumero(),
+                'created_by' => $request->user()?->id,
+                'updated_by' => $request->user()?->id,
             ]));
 
             $this->syncServicios($orden, $request->input('servicios', []));
@@ -78,6 +81,12 @@ class OrdenTrabajoController extends Controller
             $servicios = $data['servicios'] ?? null;
             $repuestos = $data['repuestos'] ?? null;
             unset($data['servicios'], $data['repuestos']);
+
+            if ($request->user()?->hasRole(UserRole::Recepcionista)) {
+                unset($data['diagnostico_tecnico']);
+            }
+
+            $data['updated_by'] = $request->user()?->id;
 
             if ($data !== []) {
                 $orden->update($data);
@@ -122,7 +131,10 @@ class OrdenTrabajoController extends Controller
             return response()->json(['success' => false, 'message' => 'Orden no encontrada'], 404);
         }
 
-        $orden->update(['mecanico_id' => $request->validated('mecanico_id')]);
+        $orden->update([
+            'mecanico_id' => $request->validated('mecanico_id'),
+            'updated_by' => $request->user()?->id,
+        ]);
         $orden->load(['mecanico']);
 
         return new OrdenTrabajoResource($orden);
@@ -137,7 +149,10 @@ class OrdenTrabajoController extends Controller
         }
 
         $estadoAnterior = $orden->estado instanceof \BackedEnum ? $orden->estado->value : (string) $orden->estado;
-        $orden->update(['estado' => $request->validated('estado')]);
+        $orden->update([
+            'estado' => $request->validated('estado'),
+            'updated_by' => $request->user()?->id,
+        ]);
         $this->estadoNotifier->notifyIfChanged($orden->fresh(['cliente', 'vehiculo']), $estadoAnterior);
 
         return new OrdenTrabajoResource($orden);

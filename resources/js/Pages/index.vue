@@ -25,7 +25,7 @@ const period = ref<Period>('daily')
 </script>
 
 <template>
-  <UDashboardPanel id="home">
+  <AppDashboardPanel id="home">
     <template #header>
       <UDashboardNavbar title="Home" :ui="{ right: 'gap-3' }">
         <template #leading>
@@ -67,5 +67,5 @@ const period = ref<Period>('daily')
       <HomeChart :period="period" :range="range" />
       <HomeSales :period="period" :range="range" />
     </template>
-  </UDashboardPanel>
+  </AppDashboardPanel>
 </template>

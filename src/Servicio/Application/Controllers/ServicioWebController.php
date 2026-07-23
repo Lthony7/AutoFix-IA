@@ -3,6 +3,7 @@
 namespace Src\Servicio\Application\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Support\InertiaTablePaginator;
 use Exception;
 use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
@@ -16,17 +17,14 @@ class ServicioWebController extends Controller
 {
     public function index(): Response
     {
-        $servicios = ServicioEloquentModel::orderBy('nombre')->get();
-
-        $data = $servicios->map(
-            fn ($model) => ServicioMapper::toDomain($model)->toArray()
-        )->toArray();
+        $paginator = ServicioEloquentModel::query()
+            ->orderBy('nombre')
+            ->paginate(InertiaTablePaginator::PER_PAGE)
+            ->withQueryString()
+            ->through(fn ($model) => ServicioMapper::toDomain($model)->toArray());
 
         return Inertia::render('Servicio/index', [
-            'servicios' => [
-                'data' => $data,
-                'meta' => ['total' => count($data)],
-            ],
+            'servicios' => InertiaTablePaginator::make($paginator),
         ]);
     }
 

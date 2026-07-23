@@ -8,6 +8,8 @@ interface Stats {
   ordenesPorEstado: { estado: string, label: string, total: number }[]
   ingresosPorFecha: { fecha: string, total: number }[]
   serviciosTop: { nombre: string, total: number, ingresos: number }[]
+  repuestosTop: { nombre: string, cantidad: number, ordenes: number, ingresos: number }[]
+  vehiculosPorCliente: { cliente: string, vehiculos: number, ordenes: number }[]
   sugerenciasIa: { estado: string, label: string, total: number }[]
   sugerenciasIaResumen: { simulados: number, reales: number, total: number }
 }
@@ -20,7 +22,7 @@ const formatMoney = (value: number) =>
 </script>
 
 <template>
-  <UDashboardPanel id="reportes">
+  <AppDashboardPanel id="reportes">
     <template #header>
       <UDashboardNavbar title="Reportes">
         <template #leading>
@@ -175,7 +177,75 @@ const formatMoney = (value: number) =>
             </table>
           </div>
         </UCard>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <UCard>
+            <h3 class="font-semibold mb-4 flex items-center gap-2">
+              <UIcon name="i-lucide-package" class="size-4" />
+              Repuestos más usados
+            </h3>
+            <div class="overflow-x-auto">
+              <table class="w-full text-sm">
+                <thead>
+                  <tr class="text-left border-b border-default">
+                    <th class="py-2 pr-3">Repuesto</th>
+                    <th class="py-2 pr-3">Cantidad</th>
+                    <th class="py-2 pr-3">Órdenes</th>
+                    <th class="py-2">Ingresos</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr
+                    v-for="row in stats?.repuestosTop || []"
+                    :key="row.nombre"
+                    class="border-b border-default/60"
+                  >
+                    <td class="py-2 pr-3">{{ row.nombre }}</td>
+                    <td class="py-2 pr-3">{{ row.cantidad }}</td>
+                    <td class="py-2 pr-3">{{ row.ordenes }}</td>
+                    <td class="py-2 font-medium">{{ formatMoney(row.ingresos) }}</td>
+                  </tr>
+                  <tr v-if="!(stats?.repuestosTop?.length)">
+                    <td colspan="4" class="py-4 text-muted text-center">Sin datos</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </UCard>
+
+          <UCard>
+            <h3 class="font-semibold mb-4 flex items-center gap-2">
+              <UIcon name="i-lucide-users" class="size-4" />
+              Vehículos atendidos por cliente
+            </h3>
+            <div class="overflow-x-auto">
+              <table class="w-full text-sm">
+                <thead>
+                  <tr class="text-left border-b border-default">
+                    <th class="py-2 pr-3">Cliente</th>
+                    <th class="py-2 pr-3">Vehículos</th>
+                    <th class="py-2">Órdenes</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr
+                    v-for="row in stats?.vehiculosPorCliente || []"
+                    :key="row.cliente"
+                    class="border-b border-default/60"
+                  >
+                    <td class="py-2 pr-3">{{ row.cliente }}</td>
+                    <td class="py-2 pr-3">{{ row.vehiculos }}</td>
+                    <td class="py-2 font-medium">{{ row.ordenes }}</td>
+                  </tr>
+                  <tr v-if="!(stats?.vehiculosPorCliente?.length)">
+                    <td colspan="3" class="py-4 text-muted text-center">Sin datos</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </UCard>
+        </div>
       </div>
     </template>
-  </UDashboardPanel>
+  </AppDashboardPanel>
 </template>

@@ -3,6 +3,7 @@
 namespace Src\Vehiculo\Application\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Support\InertiaTablePaginator;
 use Exception;
 use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
@@ -17,17 +18,14 @@ class VehiculoWebController extends Controller
 {
     public function index(): Response
     {
-        $vehiculos = VehiculoEloquentModel::with('cliente')->orderBy('placa')->get();
-
-        $data = $vehiculos->map(
-            fn ($model) => VehiculoMapper::toDomain($model)->toArray()
-        )->toArray();
+        $paginator = VehiculoEloquentModel::with('cliente')
+            ->orderBy('placa')
+            ->paginate(InertiaTablePaginator::PER_PAGE)
+            ->withQueryString()
+            ->through(fn ($model) => VehiculoMapper::toDomain($model)->toArray());
 
         return Inertia::render('Vehiculo/index', [
-            'vehiculos' => [
-                'data' => $data,
-                'meta' => ['total' => count($data)],
-            ],
+            'vehiculos' => InertiaTablePaginator::make($paginator),
         ]);
     }
 

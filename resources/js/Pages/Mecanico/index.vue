@@ -1,20 +1,21 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { router, usePage } from '@inertiajs/vue3'
 import { route } from 'ziggy-js'
+import MecanicoFichaSlideover, { type MecanicoFicha } from '../../components/MecanicoFichaSlideover.vue'
 
-interface Mecanico {
-  id: string
-  nombreCompleto: string
-  documento: string
-  especialidad: string
-  telefono?: string
-  horarioDisponible?: string
-  activo: boolean
-}
+interface Mecanico extends MecanicoFicha {}
 
 const page = usePage()
 const mecanicos = computed(() => (page.props as any).mecanicos)
+
+const fichaOpen = ref(false)
+const mecanicoFicha = ref<MecanicoFicha | null>(null)
+
+const verFicha = (item: Mecanico) => {
+  mecanicoFicha.value = item
+  fichaOpen.value = true
+}
 
 const destroy = (id: string) => {
   if (!confirm('¿Eliminar este mecánico?')) return
@@ -23,7 +24,7 @@ const destroy = (id: string) => {
 </script>
 
 <template>
-  <UDashboardPanel id="mecanicos">
+  <AppDashboardPanel id="mecanicos">
     <template #header>
       <UDashboardNavbar title="Mecánicos">
         <template #leading>
@@ -60,6 +61,7 @@ const destroy = (id: string) => {
                   </UBadge>
                 </td>
                 <td class="py-3 flex gap-2">
+                  <UButton size="xs" variant="ghost" icon="i-lucide-eye" title="Ver ficha" @click="verFicha(item)" />
                   <UButton size="xs" variant="ghost" icon="i-lucide-pencil" :to="route('mecanicos.edit', item.id)" />
                   <UButton size="xs" color="error" variant="ghost" icon="i-lucide-trash" @click="destroy(item.id)" />
                 </td>
@@ -67,7 +69,10 @@ const destroy = (id: string) => {
             </tbody>
           </table>
         </div>
+        <AppPagination :meta="mecanicos?.meta" />
       </UCard>
+
+      <MecanicoFichaSlideover v-model:open="fichaOpen" :mecanico="mecanicoFicha" />
     </template>
-  </UDashboardPanel>
+  </AppDashboardPanel>
 </template>

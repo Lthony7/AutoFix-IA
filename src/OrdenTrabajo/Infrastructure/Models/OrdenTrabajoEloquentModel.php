@@ -29,6 +29,7 @@ class OrdenTrabajoEloquentModel extends Model
         'vehiculo_id',
         'mecanico_id',
         'created_by',
+        'updated_by',
         'estado',
         'tipo_falla',
         'falla_reportada',
@@ -63,6 +64,11 @@ class OrdenTrabajoEloquentModel extends Model
     public function creator(): BelongsTo
     {
         return $this->belongsTo(UserEloquentModel::class, 'created_by');
+    }
+
+    public function updater(): BelongsTo
+    {
+        return $this->belongsTo(UserEloquentModel::class, 'updated_by');
     }
 
     public function ordenServicios(): HasMany

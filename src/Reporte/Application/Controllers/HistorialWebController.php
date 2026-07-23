@@ -3,6 +3,7 @@
 namespace Src\Reporte\Application\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Support\InertiaTablePaginator;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -31,21 +32,21 @@ class HistorialWebController extends Controller
             });
         }
 
-        $vehiculos = $query->get()->map(fn (VehiculoEloquentModel $v) => [
-            'id' => $v->id,
-            'placa' => $v->placa,
-            'marca' => $v->marca,
-            'modelo' => $v->modelo,
-            'anio' => $v->anio,
-            'clienteNombre' => $v->cliente?->razon_social,
-            'ordenesCount' => (int) $v->ordenes_trabajo_count,
-        ])->toArray();
+        $paginator = $query
+            ->paginate(InertiaTablePaginator::PER_PAGE)
+            ->withQueryString()
+            ->through(fn (VehiculoEloquentModel $v) => [
+                'id' => $v->id,
+                'placa' => $v->placa,
+                'marca' => $v->marca,
+                'modelo' => $v->modelo,
+                'anio' => $v->anio,
+                'clienteNombre' => $v->cliente?->razon_social,
+                'ordenesCount' => (int) $v->ordenes_trabajo_count,
+            ]);
 
         return Inertia::render('Historial/index', [
-            'vehiculos' => [
-                'data' => $vehiculos,
-                'meta' => ['total' => count($vehiculos)],
-            ],
+            'vehiculos' => InertiaTablePaginator::make($paginator),
             'filters' => ['q' => $busqueda],
         ]);
     }
@@ -54,11 +55,12 @@ class HistorialWebController extends Controller
     {
         $vehiculo = VehiculoEloquentModel::with('cliente')->findOrFail($vehiculoId);
 
-        $ordenes = OrdenTrabajoEloquentModel::with(['mecanico', 'pago', 'factura'])
+        $paginator = OrdenTrabajoEloquentModel::with(['mecanico', 'pago', 'factura'])
             ->where('vehiculo_id', $vehiculoId)
             ->orderByDesc('created_at')
-            ->get()
-            ->map(fn ($orden) => [
+            ->paginate(InertiaTablePaginator::PER_PAGE)
+            ->withQueryString()
+            ->through(fn ($orden) => [
                 'id' => $orden->id,
                 'numero' => $orden->numero,
                 'estado' => $orden->estado instanceof \BackedEnum ? $orden->estado->value : $orden->estado,
@@ -72,7 +74,7 @@ class HistorialWebController extends Controller
                 'totalPago' => $orden->pago ? (float) $orden->pago->total : null,
                 'facturaNumero' => $orden->factura?->numero,
                 'createdAt' => $orden->created_at?->format('Y-m-d H:i:s'),
-            ])->toArray();
+            ]);
 
         return Inertia::render('Historial/show', [
             'vehiculo' => [
@@ -83,7 +85,7 @@ class HistorialWebController extends Controller
                 'anio' => $vehiculo->anio,
                 'clienteNombre' => $vehiculo->cliente?->razon_social,
             ],
-            'ordenes' => $ordenes,
+            'ordenes' => InertiaTablePaginator::make($paginator),
         ]);
     }
 }

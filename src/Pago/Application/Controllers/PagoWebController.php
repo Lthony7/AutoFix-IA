@@ -5,6 +5,7 @@ namespace Src\Pago\Application\Controllers;
 use App\Enums\FacturaEstado;
 use App\Enums\PagoEstado;
 use App\Http\Controllers\Controller;
+use App\Support\InertiaTablePaginator;
 use Exception;
 use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
@@ -19,17 +20,14 @@ class PagoWebController extends Controller
 {
     public function index(): Response
     {
-        $pagos = PagoEloquentModel::with(['ordenTrabajo.cliente', 'ordenTrabajo.vehiculo'])
+        $paginator = PagoEloquentModel::with(['ordenTrabajo.cliente', 'ordenTrabajo.vehiculo'])
             ->orderByDesc('created_at')
-            ->get()
-            ->map(fn (PagoEloquentModel $p) => $this->mapPago($p))
-            ->toArray();
+            ->paginate(InertiaTablePaginator::PER_PAGE)
+            ->withQueryString()
+            ->through(fn (PagoEloquentModel $p) => $this->mapPago($p));
 
         return Inertia::render('Pago/index', [
-            'pagos' => [
-                'data' => $pagos,
-                'meta' => ['total' => count($pagos)],
-            ],
+            'pagos' => InertiaTablePaginator::make($paginator),
         ]);
     }
 
@@ -181,13 +179,33 @@ class PagoWebController extends Controller
 
     private function ordenesSinPagoOptions(): array
     {
-        return OrdenTrabajoEloquentModel::with(['cliente', 'vehiculo'])
+        return OrdenTrabajoEloquentModel::with([
+            'cliente',
+            'vehiculo',
+            'ordenServicios',
+            'ordenRepuestos',
+            'factura',
+        ])
             ->whereDoesntHave('pago')
             ->orderByDesc('created_at')
             ->get()
-            ->map(fn ($o) => [
-                'id' => $o->id,
-                'label' => $o->numero . ' — ' . ($o->vehiculo?->placa ?? '') . ' (' . ($o->cliente?->razon_social ?? '') . ')',
-            ])->values()->toArray();
+            ->map(function ($o) {
+                $calculado = PagoEloquentModel::calcularDesdeOrden($o);
+                $descuento = (float) ($o->factura?->descuento ?? 0);
+                $total = $o->factura
+                    ? (float) $o->factura->total
+                    : max(0, $calculado['valor_servicios'] + $calculado['valor_repuestos'] - $descuento);
+
+                return [
+                    'id' => $o->id,
+                    'label' => $o->numero . ' — ' . ($o->vehiculo?->placa ?? '') . ' (' . ($o->cliente?->razon_social ?? '') . ')',
+                    'valorServicios' => $calculado['valor_servicios'],
+                    'valorRepuestos' => $calculado['valor_repuestos'],
+                    'descuento' => $descuento,
+                    'total' => round($total, 2),
+                    'tieneFactura' => (bool) $o->factura,
+                    'facturaNumero' => $o->factura?->numero,
+                ];
+            })->values()->toArray();
     }
 }

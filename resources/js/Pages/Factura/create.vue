@@ -97,7 +97,7 @@ const handleSubmit = () => {
 </script>
 
 <template>
-  <UDashboardPanel id="factura-create">
+  <AppDashboardPanel id="factura-create">
     <template #header>
       <UDashboardNavbar title="Generar factura">
         <template #leading>
@@ -182,5 +182,5 @@ const handleSubmit = () => {
         </UCard>
       </div>
     </template>
-  </UDashboardPanel>
+  </AppDashboardPanel>
 </template>

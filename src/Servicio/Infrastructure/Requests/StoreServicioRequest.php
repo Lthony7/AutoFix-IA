@@ -26,7 +26,7 @@ class StoreServicioRequest extends FormRequest
         return [
             'nombre' => 'required|string|max:255|unique:servicios,nombre',
             'descripcion' => 'nullable|string',
-            'precio_base' => 'required|numeric|min:0',
+            'precio_base' => 'required|numeric|min:0|max:999999999',
             'activo' => 'sometimes|boolean',
         ];
     }
@@ -40,4 +40,15 @@ class StoreServicioRequest extends FormRequest
             'activo' => 'activo',
         ];
     }
+
+    public function messages(): array
+    {
+        return [
+            'nombre.required' => 'El nombre del servicio es obligatorio',
+            'nombre.unique' => 'Ya existe un servicio con ese nombre',
+            'precio_base.required' => 'El precio base es obligatorio',
+            'precio_base.min' => 'El precio base no puede ser negativo',
+        ];
+    }
 }
+

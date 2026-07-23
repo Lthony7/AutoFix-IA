@@ -7,6 +7,12 @@ import FormField from '../../components/FormField.vue'
 interface OrdenOption {
   id: string
   label: string
+  valorServicios: number
+  valorRepuestos: number
+  descuento: number
+  total: number
+  tieneFactura: boolean
+  facturaNumero: string | null
 }
 
 const page = usePage()
@@ -36,6 +42,7 @@ const metodoItems = [
 ]
 
 const isLoading = ref(false)
+const aplicandoDesdeOrden = ref(false)
 const state = reactive({
   ordenTrabajoId: '',
   valorServicios: 0,
@@ -46,10 +53,44 @@ const state = reactive({
   metodoPago: ''
 })
 
+const ordenSeleccionada = computed(() =>
+  ordenes.value.find(o => o.id === state.ordenTrabajoId) || null
+)
+
+const formatMoney = (value: number) =>
+  new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(value || 0)
+
+watch(
+  () => state.ordenTrabajoId,
+  (ordenId) => {
+    const orden = ordenes.value.find(o => o.id === ordenId)
+    if (!orden) {
+      state.valorServicios = 0
+      state.valorRepuestos = 0
+      state.descuento = 0
+      state.total = 0
+      return
+    }
+
+    aplicandoDesdeOrden.value = true
+    state.valorServicios = orden.valorServicios
+    state.valorRepuestos = orden.valorRepuestos
+    state.descuento = orden.descuento
+    state.total = orden.total
+    queueMicrotask(() => {
+      aplicandoDesdeOrden.value = false
+    })
+  }
+)
+
 watch(
   () => [state.valorServicios, state.valorRepuestos, state.descuento],
   () => {
-    state.total = Math.max(0, state.valorServicios + state.valorRepuestos - state.descuento)
+    if (aplicandoDesdeOrden.value) return
+    state.total = Math.max(
+      0,
+      Number(state.valorServicios || 0) + Number(state.valorRepuestos || 0) - Number(state.descuento || 0)
+    )
   }
 )
 
@@ -64,7 +105,7 @@ const handleSubmit = () => {
 </script>
 
 <template>
-  <UDashboardPanel id="pago-create">
+  <AppDashboardPanel id="pago-create">
     <template #header>
       <UDashboardNavbar title="Registrar pago">
         <template #leading>
@@ -83,6 +124,19 @@ const handleSubmit = () => {
               class="w-full"
             />
           </FormField>
+
+          <UAlert
+            v-if="ordenSeleccionada"
+            class="md:col-span-2"
+            color="info"
+            variant="subtle"
+            icon="i-lucide-calculator"
+            :title="ordenSeleccionada.tieneFactura
+              ? `Valores tomados de la factura ${ordenSeleccionada.facturaNumero || ''}`
+              : 'Valores calculados desde servicios y repuestos de la OT'"
+            :description="`Servicios ${formatMoney(ordenSeleccionada.valorServicios)} · Repuestos ${formatMoney(ordenSeleccionada.valorRepuestos)} · Total ${formatMoney(ordenSeleccionada.total)}`"
+          />
+
           <FormField label="Valor servicios" name="valorServicios" :error="errors.valorServicios">
             <UInput v-model.number="state.valorServicios" type="number" min="0" step="0.01" class="w-full" />
           </FormField>
@@ -113,5 +167,5 @@ const handleSubmit = () => {
         </form>
       </UCard>
     </template>
-  </UDashboardPanel>
+  </AppDashboardPanel>
 </template>

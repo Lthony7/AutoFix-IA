@@ -3,6 +3,7 @@
 namespace Src\Reporte\Application\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Support\InertiaTablePaginator;
 use Inertia\Inertia;
 use Inertia\Response;
 use Src\Cliente\Infrastructure\Models\ClienteEloquentModel;
@@ -15,10 +16,11 @@ class PortalClienteWebController extends Controller
     {
         $clienteIds = $this->clienteIdsDelUsuario();
 
-        $vehiculos = VehiculoEloquentModel::whereIn('cliente_id', $clienteIds)
+        $paginator = VehiculoEloquentModel::whereIn('cliente_id', $clienteIds)
             ->orderBy('placa')
-            ->get()
-            ->map(fn ($v) => [
+            ->paginate(InertiaTablePaginator::PER_PAGE)
+            ->withQueryString()
+            ->through(fn ($v) => [
                 'id' => $v->id,
                 'placa' => $v->placa,
                 'marca' => $v->marca,
@@ -27,10 +29,10 @@ class PortalClienteWebController extends Controller
                 'color' => $v->color,
                 'kilometraje' => $v->kilometraje,
                 'activo' => (bool) $v->activo,
-            ])->toArray();
+            ]);
 
         return Inertia::render('PortalCliente/vehiculos', [
-            'vehiculos' => $vehiculos,
+            'vehiculos' => InertiaTablePaginator::make($paginator),
         ]);
     }
 
@@ -38,11 +40,12 @@ class PortalClienteWebController extends Controller
     {
         $clienteIds = $this->clienteIdsDelUsuario();
 
-        $ordenes = OrdenTrabajoEloquentModel::with(['vehiculo', 'pago'])
+        $paginator = OrdenTrabajoEloquentModel::with(['vehiculo', 'pago'])
             ->whereIn('cliente_id', $clienteIds)
             ->orderByDesc('created_at')
-            ->get()
-            ->map(fn ($orden) => [
+            ->paginate(InertiaTablePaginator::PER_PAGE)
+            ->withQueryString()
+            ->through(fn ($orden) => [
                 'id' => $orden->id,
                 'numero' => $orden->numero,
                 'estado' => $orden->estado instanceof \BackedEnum ? $orden->estado->value : $orden->estado,
@@ -52,10 +55,10 @@ class PortalClienteWebController extends Controller
                 'prioridad' => $orden->prioridad,
                 'totalPago' => $orden->pago ? (float) $orden->pago->total : null,
                 'createdAt' => $orden->created_at?->format('Y-m-d H:i:s'),
-            ])->toArray();
+            ]);
 
         return Inertia::render('PortalCliente/ordenes', [
-            'ordenes' => $ordenes,
+            'ordenes' => InertiaTablePaginator::make($paginator),
         ]);
     }
 

@@ -51,7 +51,7 @@ const puedeRevisar = computed(() =>
 </script>
 
 <template>
-  <UDashboardPanel id="diagnostico-ia-show">
+  <AppDashboardPanel id="diagnostico-ia-show">
     <template #header>
       <UDashboardNavbar :title="`Diagnóstico IA — ${diagnostico.orden.numero}`">
         <template #leading>
@@ -73,6 +73,7 @@ const puedeRevisar = computed(() =>
           color="warning"
           variant="subtle"
           icon="i-lucide-triangle-alert"
+          title="Aviso importante"
           description="La información generada por Inteligencia Artificial es únicamente una sugerencia inicial. El diagnóstico final debe ser realizado y confirmado por un mecánico autorizado."
         />
 
@@ -146,5 +147,5 @@ const puedeRevisar = computed(() =>
         </div>
       </div>
     </template>
-  </UDashboardPanel>
+  </AppDashboardPanel>
 </template>

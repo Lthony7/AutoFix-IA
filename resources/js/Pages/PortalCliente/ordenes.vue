@@ -15,7 +15,8 @@ interface Orden {
 }
 
 const page = usePage()
-const ordenes = computed(() => ((page.props as any).ordenes || []) as Orden[])
+const ordenes = computed(() => (page.props as any).ordenes)
+const rows = computed(() => (ordenes.value?.data || []) as Orden[])
 
 const formatMoney = (value: number) =>
   new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(value)
@@ -40,7 +41,7 @@ const prioridadColor = (prioridad: string | null) => {
 </script>
 
 <template>
-  <UDashboardPanel id="portal-ordenes">
+  <AppDashboardPanel id="portal-ordenes">
     <template #header>
       <UDashboardNavbar title="Mis órdenes">
         <template #leading>
@@ -66,7 +67,7 @@ const prioridadColor = (prioridad: string | null) => {
             </thead>
             <tbody>
               <tr
-                v-for="orden in ordenes"
+                v-for="orden in rows"
                 :key="orden.id"
                 class="border-b border-default/60"
               >
@@ -89,13 +90,14 @@ const prioridadColor = (prioridad: string | null) => {
                   {{ orden.totalPago != null ? formatMoney(orden.totalPago) : '—' }}
                 </td>
               </tr>
-              <tr v-if="!ordenes.length">
+              <tr v-if="!rows.length">
                 <td colspan="7" class="py-6 text-center text-muted">No tienes órdenes registradas.</td>
               </tr>
             </tbody>
           </table>
         </div>
+        <AppPagination :meta="ordenes?.meta" />
       </UCard>
     </template>
-  </UDashboardPanel>
+  </AppDashboardPanel>
 </template>

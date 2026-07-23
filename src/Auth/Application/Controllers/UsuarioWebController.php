@@ -4,6 +4,7 @@ namespace Src\Auth\Application\Controllers;
 
 use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
+use App\Support\InertiaTablePaginator;
 use Exception;
 use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
@@ -16,10 +17,11 @@ class UsuarioWebController extends Controller
 {
     public function index(): Response
     {
-        $users = UserEloquentModel::query()
+        $paginator = UserEloquentModel::query()
             ->orderBy('name')
-            ->get()
-            ->map(fn (UserEloquentModel $user) => [
+            ->paginate(InertiaTablePaginator::PER_PAGE)
+            ->withQueryString()
+            ->through(fn (UserEloquentModel $user) => [
                 'id' => $user->id,
                 'name' => $user->name,
                 'email' => $user->email,
@@ -30,10 +32,7 @@ class UsuarioWebController extends Controller
             ]);
 
         return Inertia::render('Usuario/index', [
-            'users' => [
-                'data' => $users,
-                'meta' => ['total' => $users->count()],
-            ],
+            'users' => InertiaTablePaginator::make($paginator),
             'roles' => collect(UserRole::cases())->map(fn (UserRole $role) => [
                 'value' => $role->value,
                 'label' => $role->label(),

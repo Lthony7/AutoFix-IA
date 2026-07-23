@@ -27,7 +27,7 @@ const buscar = () => {
 </script>
 
 <template>
-  <UDashboardPanel id="historial-index">
+  <AppDashboardPanel id="historial-index">
     <template #header>
       <UDashboardNavbar title="Historial de vehículos">
         <template #leading>
@@ -85,7 +85,8 @@ const buscar = () => {
             No hay vehículos que coincidan con la búsqueda.
           </p>
         </div>
+        <AppPagination :meta="vehiculos?.meta" :query="{ q: filters.q }" />
       </UCard>
     </template>
-  </UDashboardPanel>
+  </AppDashboardPanel>
 </template>

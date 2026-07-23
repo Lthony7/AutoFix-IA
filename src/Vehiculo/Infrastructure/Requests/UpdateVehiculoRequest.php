@@ -2,6 +2,7 @@
 
 namespace Src\Vehiculo\Infrastructure\Requests;
 
+use App\Support\FieldValidation;
 use Illuminate\Foundation\Http\FormRequest;
 
 class UpdateVehiculoRequest extends FormRequest
@@ -15,8 +16,26 @@ class UpdateVehiculoRequest extends FormRequest
     {
         $data = [];
 
-        if ($this->has('clienteId')) {
-            $data['cliente_id'] = $this->clienteId;
+        if ($this->has('clienteId') || $this->has('cliente_id')) {
+            $data['cliente_id'] = $this->clienteId ?? $this->cliente_id;
+        }
+
+        if ($this->has('placa')) {
+            $data['placa'] = strtoupper(trim((string) $this->placa));
+        }
+
+        if ($this->has('marca')) {
+            $data['marca'] = trim((string) $this->marca);
+        }
+
+        if ($this->has('modelo')) {
+            $data['modelo'] = trim((string) $this->modelo);
+        }
+
+        if ($this->has('color')) {
+            $data['color'] = $this->color !== null && $this->color !== ''
+                ? trim((string) $this->color)
+                : null;
         }
 
         if ($this->has('tipoCombustible')) {
@@ -36,14 +55,14 @@ class UpdateVehiculoRequest extends FormRequest
 
         return [
             'cliente_id' => 'sometimes|uuid|exists:clientes,id',
-            'placa' => 'sometimes|string|max:20|unique:vehiculos,placa,' . $vehiculoId . ',id',
-            'marca' => 'sometimes|string|max:100',
-            'modelo' => 'sometimes|string|max:100',
+            'placa' => FieldValidation::placa(false, $vehiculoId),
+            'marca' => 'sometimes|string|min:2|max:100',
+            'modelo' => 'sometimes|string|min:1|max:100',
             'anio' => 'sometimes|integer|min:1950|max:' . (date('Y') + 1),
-            'color' => 'nullable|string|max:50',
-            'kilometraje' => 'sometimes|integer|min:0',
+            'color' => ['nullable', 'string', 'max:50', 'regex:' . FieldValidation::NOMBRE_REGEX],
+            'kilometraje' => 'sometimes|integer|min:0|max:9999999',
             'tipo_combustible' => 'sometimes|string|in:gasolina,diesel,hibrido,electrico,gas',
-            'observaciones' => 'nullable|string',
+            'observaciones' => 'nullable|string|max:1000',
             'activo' => 'sometimes|boolean',
         ];
     }
@@ -56,8 +75,17 @@ class UpdateVehiculoRequest extends FormRequest
             'marca' => 'marca',
             'modelo' => 'modelo',
             'anio' => 'año',
+            'color' => 'color',
             'kilometraje' => 'kilometraje',
             'tipo_combustible' => 'tipo de combustible',
         ];
+    }
+
+    public function messages(): array
+    {
+        return array_merge(FieldValidation::messages(), [
+            'placa.unique' => 'Esta placa ya está registrada',
+            'color.regex' => 'El color solo puede contener letras',
+        ]);
     }
 }

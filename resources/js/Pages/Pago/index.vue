@@ -36,7 +36,7 @@ const destroy = (id: string) => {
 </script>
 
 <template>
-  <UDashboardPanel id="pagos">
+  <AppDashboardPanel id="pagos">
     <template #header>
       <UDashboardNavbar title="Pagos">
         <template #leading>
@@ -87,7 +87,8 @@ const destroy = (id: string) => {
             </tbody>
           </table>
         </div>
+        <AppPagination :meta="pagos?.meta" />
       </UCard>
     </template>
-  </UDashboardPanel>
+  </AppDashboardPanel>
 </template>

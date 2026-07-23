@@ -4,6 +4,7 @@ namespace Src\Mecanico\Application\Controllers;
 
 use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
+use App\Support\InertiaTablePaginator;
 use Exception;
 use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
@@ -18,17 +19,14 @@ class MecanicoWebController extends Controller
 {
     public function index(): Response
     {
-        $mecanicos = MecanicoEloquentModel::orderBy('nombres')->get();
-
-        $data = $mecanicos->map(
-            fn ($model) => MecanicoMapper::toDomain($model)->toArray()
-        )->toArray();
+        $paginator = MecanicoEloquentModel::query()
+            ->orderBy('nombres')
+            ->paginate(InertiaTablePaginator::PER_PAGE)
+            ->withQueryString()
+            ->through(fn ($model) => MecanicoMapper::toDomain($model)->toArray());
 
         return Inertia::render('Mecanico/index', [
-            'mecanicos' => [
-                'data' => $data,
-                'meta' => ['total' => count($data)],
-            ],
+            'mecanicos' => InertiaTablePaginator::make($paginator),
         ]);
     }
 

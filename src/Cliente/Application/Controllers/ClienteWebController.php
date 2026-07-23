@@ -3,6 +3,7 @@
 namespace Src\Cliente\Application\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Support\InertiaTablePaginator;
 use Exception;
 use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
@@ -16,28 +17,18 @@ class ClienteWebController extends Controller
 {
     public function index(): Response
     {
-        $clientes = ClienteEloquentModel::all();
-
-        $clientesData = $clientes->map(
-            fn ($model) => ClienteMapper::toDomain($model)->toArray()
-        )->toArray();
-
-        $active = collect($clientesData)->where('estado', true)->count();
+        $paginator = ClienteEloquentModel::query()
+            ->orderBy('razon_social')
+            ->paginate(InertiaTablePaginator::PER_PAGE)
+            ->withQueryString()
+            ->through(fn ($model) => ClienteMapper::toDomain($model)->toArray());
 
         return Inertia::render('Cliente/index', [
-            'customers' => [
-                'data' => $clientesData,
-                'links' => [],
-                'meta' => [
-                    'total' => count($clientesData),
-                    'per_page' => count($clientesData),
-                    'current_page' => 1,
-                ],
-            ],
+            'customers' => InertiaTablePaginator::make($paginator),
             'stats' => [
-                'total' => count($clientesData),
-                'active' => $active,
-                'inactive' => count($clientesData) - $active,
+                'total' => ClienteEloquentModel::count(),
+                'active' => ClienteEloquentModel::where('estado', true)->count(),
+                'inactive' => ClienteEloquentModel::where('estado', false)->count(),
             ],
         ]);
     }

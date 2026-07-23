@@ -1,13 +1,14 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use Inertia\Inertia;
 use Src\Auth\Application\Controllers\UsuarioWebController;
 use Src\Auth\Application\Controllers\WebAuthController;
 
 Route::middleware('guest')->group(function () {
     Route::get('/', function () {
-        return redirect()->route('login');
-    });
+        return Inertia::render('Welcome');
+    })->name('welcome');
 
     Route::get('/login', [WebAuthController::class, 'showLoginForm'])->name('login');
     Route::post('/login', [WebAuthController::class, 'login']);

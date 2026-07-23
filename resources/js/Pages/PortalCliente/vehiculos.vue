@@ -14,11 +14,12 @@ interface Vehiculo {
 }
 
 const page = usePage()
-const vehiculos = computed(() => ((page.props as any).vehiculos || []) as Vehiculo[])
+const vehiculos = computed(() => (page.props as any).vehiculos)
+const rows = computed(() => (vehiculos.value?.data || []) as Vehiculo[])
 </script>
 
 <template>
-  <UDashboardPanel id="portal-vehiculos">
+  <AppDashboardPanel id="portal-vehiculos">
     <template #header>
       <UDashboardNavbar title="Mis vehículos">
         <template #leading>
@@ -43,7 +44,7 @@ const vehiculos = computed(() => ((page.props as any).vehiculos || []) as Vehicu
             </thead>
             <tbody>
               <tr
-                v-for="vehiculo in vehiculos"
+                v-for="vehiculo in rows"
                 :key="vehiculo.id"
                 class="border-b border-default/60"
               >
@@ -58,13 +59,14 @@ const vehiculos = computed(() => ((page.props as any).vehiculos || []) as Vehicu
                   </UBadge>
                 </td>
               </tr>
-              <tr v-if="!vehiculos.length">
+              <tr v-if="!rows.length">
                 <td colspan="6" class="py-6 text-center text-muted">No tienes vehículos registrados.</td>
               </tr>
             </tbody>
           </table>
         </div>
+        <AppPagination :meta="vehiculos?.meta" />
       </UCard>
     </template>
-  </UDashboardPanel>
+  </AppDashboardPanel>
 </template>

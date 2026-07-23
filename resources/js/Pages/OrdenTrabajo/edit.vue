@@ -3,6 +3,7 @@ import { reactive, computed, ref, watch } from 'vue'
 import { router, usePage } from '@inertiajs/vue3'
 import { route } from 'ziggy-js'
 import FormField from '../../components/FormField.vue'
+import MecanicoFichaSlideover, { type MecanicoFicha } from '../../components/MecanicoFichaSlideover.vue'
 
 interface Option {
   id: string
@@ -10,6 +11,10 @@ interface Option {
   precioBase?: number
   precio?: number
   clienteId?: string
+}
+
+interface MecanicoOption extends MecanicoFicha {
+  label: string
 }
 
 interface OrdenServicio {
@@ -26,9 +31,10 @@ interface OrdenRepuesto {
 const page = usePage()
 const orden = (page.props as any).orden
 const soloDiagnostico = !!(page.props as any).soloDiagnostico
+const puedeEditarDiagnostico = !!(page.props as any).puedeEditarDiagnostico
 const clientes = computed(() => ((page.props as any).clientes || []) as Option[])
 const vehiculos = computed(() => ((page.props as any).vehiculos || []) as Option[])
-const mecanicos = computed(() => ((page.props as any).mecanicos || []) as Option[])
+const mecanicos = computed(() => ((page.props as any).mecanicos || []) as MecanicoOption[])
 const serviciosOpts = computed(() => ((page.props as any).servicios || []) as Option[])
 const repuestosOpts = computed(() => ((page.props as any).repuestos || []) as Option[])
 
@@ -53,7 +59,8 @@ const estadoItems = [
 
 const prioridadItems = [
   { label: 'Baja', value: 'baja' },
-  { label: 'Media', value: 'media' },
+  // ZWNJ evita que Chrome traduzca "Media" → "Medios de comunicación"
+  { label: 'Media\u200C', value: 'media' },
   { label: 'Alta', value: 'alta' }
 ]
 
@@ -78,6 +85,15 @@ const state = reactive({
   observaciones: orden.observaciones || '',
   diagnosticoTecnico: orden.diagnosticoTecnico || '',
   prioridad: orden.prioridad || 'media'
+})
+
+const fichaOpen = ref(false)
+const mecanicoSeleccionado = computed(() =>
+  mecanicos.value.find(m => m.id === state.mecanicoId) ?? null
+)
+
+watch(() => state.mecanicoId, (id) => {
+  if (id) fichaOpen.value = true
 })
 
 const vehiculosFiltrados = computed(() => {
@@ -106,6 +122,10 @@ const handleSubmit = () => {
     : { ...state }
 
   if (!soloDiagnostico) {
+    if (!puedeEditarDiagnostico) {
+      delete payload.diagnosticoTecnico
+    }
+
     if (incluirServicio.value && servicioSeleccionado.value) {
       payload.servicios = [{ servicioId: servicioSeleccionado.value, precio: servicioPrecio.value }]
     } else {
@@ -140,7 +160,7 @@ const cambiarEstado = () => {
 </script>
 
 <template>
-  <UDashboardPanel id="orden-edit">
+  <AppDashboardPanel id="orden-edit">
     <template #header>
       <UDashboardNavbar :title="`Editar orden ${orden.numero}`">
         <template #leading>
@@ -157,7 +177,17 @@ const cambiarEstado = () => {
       </UDashboardNavbar>
     </template>
     <template #body>
-      <UCard class="max-w-4xl">
+      <div class="space-y-4 max-w-4xl">
+        <UAlert
+          v-if="orden.updatedByNombre || orden.createdByNombre"
+          color="neutral"
+          variant="subtle"
+          icon="i-lucide-user-pen"
+          :title="orden.updatedByNombre ? `Última modificación: ${orden.updatedByNombre}` : `Creada por: ${orden.createdByNombre}`"
+          :description="orden.updatedAt ? `Actualizada: ${orden.updatedAt}` : (orden.createdAt ? `Creada: ${orden.createdAt}` : undefined)"
+        />
+
+        <UCard>
         <form class="grid grid-cols-1 md:grid-cols-2 gap-4" @submit.prevent="handleSubmit">
           <template v-if="soloDiagnostico">
             <FormField label="Diagnóstico técnico" name="diagnosticoTecnico" :error="errors.diagnosticoTecnico" class="md:col-span-2">
@@ -184,18 +214,46 @@ const cambiarEstado = () => {
               />
             </FormField>
             <FormField label="Mecánico" name="mecanicoId" :error="errors.mecanicoId" class="md:col-span-2">
-              <USelect
-                v-model="state.mecanicoId"
-                :items="mecanicos.map(m => ({ label: m.label, value: m.id }))"
-                placeholder="Opcional"
-                class="w-full"
-              />
+              <div class="flex flex-col gap-2 sm:flex-row sm:items-start">
+                <USelect
+                  v-model="state.mecanicoId"
+                  :items="mecanicos.map(m => ({ label: m.label, value: m.id }))"
+                  placeholder="Opcional"
+                  class="w-full"
+                />
+                <UButton
+                  type="button"
+                  variant="soft"
+                  icon="i-lucide-id-card"
+                  label="Ver ficha"
+                  :disabled="!state.mecanicoId"
+                  @click="fichaOpen = true"
+                />
+              </div>
+              <p v-if="mecanicoSeleccionado" class="mt-2 text-sm text-muted">
+                Especialidad: <span class="font-medium text-highlighted">{{ mecanicoSeleccionado.especialidad }}</span>
+              </p>
             </FormField>
             <FormField label="Tipo de falla" name="tipoFalla" :error="errors.tipoFalla">
               <UInput v-model="state.tipoFalla" class="w-full" />
             </FormField>
             <FormField label="Prioridad" name="prioridad" :error="errors.prioridad">
-              <USelect v-model="state.prioridad" :items="prioridadItems" class="w-full" />
+              <div translate="no">
+                <USelect
+                  v-model="state.prioridad"
+                  :items="prioridadItems"
+                  value-key="value"
+                  label-key="label"
+                  class="w-full"
+                >
+                  <template #default="{ modelValue }">
+                    <span translate="no">{{ prioridadItems.find(i => i.value === modelValue)?.label || modelValue }}</span>
+                  </template>
+                  <template #item-label="{ item }">
+                    <span translate="no">{{ item.label }}</span>
+                  </template>
+                </USelect>
+              </div>
             </FormField>
             <FormField label="Falla reportada" name="fallaReportada" :error="errors.fallaReportada" class="md:col-span-2">
               <UTextarea v-model="state.fallaReportada" class="w-full" :rows="3" />
@@ -203,9 +261,20 @@ const cambiarEstado = () => {
             <FormField label="Kilometraje ingreso" name="kilometrajeIngreso" :error="errors.kilometrajeIngreso">
               <UInput v-model.number="state.kilometrajeIngreso" type="number" min="0" class="w-full" />
             </FormField>
-            <FormField label="Diagnóstico técnico" name="diagnosticoTecnico" :error="errors.diagnosticoTecnico">
+            <FormField
+              v-if="puedeEditarDiagnostico"
+              label="Diagnóstico técnico"
+              name="diagnosticoTecnico"
+              :error="errors.diagnosticoTecnico"
+            >
               <UTextarea v-model="state.diagnosticoTecnico" class="w-full" />
             </FormField>
+            <div v-else class="space-y-1">
+              <p class="text-sm font-medium">Diagnóstico técnico</p>
+              <p class="text-sm text-muted whitespace-pre-wrap rounded-md border border-default/60 bg-elevated/40 p-3 min-h-16">
+                {{ state.diagnosticoTecnico || 'Solo mecánico o administrador puede editarlo.' }}
+              </p>
+            </div>
             <FormField label="Observaciones" name="observaciones" :error="errors.observaciones" class="md:col-span-2">
               <UTextarea v-model="state.observaciones" class="w-full" />
             </FormField>
@@ -269,6 +338,9 @@ const cambiarEstado = () => {
           </div>
         </form>
       </UCard>
+
+      <MecanicoFichaSlideover v-model:open="fichaOpen" :mecanico="mecanicoSeleccionado" />
+      </div>
     </template>
-  </UDashboardPanel>
+  </AppDashboardPanel>
 </template>

@@ -3,6 +3,7 @@ import { reactive, computed, ref, watch } from 'vue'
 import { router, usePage } from '@inertiajs/vue3'
 import { route } from 'ziggy-js'
 import FormField from '../../components/FormField.vue'
+import MecanicoFichaSlideover, { type MecanicoFicha } from '../../components/MecanicoFichaSlideover.vue'
 
 interface Option {
   id: string
@@ -13,10 +14,14 @@ interface Option {
   clienteId?: string
 }
 
+interface MecanicoOption extends MecanicoFicha {
+  label: string
+}
+
 const page = usePage()
 const clientes = computed(() => ((page.props as any).clientes || []) as Option[])
 const vehiculos = computed(() => ((page.props as any).vehiculos || []) as Option[])
-const mecanicos = computed(() => ((page.props as any).mecanicos || []) as Option[])
+const mecanicos = computed(() => ((page.props as any).mecanicos || []) as MecanicoOption[])
 const servicios = computed(() => ((page.props as any).servicios || []) as Option[])
 const repuestos = computed(() => ((page.props as any).repuestos || []) as Option[])
 
@@ -32,7 +37,8 @@ const errors = computed(() => {
 
 const prioridadItems = [
   { label: 'Baja', value: 'baja' },
-  { label: 'Media', value: 'media' },
+  // ZWNJ evita que Chrome traduzca "Media" → "Medios de comunicación"
+  { label: 'Media\u200C', value: 'media' },
   { label: 'Alta', value: 'alta' }
 ]
 
@@ -54,6 +60,15 @@ const state = reactive({
   kilometrajeIngreso: 0,
   observaciones: '',
   prioridad: 'media'
+})
+
+const fichaOpen = ref(false)
+const mecanicoSeleccionado = computed(() =>
+  mecanicos.value.find(m => m.id === state.mecanicoId) ?? null
+)
+
+watch(() => state.mecanicoId, (id) => {
+  if (id) fichaOpen.value = true
 })
 
 const vehiculosFiltrados = computed(() => {
@@ -102,7 +117,7 @@ const handleSubmit = () => {
 </script>
 
 <template>
-  <UDashboardPanel id="orden-create">
+  <AppDashboardPanel id="orden-create">
     <template #header>
       <UDashboardNavbar title="Nueva orden de trabajo">
         <template #leading>
@@ -130,18 +145,46 @@ const handleSubmit = () => {
             />
           </FormField>
           <FormField label="Mecánico" name="mecanicoId" :error="errors.mecanicoId" class="md:col-span-2">
-            <USelect
-              v-model="state.mecanicoId"
-              :items="mecanicos.map(m => ({ label: m.label, value: m.id }))"
-              placeholder="Opcional"
-              class="w-full"
-            />
+            <div class="flex flex-col gap-2 sm:flex-row sm:items-start">
+              <USelect
+                v-model="state.mecanicoId"
+                :items="mecanicos.map(m => ({ label: m.label, value: m.id }))"
+                placeholder="Opcional"
+                class="w-full"
+              />
+              <UButton
+                type="button"
+                variant="soft"
+                icon="i-lucide-id-card"
+                label="Ver ficha"
+                :disabled="!state.mecanicoId"
+                @click="fichaOpen = true"
+              />
+            </div>
+            <p v-if="mecanicoSeleccionado" class="mt-2 text-sm text-muted">
+              Especialidad: <span class="font-medium text-highlighted">{{ mecanicoSeleccionado.especialidad }}</span>
+            </p>
           </FormField>
           <FormField label="Tipo de falla" name="tipoFalla" :error="errors.tipoFalla">
             <UInput v-model="state.tipoFalla" class="w-full" />
           </FormField>
           <FormField label="Prioridad" name="prioridad" :error="errors.prioridad">
-            <USelect v-model="state.prioridad" :items="prioridadItems" class="w-full" />
+            <div translate="no">
+              <USelect
+                v-model="state.prioridad"
+                :items="prioridadItems"
+                value-key="value"
+                label-key="label"
+                class="w-full"
+              >
+                <template #default="{ modelValue }">
+                  <span translate="no">{{ prioridadItems.find(i => i.value === modelValue)?.label || modelValue }}</span>
+                </template>
+                <template #item-label="{ item }">
+                  <span translate="no">{{ item.label }}</span>
+                </template>
+              </USelect>
+            </div>
           </FormField>
           <FormField label="Falla reportada" name="fallaReportada" required :error="errors.fallaReportada" class="md:col-span-2">
             <UTextarea v-model="state.fallaReportada" class="w-full" :rows="3" />
@@ -196,6 +239,8 @@ const handleSubmit = () => {
           </div>
         </form>
       </UCard>
+
+      <MecanicoFichaSlideover v-model:open="fichaOpen" :mecanico="mecanicoSeleccionado" />
     </template>
-  </UDashboardPanel>
+  </AppDashboardPanel>
 </template>

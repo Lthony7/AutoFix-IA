@@ -6,6 +6,7 @@ use App\Enums\OrdenEstado;
 use App\Enums\SugerenciaIaEstado;
 use App\Http\Controllers\Controller;
 use App\Services\GroqDiagnosticService;
+use App\Support\InertiaTablePaginator;
 use Exception;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -25,10 +26,11 @@ class DiagnosticoIaWebController extends Controller
 
     public function index(): Response
     {
-        $diagnosticos = DiagnosticoIaEloquentModel::with(['ordenTrabajo.cliente', 'ordenTrabajo.vehiculo'])
+        $paginator = DiagnosticoIaEloquentModel::with(['ordenTrabajo.cliente', 'ordenTrabajo.vehiculo'])
             ->orderByDesc('created_at')
-            ->get()
-            ->map(fn (DiagnosticoIaEloquentModel $d) => [
+            ->paginate(InertiaTablePaginator::PER_PAGE)
+            ->withQueryString()
+            ->through(fn (DiagnosticoIaEloquentModel $d) => [
                 'id' => $d->id,
                 'ordenTrabajoId' => $d->orden_trabajo_id,
                 'ordenNumero' => $d->ordenTrabajo?->numero,
@@ -40,13 +42,10 @@ class DiagnosticoIaWebController extends Controller
                 'estadoLabel' => $d->estado?->label(),
                 'esSimulado' => $d->es_simulado,
                 'createdAt' => $d->created_at?->format('Y-m-d H:i:s'),
-            ])->toArray();
+            ]);
 
         return Inertia::render('DiagnosticoIA/index', [
-            'diagnosticos' => [
-                'data' => $diagnosticos,
-                'meta' => ['total' => count($diagnosticos)],
-            ],
+            'diagnosticos' => InertiaTablePaginator::make($paginator),
         ]);
     }
 

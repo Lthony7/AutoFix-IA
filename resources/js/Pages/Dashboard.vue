@@ -76,7 +76,7 @@ const estadoColor = (estado: string) => {
 </script>
 
 <template>
-  <UDashboardPanel id="home">
+  <AppDashboardPanel id="home">
     <template #header>
       <UDashboardNavbar title="Dashboard AUTOFIX IA">
         <template #leading>
@@ -136,5 +136,5 @@ const estadoColor = (estado: string) => {
         </div>
       </UCard>
     </template>
-  </UDashboardPanel>
+  </AppDashboardPanel>
 </template>

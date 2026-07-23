@@ -58,7 +58,7 @@ const handleSubmit = () => {
 </script>
 
 <template>
-  <UDashboardPanel id="pago-edit">
+  <AppDashboardPanel id="pago-edit">
     <template #header>
       <UDashboardNavbar :title="`Editar pago — ${pago.ordenNumero || ''}`">
         <template #leading>
@@ -99,5 +99,5 @@ const handleSubmit = () => {
         </form>
       </UCard>
     </template>
-  </UDashboardPanel>
+  </AppDashboardPanel>
 </template>

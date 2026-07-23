@@ -4,13 +4,17 @@ import { router, usePage } from '@inertiajs/vue3'
 import { route } from 'ziggy-js'
 import FormField from '../../components/FormField.vue'
 import AppLogo from '../../components/AppLogo.vue'
+import {
+  mergeErrors,
+  validarEmail,
+  validarNombre,
+  type FormErrors
+} from '../../composables/useFormValidation'
 
-// Definir que esta página no usa layout
 defineOptions({
   layout: null
 })
 
-// Estado del formulario
 const state = reactive({
   name: '',
   email: '',
@@ -18,40 +22,39 @@ const state = reactive({
   password_confirmation: ''
 })
 
-// Obtener errores de validación del backend
 const page = usePage()
+const localErrors = ref<FormErrors>({})
 const backendErrors = computed(() => page.props.errors || {})
+const errors = computed(() => mergeErrors(localErrors.value, backendErrors.value as Record<string, unknown>))
 
-// Convertir errores de array a string (Laravel retorna arrays)
-const errors = computed(() => {
-  const result: Record<string, string> = {}
-  Object.keys(backendErrors.value).forEach(key => {
-    const error = backendErrors.value[key]
-    result[key] = Array.isArray(error) ? error[0] : error
-  })
-  return result
-})
-
-// Loading state
 const isLoading = ref(false)
 
-// Submit handler
-const handleSubmit = () => {
-  isLoading.value = true
+const validate = (): boolean => {
+  const next: FormErrors = {}
+  const n = validarNombre(state.name, 'El nombre', true)
+  if (n) next.name = n
+  const e = validarEmail(state.email, true)
+  if (e) next.email = e
+  if (!state.password || state.password.length < 8) {
+    next.password = 'La contraseña debe tener al menos 8 caracteres'
+  } else if (state.password !== state.password_confirmation) {
+    next.password = 'Las contraseñas no coinciden'
+  }
+  localErrors.value = next
+  return Object.keys(next).length === 0
+}
 
+const handleSubmit = () => {
+  if (!validate()) return
+  isLoading.value = true
   router.post(route('register'), state, {
-    onFinish: () => {
-      isLoading.value = false
-    },
-    onError: (errors) => {
-      console.error('Errores de validación:', errors)
-    }
+    onFinish: () => { isLoading.value = false }
   })
 }
 </script>
 
 <template>
-  <div class="min-h-screen flex items-center justify-center bg-background p-4">
+  <div class="flex min-h-dvh items-center justify-center overflow-y-auto bg-background p-4">
     <div class="w-full max-w-md">
       <UCard>
         <template #header>
@@ -65,7 +68,15 @@ const handleSubmit = () => {
         </template>
 
         <form @submit.prevent="handleSubmit" class="space-y-4">
-          <FormField label="Nombre completo" name="name" required :error="errors.name">
+          <UAlert
+            v-if="Object.keys(localErrors).length"
+            color="error"
+            variant="subtle"
+            icon="i-lucide-circle-alert"
+            title="Revisa los datos del formulario"
+            description="Corrige los campos marcados antes de continuar."
+          />
+          <FormField label="Nombre completo" name="name" required :error="errors.name" hint="Solo letras">
             <UInput
               v-model="state.name"
               type="text"

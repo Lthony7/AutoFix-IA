@@ -37,7 +37,7 @@ const destroy = (id: string) => {
 </script>
 
 <template>
-  <UDashboardPanel id="facturas">
+  <AppDashboardPanel id="facturas">
     <template #header>
       <UDashboardNavbar title="Facturas">
         <template #leading>
@@ -92,7 +92,8 @@ const destroy = (id: string) => {
             No hay facturas registradas.
           </p>
         </div>
+        <AppPagination :meta="facturas?.meta" />
       </UCard>
     </template>
-  </UDashboardPanel>
+  </AppDashboardPanel>
 </template>

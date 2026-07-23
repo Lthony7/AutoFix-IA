@@ -50,7 +50,7 @@ const handleSubmit = () => {
 </script>
 
 <template>
-  <div class="min-h-screen flex items-center justify-center bg-background p-4">
+  <div class="flex min-h-dvh items-center justify-center overflow-y-auto bg-background p-4">
     <div class="w-full max-w-md">
       <UCard>
         <template #header>

@@ -6,6 +6,7 @@ use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
 use App\Services\OrdenEstadoNotifier;
 use App\Services\OrdenRepuestoStockService;
+use App\Support\InertiaTablePaginator;
 use Exception;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -41,6 +42,8 @@ class OrdenTrabajoWebController extends Controller
             'factura',
             'ordenServicios',
             'ordenRepuestos',
+            'creator',
+            'updater',
         ])->orderByDesc('created_at');
 
         if ($user->hasRole(UserRole::Mecanico)) {
@@ -48,13 +51,13 @@ class OrdenTrabajoWebController extends Controller
             $query->where('mecanico_id', $mecanicoId);
         }
 
-        $ordenes = $query->get()->map(fn ($orden) => $this->mapOrden($orden))->toArray();
+        $paginator = $query
+            ->paginate(InertiaTablePaginator::PER_PAGE)
+            ->withQueryString()
+            ->through(fn ($orden) => $this->mapOrden($orden));
 
         return Inertia::render('OrdenTrabajo/index', [
-            'ordenes' => [
-                'data' => $ordenes,
-                'meta' => ['total' => count($ordenes)],
-            ],
+            'ordenes' => InertiaTablePaginator::make($paginator),
         ]);
     }
 
@@ -78,6 +81,8 @@ class OrdenTrabajoWebController extends Controller
 
                 $orden = OrdenTrabajoEloquentModel::create(array_merge($data, [
                     'numero' => OrdenTrabajoEloquentModel::generarNumero(),
+                    'created_by' => $request->user()?->id,
+                    'updated_by' => $request->user()?->id,
                 ]));
 
                 $this->syncServicios($orden, $request->input('servicios', []));
@@ -93,7 +98,15 @@ class OrdenTrabajoWebController extends Controller
     public function edit(Request $request, string $id): Response
     {
         $orden = $this->findOrdenForUser($request, $id);
-        $orden->load(['cliente', 'vehiculo', 'mecanico', 'ordenServicios.servicio', 'ordenRepuestos.producto']);
+        $orden->load([
+            'cliente',
+            'vehiculo',
+            'mecanico',
+            'ordenServicios.servicio',
+            'ordenRepuestos.producto',
+            'creator',
+            'updater',
+        ]);
 
         return Inertia::render('OrdenTrabajo/edit', [
             'orden' => $this->mapOrden($orden, true),
@@ -103,6 +116,8 @@ class OrdenTrabajoWebController extends Controller
             'servicios' => $this->serviciosOptions(),
             'repuestos' => $this->repuestosOptions(),
             'soloDiagnostico' => $request->user()->hasRole(UserRole::Mecanico),
+            'puedeEditarDiagnostico' => $request->user()->hasRole(UserRole::Administrador)
+                || $request->user()->hasRole(UserRole::Mecanico),
         ]);
     }
 
@@ -117,10 +132,17 @@ class OrdenTrabajoWebController extends Controller
                 $repuestos = $data['repuestos'] ?? null;
                 unset($data['servicios'], $data['repuestos']);
 
+                if ($request->user()->hasRole(UserRole::Recepcionista)) {
+                    unset($data['diagnostico_tecnico']);
+                }
+
+                $data['updated_by'] = $request->user()?->id;
+
                 if ($request->user()->hasRole(UserRole::Mecanico)) {
                     $orden->update(array_filter([
                         'diagnostico_tecnico' => $data['diagnostico_tecnico'] ?? null,
                         'observaciones' => $data['observaciones'] ?? null,
+                        'updated_by' => $data['updated_by'],
                     ], fn ($v) => $v !== null));
                 } else {
                     if ($data !== []) {
@@ -167,7 +189,10 @@ class OrdenTrabajoWebController extends Controller
     public function asignarMecanico(AsignarMecanicoRequest $request, string $id): RedirectResponse
     {
         $orden = OrdenTrabajoEloquentModel::findOrFail($id);
-        $orden->update(['mecanico_id' => $request->validated('mecanico_id')]);
+        $orden->update([
+            'mecanico_id' => $request->validated('mecanico_id'),
+            'updated_by' => $request->user()?->id,
+        ]);
 
         return redirect()->back()->with('success', 'Mecánico asignado exitosamente');
     }
@@ -176,7 +201,10 @@ class OrdenTrabajoWebController extends Controller
     {
         $orden = OrdenTrabajoEloquentModel::with(['cliente', 'vehiculo'])->findOrFail($id);
         $estadoAnterior = $orden->estado instanceof \BackedEnum ? $orden->estado->value : (string) $orden->estado;
-        $orden->update(['estado' => $request->validated('estado')]);
+        $orden->update([
+            'estado' => $request->validated('estado'),
+            'updated_by' => $request->user()?->id,
+        ]);
         $this->estadoNotifier->notifyIfChanged($orden->fresh(['cliente', 'vehiculo']), $estadoAnterior);
 
         return redirect()->back()->with('success', 'Estado de la orden actualizado');
@@ -220,7 +248,10 @@ class OrdenTrabajoWebController extends Controller
             'facturaId' => $orden->factura?->id,
             'puedeFacturar' => !$orden->factura
                 && ($orden->ordenServicios->isNotEmpty() || $orden->ordenRepuestos->isNotEmpty()),
+            'createdByNombre' => $orden->creator?->name,
+            'updatedByNombre' => $orden->updater?->name,
             'createdAt' => $orden->created_at?->format('Y-m-d H:i:s'),
+            'updatedAt' => $orden->updated_at?->format('Y-m-d H:i:s'),
         ];
 
         if ($detailed) {
@@ -270,7 +301,23 @@ class OrdenTrabajoWebController extends Controller
     private function mecanicosOptions(): array
     {
         return MecanicoEloquentModel::where('activo', true)->orderBy('nombres')->get()
-            ->map(fn ($m) => ['id' => $m->id, 'label' => trim($m->nombres . ' ' . $m->apellidos)])->values()->toArray();
+            ->map(function ($m) {
+                $nombre = trim($m->nombres . ' ' . $m->apellidos);
+
+                return [
+                    'id' => $m->id,
+                    'label' => $nombre . ' — ' . $m->especialidad,
+                    'nombreCompleto' => $nombre,
+                    'documento' => $m->documento,
+                    'telefono' => $m->telefono,
+                    'email' => $m->email,
+                    'especialidad' => $m->especialidad,
+                    'horarioDisponible' => $m->horario_disponible,
+                    'activo' => (bool) $m->activo,
+                ];
+            })
+            ->values()
+            ->toArray();
     }
 
     private function serviciosOptions(): array

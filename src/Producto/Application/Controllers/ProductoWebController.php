@@ -3,6 +3,7 @@
 namespace Src\Producto\Application\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Support\InertiaTablePaginator;
 use Exception;
 use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
@@ -15,29 +16,28 @@ class ProductoWebController extends Controller
 {
     public function index(): Response
     {
-        $repuestos = ProductoEloquentModel::orderBy('nombre')->get();
-
-        $data = $repuestos->map(fn (ProductoEloquentModel $model) => [
-            'id' => $model->id,
-            'codigo' => $model->codigo,
-            'nombre' => $model->nombre,
-            'descripcion' => $model->descripcion,
-            'precio' => (float) $model->precio,
-            'stock' => $model->stock,
-            'stockMinimo' => $model->stock_minimo ?? 0,
-            'activo' => (bool) $model->activo,
-            'tipoProducto' => $model->tipo_producto,
-            'categoria' => $model->categoria,
-            'proveedor' => $model->proveedor,
-            'createdAt' => $model->created_at?->format('Y-m-d H:i:s'),
-            'updatedAt' => $model->updated_at?->format('Y-m-d H:i:s'),
-        ])->toArray();
+        $paginator = ProductoEloquentModel::query()
+            ->orderBy('nombre')
+            ->paginate(InertiaTablePaginator::PER_PAGE)
+            ->withQueryString()
+            ->through(fn (ProductoEloquentModel $model) => [
+                'id' => $model->id,
+                'codigo' => $model->codigo,
+                'nombre' => $model->nombre,
+                'descripcion' => $model->descripcion,
+                'precio' => (float) $model->precio,
+                'stock' => $model->stock,
+                'stockMinimo' => $model->stock_minimo ?? 0,
+                'activo' => (bool) $model->activo,
+                'tipoProducto' => $model->tipo_producto,
+                'categoria' => $model->categoria,
+                'proveedor' => $model->proveedor,
+                'createdAt' => $model->created_at?->format('Y-m-d H:i:s'),
+                'updatedAt' => $model->updated_at?->format('Y-m-d H:i:s'),
+            ]);
 
         return Inertia::render('Repuesto/index', [
-            'repuestos' => [
-                'data' => $data,
-                'meta' => ['total' => count($data)],
-            ],
+            'repuestos' => InertiaTablePaginator::make($paginator),
         ]);
     }
 

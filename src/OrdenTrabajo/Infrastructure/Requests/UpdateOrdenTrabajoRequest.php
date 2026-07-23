@@ -3,6 +3,7 @@
 namespace Src\OrdenTrabajo\Infrastructure\Requests;
 
 use App\Enums\OrdenEstado;
+use App\Enums\UserRole;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -30,7 +31,7 @@ class UpdateOrdenTrabajoRequest extends FormRequest
 
     public function rules(): array
     {
-        return [
+        $rules = [
             'cliente_id' => 'sometimes|uuid|exists:clientes,id',
             'vehiculo_id' => 'sometimes|uuid|exists:vehiculos,id',
             'mecanico_id' => 'nullable|uuid|exists:mecanicos,id',
@@ -49,6 +50,13 @@ class UpdateOrdenTrabajoRequest extends FormRequest
             'repuestos.*.cantidad' => 'required_with:repuestos|integer|min:1',
             'repuestos.*.precioUnitario' => 'required_with:repuestos|numeric|min:0',
         ];
+
+        // PDF: el recepcionista no debe modificar diagnósticos técnicos
+        if ($this->user()?->hasRole(UserRole::Recepcionista)) {
+            $rules['diagnostico_tecnico'] = 'exclude';
+        }
+
+        return $rules;
     }
 
     public function withValidator($validator): void

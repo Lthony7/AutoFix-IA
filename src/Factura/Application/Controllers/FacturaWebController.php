@@ -4,6 +4,7 @@ namespace Src\Factura\Application\Controllers;
 
 use App\Enums\FacturaEstado;
 use App\Http\Controllers\Controller;
+use App\Support\InertiaTablePaginator;
 use Exception;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -20,17 +21,14 @@ class FacturaWebController extends Controller
 {
     public function index(): Response
     {
-        $facturas = FacturaEloquentModel::with(['cliente', 'ordenTrabajo'])
+        $paginator = FacturaEloquentModel::with(['cliente', 'ordenTrabajo'])
             ->orderByDesc('created_at')
-            ->get()
-            ->map(fn (FacturaEloquentModel $f) => $this->mapFactura($f))
-            ->toArray();
+            ->paginate(InertiaTablePaginator::PER_PAGE)
+            ->withQueryString()
+            ->through(fn (FacturaEloquentModel $f) => $this->mapFactura($f));
 
         return Inertia::render('Factura/index', [
-            'facturas' => [
-                'data' => $facturas,
-                'meta' => ['total' => count($facturas)],
-            ],
+            'facturas' => InertiaTablePaginator::make($paginator),
         ]);
     }
 

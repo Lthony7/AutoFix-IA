@@ -36,7 +36,7 @@ const handleSubmit = () => {
 </script>
 
 <template>
-  <UDashboardPanel id="usuario-edit">
+  <AppDashboardPanel id="usuario-edit">
     <template #header>
       <UDashboardNavbar title="Editar usuario">
         <template #leading>
@@ -70,5 +70,5 @@ const handleSubmit = () => {
         </form>
       </UCard>
     </template>
-  </UDashboardPanel>
+  </AppDashboardPanel>
 </template>

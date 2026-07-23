@@ -36,7 +36,7 @@ const errors = computed(() => {
 
 const prioridadItems = [
   { label: 'Baja', value: 'baja' },
-  { label: 'Media', value: 'media' },
+  { label: 'Media\u200C', value: 'media' },
   { label: 'Alta', value: 'alta' }
 ]
 
@@ -73,7 +73,7 @@ const submitRevision = (accion: 'confirmar' | 'modificar' | 'descartar') => {
 </script>
 
 <template>
-  <UDashboardPanel id="diagnostico-ia-review">
+  <AppDashboardPanel id="diagnostico-ia-review">
     <template #header>
       <UDashboardNavbar :title="`Revisar diagnóstico — ${diagnostico.orden.numero}`">
         <template #leading>
@@ -87,6 +87,7 @@ const submitRevision = (accion: 'confirmar' | 'modificar' | 'descartar') => {
           color="warning"
           variant="subtle"
           icon="i-lucide-triangle-alert"
+          title="Aviso importante"
           description="La información generada por Inteligencia Artificial es únicamente una sugerencia inicial. El diagnóstico final debe ser realizado y confirmado por un mecánico autorizado."
         />
 
@@ -127,7 +128,16 @@ const submitRevision = (accion: 'confirmar' | 'modificar' | 'descartar') => {
                 <UInput v-model="state.servicioRecomendado" class="w-full" />
               </FormField>
               <FormField label="Prioridad" name="prioridad" :error="errors.prioridad">
-                <USelect v-model="state.prioridad" :items="prioridadItems" class="w-full max-w-xs" />
+                <div translate="no">
+                  <USelect v-model="state.prioridad" :items="prioridadItems" class="w-full max-w-xs">
+                    <template #default="{ modelValue }">
+                      <span translate="no">{{ prioridadItems.find(i => i.value === modelValue)?.label || modelValue }}</span>
+                    </template>
+                    <template #item-label="{ item }">
+                      <span translate="no">{{ item.label }}</span>
+                    </template>
+                  </USelect>
+                </div>
               </FormField>
             </div>
 
@@ -163,5 +173,5 @@ const submitRevision = (accion: 'confirmar' | 'modificar' | 'descartar') => {
         </UCard>
       </div>
     </template>
-  </UDashboardPanel>
+  </AppDashboardPanel>
 </template>

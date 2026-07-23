@@ -2,6 +2,7 @@
 
 namespace Src\Mecanico\Infrastructure\Requests;
 
+use App\Support\FieldValidation;
 use Illuminate\Foundation\Http\FormRequest;
 
 class StoreMecanicoRequest extends FormRequest
@@ -17,6 +18,14 @@ class StoreMecanicoRequest extends FormRequest
 
         $this->merge([
             'user_id' => $userId === '' ? null : $userId,
+            'nombres' => trim((string) $this->nombres),
+            'apellidos' => trim((string) $this->apellidos),
+            'documento' => FieldValidation::soloDigitos((string) $this->documento),
+            'telefono' => $this->telefono !== null && $this->telefono !== ''
+                ? FieldValidation::soloDigitos((string) $this->telefono)
+                : null,
+            'email' => $this->email ? strtolower(trim((string) $this->email)) : null,
+            'especialidad' => trim((string) $this->especialidad),
             'horario_disponible' => $this->horarioDisponible ?? $this->horario_disponible,
             'activo' => $this->has('activo')
                 ? filter_var($this->activo, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) ?? true
@@ -28,12 +37,12 @@ class StoreMecanicoRequest extends FormRequest
     {
         return [
             'user_id' => 'nullable|uuid|exists:users,id|unique:mecanicos,user_id',
-            'nombres' => 'required|string|max:255',
-            'apellidos' => 'required|string|max:255',
-            'documento' => 'required|string|max:50|unique:mecanicos,documento',
-            'telefono' => 'nullable|string|max:50',
-            'email' => 'nullable|email|max:255',
-            'especialidad' => 'required|string|max:255',
+            'nombres' => FieldValidation::nombre(true),
+            'apellidos' => FieldValidation::nombre(true),
+            'documento' => FieldValidation::documentoIdentidad(true, 'mecanicos'),
+            'telefono' => FieldValidation::telefono(false),
+            'email' => FieldValidation::email(false),
+            'especialidad' => 'required|string|min:2|max:255',
             'horario_disponible' => 'nullable|string|max:255',
             'activo' => 'sometimes|boolean',
         ];
@@ -52,5 +61,13 @@ class StoreMecanicoRequest extends FormRequest
             'horario_disponible' => 'horario disponible',
             'activo' => 'estado',
         ];
+    }
+
+    public function messages(): array
+    {
+        return array_merge(FieldValidation::messages(), [
+            'documento.unique' => 'Este documento ya está registrado',
+            'especialidad.required' => 'La especialidad es obligatoria',
+        ]);
     }
 }

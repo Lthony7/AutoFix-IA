@@ -27,7 +27,8 @@ interface OrdenHistorial {
 
 const page = usePage()
 const vehiculo = computed(() => (page.props as any).vehiculo as Vehiculo)
-const ordenes = computed(() => ((page.props as any).ordenes || []) as OrdenHistorial[])
+const ordenes = computed(() => (page.props as any).ordenes)
+const rows = computed(() => (ordenes.value?.data || []) as OrdenHistorial[])
 
 const formatMoney = (value: number) =>
   new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(value)
@@ -46,7 +47,7 @@ const estadoColor = (estado: string) => {
 </script>
 
 <template>
-  <UDashboardPanel id="historial">
+  <AppDashboardPanel id="historial">
     <template #header>
       <UDashboardNavbar :title="`Historial — ${vehiculo.placa}`">
         <template #leading>
@@ -99,7 +100,7 @@ const estadoColor = (estado: string) => {
               </thead>
               <tbody>
                 <tr
-                  v-for="orden in ordenes"
+                  v-for="orden in rows"
                   :key="orden.id"
                   class="border-b border-default/60"
                 >
@@ -119,14 +120,15 @@ const estadoColor = (estado: string) => {
                     {{ orden.totalPago != null ? formatMoney(orden.totalPago) : '—' }}
                   </td>
                 </tr>
-                <tr v-if="!ordenes.length">
+                <tr v-if="!rows.length">
                   <td colspan="7" class="py-6 text-center text-muted">Sin órdenes registradas para este vehículo.</td>
                 </tr>
               </tbody>
             </table>
           </div>
+          <AppPagination :meta="ordenes?.meta" />
         </UCard>
       </div>
     </template>
-  </UDashboardPanel>
+  </AppDashboardPanel>
 </template>

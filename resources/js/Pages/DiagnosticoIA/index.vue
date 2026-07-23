@@ -32,7 +32,7 @@ const estadoColor = (estado: string) => {
 </script>
 
 <template>
-  <UDashboardPanel id="diagnosticos-ia">
+  <AppDashboardPanel id="diagnosticos-ia">
     <template #header>
       <UDashboardNavbar title="Diagnósticos IA">
         <template #leading>
@@ -45,7 +45,16 @@ const estadoColor = (estado: string) => {
     </template>
 
     <template #body>
-      <UCard>
+      <div class="space-y-4">
+        <UAlert
+          color="warning"
+          variant="subtle"
+          icon="i-lucide-triangle-alert"
+          title="Aviso importante"
+          description="La información generada por Inteligencia Artificial es únicamente una sugerencia inicial. El diagnóstico final debe ser realizado y confirmado por un mecánico autorizado."
+        />
+
+        <UCard>
         <div class="overflow-x-auto">
           <table class="w-full text-sm">
             <thead>
@@ -99,7 +108,9 @@ const estadoColor = (estado: string) => {
             No hay diagnósticos IA registrados.
           </p>
         </div>
+        <AppPagination :meta="diagnosticos?.meta" />
       </UCard>
+      </div>
     </template>
-  </UDashboardPanel>
+  </AppDashboardPanel>
 </template>

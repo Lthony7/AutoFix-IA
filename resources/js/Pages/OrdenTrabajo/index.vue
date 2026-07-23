@@ -40,7 +40,7 @@ const destroy = (id: string) => {
 </script>
 
 <template>
-  <UDashboardPanel id="ordenes">
+  <AppDashboardPanel id="ordenes">
     <template #header>
       <UDashboardNavbar title="Órdenes de trabajo">
         <template #leading>
@@ -124,7 +124,8 @@ const destroy = (id: string) => {
             </tbody>
           </table>
         </div>
+        <AppPagination :meta="ordenes?.meta" />
       </UCard>
     </template>
-  </UDashboardPanel>
+  </AppDashboardPanel>
 </template>

@@ -33,7 +33,7 @@ const errors = computed(() => {
 
 const urgenciaItems = [
   { label: 'Baja', value: 'baja' },
-  { label: 'Media', value: 'media' },
+  { label: 'Media\u200C', value: 'media' },
   { label: 'Alta', value: 'alta' }
 ]
 
@@ -67,7 +67,7 @@ const handleSubmit = () => {
 </script>
 
 <template>
-  <UDashboardPanel id="diagnostico-ia-create">
+  <AppDashboardPanel id="diagnostico-ia-create">
     <template #header>
       <UDashboardNavbar title="Nuevo diagnóstico IA">
         <template #leading>
@@ -99,7 +99,16 @@ const handleSubmit = () => {
               <UInput v-model="state.tipoFalla" class="w-full" />
             </FormField>
             <FormField label="Urgencia" name="urgencia" required :error="errors.urgencia">
-              <USelect v-model="state.urgencia" :items="urgenciaItems" class="w-full" />
+              <div translate="no">
+                <USelect v-model="state.urgencia" :items="urgenciaItems" class="w-full">
+                  <template #default="{ modelValue }">
+                    <span translate="no">{{ urgenciaItems.find(i => i.value === modelValue)?.label || modelValue }}</span>
+                  </template>
+                  <template #item-label="{ item }">
+                    <span translate="no">{{ item.label }}</span>
+                  </template>
+                </USelect>
+              </div>
             </FormField>
             <FormField label="Descripción del problema" name="descripcion" required :error="errors.descripcion" class="md:col-span-2">
               <UTextarea v-model="state.descripcion" class="w-full" :rows="3" />
@@ -127,5 +136,5 @@ const handleSubmit = () => {
         </UCard>
       </div>
     </template>
-  </UDashboardPanel>
+  </AppDashboardPanel>
 </template>

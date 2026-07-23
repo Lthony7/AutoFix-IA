@@ -61,17 +61,16 @@ class UpdateProductoRequest extends FormRequest
 
     public function rules(): array
     {
-        // Obtener el ID desde la ruta (puede ser 'id' o 'cliente' dependiendo de si es web o API)
-       // $productoId = $this->route('id') ?? $this->route('producto');
+        $productoId = $this->route('id') ?? $this->route('producto') ?? $this->route('repuesto');
 
         return [
             'tipo_producto' => 'sometimes|string|in:tipo1,tipo2,tipo3',
-            'codigo' => 'sometimes|string|unique:productos,codigo',
+            'codigo' => 'sometimes|string|unique:productos,codigo,' . $productoId . ',id',
             'nombre' => 'sometimes|string|max:255',
             'descripcion' => 'sometimes|string|max:255',
-            'precio' => 'sometimes|numeric',
-            'stock' => 'sometimes|integer|min:0',
-            'stock_minimo' => 'sometimes|integer|min:0',
+            'precio' => 'sometimes|numeric|min:0|max:999999999',
+            'stock' => 'sometimes|integer|min:0|max:999999',
+            'stock_minimo' => 'sometimes|integer|min:0|max:999999',
             'activo' => 'sometimes|boolean',
             'categoria' => 'nullable|string|max:255',
             'proveedor' => 'nullable|string|max:255',

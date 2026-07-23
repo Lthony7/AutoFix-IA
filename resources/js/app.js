@@ -17,6 +17,8 @@ import * as nuxtCompat from './composables/nuxt-compat';
 
 // Importar plugin de Nuxt UI
 import NuxtUIPlugin from './plugins/nuxt-ui';
+import AppDashboardPanel from './components/AppDashboardPanel.vue';
+import AppPagination from './components/AppPagination.vue';
 
 const appName = import.meta.env.VITE_APP_NAME || 'AUTOFIX IA';
 
@@ -59,6 +61,8 @@ createInertiaApp({
             .use(Toast)
             .use(NuxtUIPlugin)
             .use(ZiggyVue, Ziggy)
+            .component('AppDashboardPanel', AppDashboardPanel)
+            .component('AppPagination', AppPagination)
             .mount(el);
     },
     progress: {
