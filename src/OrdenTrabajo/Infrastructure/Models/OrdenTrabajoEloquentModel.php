@@ -96,6 +96,11 @@ class OrdenTrabajoEloquentModel extends Model
         return $this->hasOne(FacturaEloquentModel::class, 'orden_trabajo_id');
     }
 
+    public function avances(): HasMany
+    {
+        return $this->hasMany(OrdenAvanceEloquentModel::class, 'orden_trabajo_id')->orderByDesc('created_at');
+    }
+
     public static function generarNumero(): string
     {
         $fecha = now()->format('Ymd');

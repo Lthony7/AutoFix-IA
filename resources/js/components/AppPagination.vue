@@ -13,7 +13,7 @@ interface Meta {
 
 const props = withDefaults(defineProps<{
   meta?: Meta | null
-  query?: Record<string, string | number | undefined | null>
+  query?: Record<string, string | number | boolean | undefined | null>
 }>(), {
   meta: null,
   query: () => ({})
@@ -53,17 +53,32 @@ const goTo = (page: number) => {
   if (!props.meta) return
   if (page < 1 || page > props.meta.lastPage || page === props.meta.currentPage) return
 
-  const params: Record<string, string | number> = { page }
-  Object.entries(props.query || {}).forEach(([key, value]) => {
-    if (value !== undefined && value !== null && value !== '') {
-      params[key] = value as string | number
+  const url = new URL(window.location.href)
+  const params: Record<string, string | number> = {}
+
+  // Conserva filtros actuales de la URL
+  url.searchParams.forEach((value, key) => {
+    if (key !== 'page' && value !== '') {
+      params[key] = value
     }
   })
 
-  router.get(window.location.pathname, params, {
-    preserveState: true,
+  // Permite sobrescribir / añadir query explícita del padre
+  Object.entries(props.query || {}).forEach(([key, value]) => {
+    if (value === undefined || value === null || value === '' || value === false) {
+      delete params[key]
+      return
+    }
+    params[key] = typeof value === 'boolean' ? (value ? '1' : '0') : value
+  })
+
+  params.page = page
+
+  router.get(url.pathname, params, {
     preserveScroll: true,
-    replace: true
+    // false: fuerza a Inertia a refrescar props (data de la tabla)
+    preserveState: false,
+    replace: false
   })
 }
 </script>
@@ -79,6 +94,7 @@ const goTo = (page: number) => {
 
     <div v-if="meta && meta.lastPage > 1" class="flex flex-wrap items-center gap-1">
       <UButton
+        type="button"
         size="xs"
         color="neutral"
         variant="outline"
@@ -91,6 +107,7 @@ const goTo = (page: number) => {
         <span v-if="item === 'ellipsis'" class="px-2 text-muted">…</span>
         <UButton
           v-else
+          type="button"
           size="xs"
           :color="item === meta.currentPage ? 'primary' : 'neutral'"
           :variant="item === meta.currentPage ? 'solid' : 'outline'"
@@ -100,6 +117,7 @@ const goTo = (page: number) => {
       </template>
 
       <UButton
+        type="button"
         size="xs"
         color="neutral"
         variant="outline"

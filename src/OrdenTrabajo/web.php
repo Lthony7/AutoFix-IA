@@ -18,3 +18,8 @@ Route::middleware(['auth', 'role:administrador,recepcionista,mecanico'])->group(
     Route::get('ordenes/{orden}/edit', [OrdenTrabajoWebController::class, 'edit'])->name('ordenes.edit');
     Route::put('ordenes/{orden}', [OrdenTrabajoWebController::class, 'update'])->name('ordenes.update');
 });
+
+Route::middleware(['auth', 'role:administrador,mecanico'])->group(function () {
+    Route::post('ordenes/{orden}/avances', [OrdenTrabajoWebController::class, 'storeAvance'])
+        ->name('ordenes.avances.store');
+});

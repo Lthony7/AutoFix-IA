@@ -15,10 +15,12 @@ use Inertia\Inertia;
 use Inertia\Response;
 use Src\Cliente\Infrastructure\Models\ClienteEloquentModel;
 use Src\Mecanico\Infrastructure\Models\MecanicoEloquentModel;
+use Src\OrdenTrabajo\Infrastructure\Models\OrdenAvanceEloquentModel;
 use Src\OrdenTrabajo\Infrastructure\Models\OrdenServicioEloquentModel;
 use Src\OrdenTrabajo\Infrastructure\Models\OrdenTrabajoEloquentModel;
 use Src\OrdenTrabajo\Infrastructure\Requests\AsignarMecanicoRequest;
 use Src\OrdenTrabajo\Infrastructure\Requests\CambiarEstadoOrdenRequest;
+use Src\OrdenTrabajo\Infrastructure\Requests\StoreOrdenAvanceRequest;
 use Src\OrdenTrabajo\Infrastructure\Requests\StoreOrdenTrabajoRequest;
 use Src\OrdenTrabajo\Infrastructure\Requests\UpdateOrdenTrabajoRequest;
 use Src\Producto\Infrastructure\Models\ProductoEloquentModel;
@@ -104,6 +106,7 @@ class OrdenTrabajoWebController extends Controller
             'mecanico',
             'ordenServicios.servicio',
             'ordenRepuestos.producto',
+            'avances.user',
             'creator',
             'updater',
         ]);
@@ -118,7 +121,26 @@ class OrdenTrabajoWebController extends Controller
             'soloDiagnostico' => $request->user()->hasRole(UserRole::Mecanico),
             'puedeEditarDiagnostico' => $request->user()->hasRole(UserRole::Administrador)
                 || $request->user()->hasRole(UserRole::Mecanico),
+            'puedeRegistrarAvance' => $request->user()->hasRole(UserRole::Administrador)
+                || $request->user()->hasRole(UserRole::Mecanico),
         ]);
+    }
+
+    public function storeAvance(StoreOrdenAvanceRequest $request, string $id): RedirectResponse
+    {
+        $orden = $this->findOrdenForUser($request, $id);
+
+        OrdenAvanceEloquentModel::create([
+            'orden_trabajo_id' => $orden->id,
+            'user_id' => $request->user()->id,
+            'mensaje' => $request->validated('mensaje'),
+        ]);
+
+        $orden->update(['updated_by' => $request->user()->id]);
+
+        return redirect()
+            ->route('ordenes.edit', $orden->id)
+            ->with('success', 'Avance registrado en la bitácora');
     }
 
     public function update(UpdateOrdenTrabajoRequest $request, string $id): RedirectResponse
@@ -269,6 +291,13 @@ class OrdenTrabajoWebController extends Controller
                 'cantidad' => $or->cantidad,
                 'precioUnitario' => (float) $or->precio_unitario,
             ])->toArray();
+
+            $data['avances'] = $orden->avances->map(fn ($avance) => [
+                'id' => $avance->id,
+                'mensaje' => $avance->mensaje,
+                'usuarioNombre' => $avance->user?->name ?? 'Usuario',
+                'createdAt' => $avance->created_at?->format('Y-m-d H:i:s'),
+            ])->values()->toArray();
         }
 
         return $data;
@@ -294,7 +323,18 @@ class OrdenTrabajoWebController extends Controller
     private function vehiculosOptions(): array
     {
         return VehiculoEloquentModel::where('activo', true)->orderBy('placa')->get()
-            ->map(fn ($v) => ['id' => $v->id, 'label' => $v->placa . ' — ' . $v->marca . ' ' . $v->modelo, 'clienteId' => $v->cliente_id])
+            ->map(fn ($v) => [
+                'id' => $v->id,
+                'label' => $v->placa . ' — ' . $v->marca . ' ' . $v->modelo,
+                'clienteId' => $v->cliente_id,
+                'placa' => $v->placa,
+                'marca' => $v->marca,
+                'modelo' => $v->modelo,
+                'anio' => $v->anio,
+                'color' => $v->color,
+                'kilometraje' => (int) $v->kilometraje,
+                'tipoCombustible' => $v->tipo_combustible,
+            ])
             ->values()->toArray();
     }
 
@@ -328,7 +368,19 @@ class OrdenTrabajoWebController extends Controller
 
     private function repuestosOptions(): array
     {
-        return ProductoEloquentModel::where('activo', true)->orderBy('nombre')->get()
-            ->map(fn ($p) => ['id' => $p->id, 'label' => $p->nombre, 'precio' => (float) $p->precio, 'stock' => $p->stock])->values()->toArray();
+        return ProductoEloquentModel::where('activo', true)
+            ->where('tipo_producto', 'repuesto')
+            ->orderBy('categoria')
+            ->orderBy('nombre')
+            ->get()
+            ->map(fn ($p) => [
+                'id' => $p->id,
+                'label' => trim(($p->categoria ? "[{$p->categoria}] " : '') . $p->nombre . " (stock: {$p->stock})"),
+                'precio' => (float) $p->precio,
+                'stock' => $p->stock,
+                'categoria' => $p->categoria,
+            ])
+            ->values()
+            ->toArray();
     }
 }

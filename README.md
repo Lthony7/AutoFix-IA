@@ -53,7 +53,7 @@ Contraseña de todos: `password`
 | `mecanico@autofix.test` | Mecánico |
 | `cliente@autofix.test` | Cliente (portal) |
 
-El seeder también crea: vehículo `ABC-1234`, servicios, repuestos, una OT con factura/pago demo y otra OT pendiente para IA.
+El seeder también crea: vehículo `ABC-1234`, catálogo ampliado de servicios/repuestos (`CatalogoTallerSeeder`), mecánicos especialistas (`MecanicosTallerSeeder`), una OT con factura/pago demo y otra OT pendiente para IA.
 
 ## Checklist demo por rol
 

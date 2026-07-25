@@ -64,10 +64,10 @@ class UpdateProductoRequest extends FormRequest
         $productoId = $this->route('id') ?? $this->route('producto') ?? $this->route('repuesto');
 
         return [
-            'tipo_producto' => 'sometimes|string|in:tipo1,tipo2,tipo3',
-            'codigo' => 'sometimes|string|unique:productos,codigo,' . $productoId . ',id',
+            'tipo_producto' => 'sometimes|string|in:repuesto',
+            'codigo' => 'sometimes|string|max:50|unique:productos,codigo,' . $productoId . ',id',
             'nombre' => 'sometimes|string|max:255',
-            'descripcion' => 'sometimes|string|max:255',
+            'descripcion' => 'sometimes|string|max:500',
             'precio' => 'sometimes|numeric|min:0|max:999999999',
             'stock' => 'sometimes|integer|min:0|max:999999',
             'stock_minimo' => 'sometimes|integer|min:0|max:999999',
@@ -79,14 +79,17 @@ class UpdateProductoRequest extends FormRequest
 
     public function attributes(): array
     {
-         return [
+        return [
             'tipo_producto' => 'tipo de producto',
             'codigo' => 'código',
             'nombre' => 'nombre',
             'descripcion' => 'descripción',
             'precio' => 'precio',
             'stock' => 'stock',
+            'stock_minimo' => 'stock mínimo',
             'activo' => 'activo',
+            'categoria' => 'categoría',
+            'proveedor' => 'proveedor',
         ];
     }
 
@@ -94,14 +97,14 @@ class UpdateProductoRequest extends FormRequest
     {
         return [
             'tipo_producto.required' => 'El tipo de producto es obligatorio',
-            'tipo_producto.in' => 'El tipo de producto debe ser tipo1, tipo2 o tipo3',
+            'tipo_producto.in' => 'El tipo de producto debe ser repuesto',
             'codigo.required' => 'El código es obligatorio',
             'codigo.unique' => 'Este código ya está registrado',
             'nombre.required' => 'El nombre es obligatorio',
             'descripcion.required' => 'La descripción es obligatoria',
             'precio.required' => 'El precio es obligatorio',
             'stock.required' => 'El stock es obligatorio',
-            'activo.required' => 'El estado activo es obligatorio'
+            'activo.required' => 'El estado activo es obligatorio',
         ];
     }
 }

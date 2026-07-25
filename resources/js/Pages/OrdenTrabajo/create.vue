@@ -14,13 +14,23 @@ interface Option {
   clienteId?: string
 }
 
+interface VehiculoOption extends Option {
+  placa?: string
+  marca?: string
+  modelo?: string
+  anio?: number | null
+  color?: string | null
+  kilometraje?: number
+  tipoCombustible?: string | null
+}
+
 interface MecanicoOption extends MecanicoFicha {
   label: string
 }
 
 const page = usePage()
 const clientes = computed(() => ((page.props as any).clientes || []) as Option[])
-const vehiculos = computed(() => ((page.props as any).vehiculos || []) as Option[])
+const vehiculos = computed(() => ((page.props as any).vehiculos || []) as VehiculoOption[])
 const mecanicos = computed(() => ((page.props as any).mecanicos || []) as MecanicoOption[])
 const servicios = computed(() => ((page.props as any).servicios || []) as Option[])
 const repuestos = computed(() => ((page.props as any).repuestos || []) as Option[])
@@ -40,6 +50,17 @@ const prioridadItems = [
   // ZWNJ evita que Chrome traduzca "Media" → "Medios de comunicación"
   { label: 'Media\u200C', value: 'media' },
   { label: 'Alta', value: 'alta' }
+]
+
+const tipoFallaItems = [
+  { label: 'Frenos', value: 'Frenos' },
+  { label: 'Motor', value: 'Motor' },
+  { label: 'Suspensión', value: 'Suspensión' },
+  { label: 'Eléctrico', value: 'Eléctrico' },
+  { label: 'Transmisión', value: 'Transmisión' },
+  { label: 'Aire acondicionado', value: 'Aire acondicionado' },
+  { label: 'Inyección', value: 'Inyección' },
+  { label: 'Otro', value: 'Otro' }
 ]
 
 const incluirServicio = ref(false)
@@ -76,9 +97,30 @@ const vehiculosFiltrados = computed(() => {
   return vehiculos.value.filter(v => v.clienteId === state.clienteId)
 })
 
+const vehiculoSeleccionado = computed(() =>
+  vehiculos.value.find(v => v.id === state.vehiculoId) ?? null
+)
+
 watch(() => state.clienteId, () => {
   if (state.vehiculoId && !vehiculosFiltrados.value.some(v => v.id === state.vehiculoId)) {
     state.vehiculoId = ''
+    state.kilometrajeIngreso = 0
+  }
+})
+
+watch(() => state.vehiculoId, (id) => {
+  if (!id) {
+    state.kilometrajeIngreso = 0
+    return
+  }
+
+  const vehiculo = vehiculos.value.find(v => v.id === id)
+  if (!vehiculo) return
+
+  state.kilometrajeIngreso = vehiculo.kilometraje ?? 0
+
+  if (vehiculo.clienteId && state.clienteId !== vehiculo.clienteId) {
+    state.clienteId = vehiculo.clienteId
   }
 })
 
@@ -143,6 +185,16 @@ const handleSubmit = () => {
               placeholder="Seleccionar vehículo"
               class="w-full"
             />
+            <p v-if="vehiculoSeleccionado" class="mt-2 text-sm text-muted">
+              {{ vehiculoSeleccionado.marca }} {{ vehiculoSeleccionado.modelo }}
+              <span v-if="vehiculoSeleccionado.anio"> ({{ vehiculoSeleccionado.anio }})</span>
+              <span v-if="vehiculoSeleccionado.color"> · {{ vehiculoSeleccionado.color }}</span>
+              <span v-if="vehiculoSeleccionado.tipoCombustible"> · {{ vehiculoSeleccionado.tipoCombustible }}</span>
+              · Km registrado:
+              <span class="font-medium text-highlighted">
+                {{ Number(vehiculoSeleccionado.kilometraje ?? 0).toLocaleString() }}
+              </span>
+            </p>
           </FormField>
           <FormField label="Mecánico" name="mecanicoId" :error="errors.mecanicoId" class="md:col-span-2">
             <div class="flex flex-col gap-2 sm:flex-row sm:items-start">
@@ -166,7 +218,12 @@ const handleSubmit = () => {
             </p>
           </FormField>
           <FormField label="Tipo de falla" name="tipoFalla" :error="errors.tipoFalla">
-            <UInput v-model="state.tipoFalla" class="w-full" />
+            <USelect
+              v-model="state.tipoFalla"
+              :items="tipoFallaItems"
+              placeholder="Seleccionar tipo"
+              class="w-full"
+            />
           </FormField>
           <FormField label="Prioridad" name="prioridad" :error="errors.prioridad">
             <div translate="no">
@@ -190,7 +247,16 @@ const handleSubmit = () => {
             <UTextarea v-model="state.fallaReportada" class="w-full" :rows="3" />
           </FormField>
           <FormField label="Kilometraje ingreso" name="kilometrajeIngreso" :error="errors.kilometrajeIngreso">
-            <UInput v-model.number="state.kilometrajeIngreso" type="number" min="0" class="w-full" />
+            <UInput
+              v-model.number="state.kilometrajeIngreso"
+              type="number"
+              min="0"
+              class="w-full"
+              :placeholder="vehiculoSeleccionado ? 'Se completa al elegir el vehículo' : 'Selecciona un vehículo'"
+            />
+            <p class="mt-1 text-xs text-muted">
+              Se rellena con el kilometraje del vehículo; puedes ajustarlo si el odómetro cambió.
+            </p>
           </FormField>
           <FormField label="Observaciones" name="observaciones" :error="errors.observaciones">
             <UTextarea v-model="state.observaciones" class="w-full" />

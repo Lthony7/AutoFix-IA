@@ -55,12 +55,21 @@ createInertiaApp({
         return page;
     },
     setup({ el, App, props, plugin }) {
+        // Usar el origen actual para que route() no apunte a otro host/puerto (APP_URL desfasado).
+        const ziggyConfig = {
+            ...Ziggy,
+            url: typeof window !== 'undefined' ? window.location.origin : Ziggy.url,
+            port: typeof window !== 'undefined' && window.location.port
+                ? Number(window.location.port)
+                : Ziggy.port,
+        };
+
         return createApp({ render: () => h(App, props) })
             .use(plugin)
             .use(router)
             .use(Toast)
             .use(NuxtUIPlugin)
-            .use(ZiggyVue, Ziggy)
+            .use(ZiggyVue, ziggyConfig)
             .component('AppDashboardPanel', AppDashboardPanel)
             .component('AppPagination', AppPagination)
             .mount(el);

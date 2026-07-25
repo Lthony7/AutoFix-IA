@@ -31,10 +31,10 @@ class StoreProductoRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'tipo_producto' => 'required|string|in:tipo1,tipo2,tipo3',
-            'codigo' => 'required|string|unique:productos,codigo',
+            'tipo_producto' => 'required|string|in:repuesto',
+            'codigo' => 'required|string|max:50|unique:productos,codigo',
             'nombre' => 'required|string|max:255',
-            'descripcion' => 'required|string|max:255',
+            'descripcion' => 'required|string|max:500',
             'precio' => 'required|numeric|min:0|max:999999999',
             'stock' => 'required|integer|min:0|max:999999',
             'stock_minimo' => 'sometimes|integer|min:0|max:999999',
@@ -53,7 +53,10 @@ class StoreProductoRequest extends FormRequest
             'descripcion' => 'descripción',
             'precio' => 'precio',
             'stock' => 'stock',
+            'stock_minimo' => 'stock mínimo',
             'activo' => 'activo',
+            'categoria' => 'categoría',
+            'proveedor' => 'proveedor',
         ];
     }
 
@@ -61,7 +64,7 @@ class StoreProductoRequest extends FormRequest
     {
         return [
             'tipo_producto.required' => 'El tipo de producto es obligatorio',
-            'tipo_producto.in' => 'El tipo de producto debe ser tipo1, tipo2 o tipo3',
+            'tipo_producto.in' => 'El tipo de producto debe ser repuesto',
             'codigo.required' => 'El código es obligatorio',
             'codigo.unique' => 'Este código ya está registrado',
             'nombre.required' => 'El nombre es obligatorio',

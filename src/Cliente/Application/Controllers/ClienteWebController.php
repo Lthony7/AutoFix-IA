@@ -18,10 +18,23 @@ class ClienteWebController extends Controller
     public function index(): Response
     {
         $paginator = ClienteEloquentModel::query()
+            ->with(['vehiculos' => fn ($q) => $q->orderBy('placa')])
             ->orderBy('razon_social')
             ->paginate(InertiaTablePaginator::PER_PAGE)
             ->withQueryString()
-            ->through(fn ($model) => ClienteMapper::toDomain($model)->toArray());
+            ->through(function ($model) {
+                $data = ClienteMapper::toDomain($model)->toArray();
+                $data['vehiculos'] = $model->vehiculos->map(fn ($v) => [
+                    'id' => $v->id,
+                    'placa' => $v->placa,
+                    'marca' => $v->marca,
+                    'modelo' => $v->modelo,
+                    'anio' => $v->anio,
+                    'color' => $v->color,
+                ])->values()->toArray();
+
+                return $data;
+            });
 
         return Inertia::render('Cliente/index', [
             'customers' => InertiaTablePaginator::make($paginator),

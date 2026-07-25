@@ -4,37 +4,55 @@ namespace App\Services;
 
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Src\Mecanico\Infrastructure\Models\MecanicoEloquentModel;
 
 class GroqDiagnosticService
 {
     public function analyze(array $payload): array
     {
-        if ($this->shouldUseMock()) {
-            return $this->mockAnalyze($payload);
-        }
+        $resultado = $this->shouldUseMock()
+            ? $this->mockAnalyze($payload)
+            : $this->callGroq($payload);
 
+        $especialidad = $resultado['especialidad_recomendada'] ?? 'Mantenimiento general';
+        $resultado['mecanicos_sugeridos'] = $this->sugerirMecanicos($especialidad);
+
+        return $resultado;
+    }
+
+    private function callGroq(array $payload): array
+    {
         try {
             $request = Http::withToken(config('services.groq.key'))->timeout(45);
 
-            // En Windows/local suele fallar cURL 60 por CA; desactivar solo si se configura.
             if (!config('services.groq.ssl_verify', true)) {
                 $request = $request->withoutVerifying();
             }
 
+            $system = <<<'PROMPT'
+Eres un asistente de taller automotriz AUTOFIX IA. NO emitas un diagnóstico definitivo.
+Analiza la falla reportada y responde SOLO en JSON con estas claves:
+- diagnostico_detalle (string): explicación clara del problema probable y por qué.
+- posibles_causas (array de strings): causas ordenadas de más a menos probable.
+- acciones_recomendadas (array de strings): pasos concretos que debe hacer el taller.
+- especialidad_recomendada (string): especialidad del mecánico a asignar, por ejemplo:
+  "Sistema eléctrico y baterías", "Motor", "Frenos", "Suspensión y dirección",
+  "Inyección electrónica y sensores", "Transmisión", "Diagnóstico computarizado (scanner OBD)",
+  "Aire acondicionado y clima", "Embrague y caja de cambios", "Mantenimiento general y lubricación".
+- servicio_recomendado (string)
+- prioridad (baja|media|alta)
+- observacion_mecanico (string)
+- advertencia (string)
+- respuesta_completa (string): resumen legible para el taller.
+
+Si el vehículo no enciende, prioriza sistema eléctrico/arranque y recomienda electromecánico o especialista eléctrico.
+PROMPT;
+
             $response = $request->post(rtrim(config('services.groq.url'), '/') . '/chat/completions', [
                 'model' => config('services.groq.model'),
                 'messages' => [
-                    [
-                        'role' => 'system',
-                        'content' => 'Eres un asistente de taller automotriz. NO emitas diagnósticos definitivos. '
-                            . 'Proporciona posibles causas, prioridad (baja/media/alta), servicio recomendado, '
-                            . 'observación para el mecánico y advertencias de seguridad. Responde en JSON con claves: '
-                            . 'posibles_causas (array), servicio_recomendado, prioridad, observacion_mecanico, advertencia, respuesta_completa.',
-                    ],
-                    [
-                        'role' => 'user',
-                        'content' => json_encode($payload, JSON_UNESCAPED_UNICODE),
-                    ],
+                    ['role' => 'system', 'content' => $system],
+                    ['role' => 'user', 'content' => json_encode($payload, JSON_UNESCAPED_UNICODE)],
                 ],
                 'temperature' => 0.3,
                 'response_format' => ['type' => 'json_object'],
@@ -42,6 +60,7 @@ class GroqDiagnosticService
 
             if (!$response->successful()) {
                 Log::warning('Groq API falló, usando mock', ['status' => $response->status()]);
+
                 return $this->mockAnalyze($payload);
             }
 
@@ -53,7 +72,10 @@ class GroqDiagnosticService
             }
 
             return [
+                'diagnostico_detalle' => $parsed['diagnostico_detalle'] ?? null,
                 'posibles_causas' => $parsed['posibles_causas'] ?? [],
+                'acciones_recomendadas' => $parsed['acciones_recomendadas'] ?? [],
+                'especialidad_recomendada' => $parsed['especialidad_recomendada'] ?? 'Mantenimiento general y lubricación',
                 'servicio_recomendado' => $parsed['servicio_recomendado'] ?? null,
                 'prioridad' => $parsed['prioridad'] ?? 'media',
                 'observacion_mecanico' => $parsed['observacion_mecanico'] ?? null,
@@ -63,6 +85,7 @@ class GroqDiagnosticService
             ];
         } catch (\Throwable $e) {
             Log::warning('Groq API excepción, usando mock', ['error' => $e->getMessage()]);
+
             return $this->mockAnalyze($payload);
         }
     }
@@ -78,78 +101,257 @@ class GroqDiagnosticService
 
     private function mockAnalyze(array $payload): array
     {
-        $tipoFalla = strtolower($payload['tipo_falla'] ?? $payload['tipoFalla'] ?? 'general');
+        $texto = mb_strtolower(implode(' ', array_filter([
+            $payload['tipo_falla'] ?? '',
+            $payload['descripcion'] ?? '',
+            $payload['falla_reportada'] ?? '',
+            $payload['momento'] ?? '',
+            $payload['ruidos'] ?? '',
+            $payload['luces_tablero'] ?? '',
+        ])));
 
-        $rules = match (true) {
-            str_contains($tipoFalla, 'freno') => [
+        $urgencia = strtolower((string) ($payload['urgencia'] ?? 'media'));
+        $noArranca = $this->containsAny($texto, [
+            'no enciende', 'no arranca', 'no prende', 'no parte', 'no da marcha',
+            'sin arranque', 'starter', 'arrancador', 'no prende el motor',
+        ]);
+
+        if ($noArranca || $this->containsAny($texto, ['bater', 'alternador', 'fusible', 'eléctrico', 'electrico', 'corto'])) {
+            $rules = [
+                'diagnostico_detalle' => 'El síntoma sugiere una falla en el sistema eléctrico de arranque o alimentación. '
+                    . 'Cuando el vehículo no enciende, lo habitual es revisar batería, bornes, arrancador, relé de arranque y carga del alternador antes de abrir motor.',
+                'posibles_causas' => [
+                    'Batería descargada, sulfatada o con bajo amperaje de arranque',
+                    'Bornes o cables de batería oxidados o flojos',
+                    'Motor de arranque (marcha) defectuoso o relé de arranque fallando',
+                    'Alternador que no carga y deja la batería sin energía',
+                    'Fusible/relé principal o falla en interruptor de encendido',
+                ],
+                'acciones_recomendadas' => [
+                    'Medir voltaje de batería en reposo (ideal ~12.4–12.7 V)',
+                    'Probar arranque con carga y revisar caída de voltaje en bornes',
+                    'Inspeccionar cables a masa y positivo del arrancador',
+                    'Verificar si el alternador carga con motor en marcha (si logra encender)',
+                    'Asignar a especialista en sistema eléctrico / electromecánico',
+                ],
+                'especialidad_recomendada' => 'Sistema eléctrico y baterías',
+                'servicio_recomendado' => 'Diagnóstico eléctrico de arranque y carga',
+                'prioridad' => $noArranca ? 'alta' : ($urgencia === 'alta' ? 'alta' : 'media'),
+                'observacion_mecanico' => 'Confirmar si hay click al girar llave, luces débiles o tablero muerto. Eso orienta a batería vs arrancador.',
+                'advertencia' => 'No forzar arranques prolongados: puede dañar el motor de arranque y descargar más la batería.',
+            ];
+        } elseif ($this->containsAny($texto, ['freno', 'chirri', 'vibra al frenar', 'pedal duro', 'abs'])) {
+            $rules = [
+                'diagnostico_detalle' => 'El reporte apunta a un problema del sistema de frenos. Se recomienda inspección de pastillas, discos, líquido y, si aplica, sensores ABS.',
                 'posibles_causas' => [
                     'Pastillas de freno desgastadas',
                     'Discos deformados o rayados',
                     'Líquido de frenos bajo o contaminado',
-                    'Cilindros o mordazas con falla',
+                    'Cilindros o mordazas con fuga/falla',
+                    'Sensor o módulo ABS con falla (si hay luz en tablero)',
                 ],
+                'acciones_recomendadas' => [
+                    'Medir espesor de pastillas y estado de discos',
+                    'Revisar nivel y estado del líquido DOT',
+                    'Inspeccionar fugas en flexibles y calipers',
+                    'Probar frenado a baja velocidad en zona segura',
+                ],
+                'especialidad_recomendada' => 'Frenos (discos, pastillas, ABS y freno de mano)',
                 'servicio_recomendado' => 'Inspección y mantenimiento de sistema de frenos',
                 'prioridad' => 'alta',
-                'observacion_mecanico' => 'Verificar espesor de pastillas, estado de discos y nivel de líquido DOT.',
+                'observacion_mecanico' => 'Priorizar seguridad: no entregar el vehículo si hay pedal esponjoso o pérdida de frenado.',
                 'advertencia' => 'No circular si hay pérdida total de frenado o pedal esponjoso.',
-            ],
-            str_contains($tipoFalla, 'motor') => [
-                'posibles_causas' => [
-                    'Falla en sistema de encendido',
-                    'Sensor MAP/MAF defectuoso',
-                    'Problemas de compresión',
-                    'Filtro de aire obstruido',
-                ],
-                'servicio_recomendado' => 'Diagnóstico computarizado de motor',
-                'prioridad' => 'media',
-                'observacion_mecanico' => 'Leer códigos OBD-II y revisar bujías, filtros y sensores.',
-                'advertencia' => 'Evitar aceleraciones bruscas si hay pérdida de potencia severa.',
-            ],
-            str_contains($tipoFalla, 'electri') => [
-                'posibles_causas' => [
-                    'Batería descargada o sulfatada',
-                    'Alternador con falla de carga',
-                    'Fusible quemado o relé defectuoso',
-                    'Cableado con cortocircuito',
-                ],
-                'servicio_recomendado' => 'Diagnóstico eléctrico automotriz',
-                'prioridad' => 'media',
-                'observacion_mecanico' => 'Medir voltaje de batería en reposo y con motor encendido.',
-                'advertencia' => 'Desconectar batería antes de manipular cableado si hay olor a quemado.',
-            ],
-            str_contains($tipoFalla, 'suspens') => [
+            ];
+        } elseif ($this->containsAny($texto, ['suspens', 'amortigu', 'golpeteo', 'dirección', 'rueda'])) {
+            $rules = [
+                'diagnostico_detalle' => 'Los síntomas coinciden con desgaste o falla en suspensión/dirección. Conviene revisar amortiguadores, rótulas, bujes y alineación.',
                 'posibles_causas' => [
                     'Amortiguadores desgastados',
                     'Bujes o rótulas con holgura',
                     'Resortes fatigados',
                     'Alineación fuera de especificación',
                 ],
+                'acciones_recomendadas' => [
+                    'Inspección en elevador de suspensión delantera/trasera',
+                    'Verificar holguras en rótulas y terminales',
+                    'Revisar fugas en amortiguadores',
+                    'Evaluar necesidad de alineación y balanceo',
+                ],
+                'especialidad_recomendada' => 'Suspensión y dirección (amortiguadores, rótulas, cremallera)',
                 'servicio_recomendado' => 'Revisión de suspensión y dirección',
-                'prioridad' => 'media',
-                'observacion_mecanico' => 'Inspeccionar holguras en rótulas, bujes y estado de amortiguadores.',
+                'prioridad' => $urgencia === 'alta' ? 'alta' : 'media',
+                'observacion_mecanico' => 'Preguntar si el ruido aparece en baches, al girar o a cierta velocidad.',
                 'advertencia' => 'Conducir con precaución si hay vibraciones o ruidos metálicos al girar.',
-            ],
-            default => [
+            ];
+        } elseif ($this->containsAny($texto, ['inyecc', 'sensor', 'check engine', 'falla electr', 'scanner', 'obd'])) {
+            $rules = [
+                'diagnostico_detalle' => 'El caso sugiere falla electrónica o de inyección. Se recomienda lectura de códigos OBD y revisión de sensores/inyectores.',
+                'posibles_causas' => [
+                    'Sensor MAF/MAP o oxígeno defectuoso',
+                    'Inyectores sucios o fallando',
+                    'Bujías/cables de encendido en mal estado',
+                    'Falla intermitente de cableado a ECU',
+                ],
+                'acciones_recomendadas' => [
+                    'Lectura de códigos con scanner OBD',
+                    'Revisar parámetros en vivo (combustible, sensores)',
+                    'Inspeccionar conectores y masas',
+                    'Confirmar si la luz check engine está activa',
+                ],
+                'especialidad_recomendada' => 'Inyección electrónica y sensores',
+                'servicio_recomendado' => 'Diagnóstico computarizado e inyección',
+                'prioridad' => $urgencia === 'alta' ? 'alta' : 'media',
+                'observacion_mecanico' => 'Guardar captura de códigos antes de borrarlos.',
+                'advertencia' => 'Si el motor falla en marcha, evitar autopista hasta confirmar causa.',
+            ];
+        } elseif ($this->containsAny($texto, ['motor', 'sobrecalent', 'humo', 'aceite', 'perdida de potencia'])) {
+            $rules = [
+                'diagnostico_detalle' => 'El reporte indica posible falla de motor o sistemas asociados (lubricación, refrigeración o encendido).',
+                'posibles_causas' => [
+                    'Falla en sistema de encendido',
+                    'Sensor o falla de inyección asociada a motor',
+                    'Problemas de compresión',
+                    'Sobrecalentamiento por termostato/bomba/radiador',
+                ],
+                'acciones_recomendadas' => [
+                    'Lectura OBD y revisión de bujías/filtros',
+                    'Verificar nivel de aceite y refrigerante',
+                    'Inspeccionar fugas y temperatura de operación',
+                    'Prueba de compresión si aplica',
+                ],
+                'especialidad_recomendada' => 'Motor (reparación, sincronización y sobrecalentamiento)',
+                'servicio_recomendado' => 'Diagnóstico de motor',
+                'prioridad' => $urgencia === 'alta' ? 'alta' : 'media',
+                'observacion_mecanico' => 'No operar el motor si hay sobrecalentamiento o ruido metálico fuerte.',
+                'advertencia' => 'Detener el vehículo si la temperatura sube a zona roja.',
+            ];
+        } elseif ($this->containsAny($texto, ['transm', 'caja', 'embrague', 'cambios'])) {
+            $rules = [
+                'diagnostico_detalle' => 'Los síntomas apuntan a transmisión o embrague. Requiere prueba de cambios y revisión de niveles/holguras.',
+                'posibles_causas' => [
+                    'Embrague desgastado o deslizando',
+                    'Nivel/estado de aceite de transmisión inadecuado',
+                    'Sincronizadores o solenoides con falla',
+                    'Soportes de motor/caja deteriorados',
+                ],
+                'acciones_recomendadas' => [
+                    'Prueba de embargue y cambios en frío/caliente',
+                    'Revisar nivel y olor del aceite de caja',
+                    'Inspeccionar fugas y soportes',
+                    'Asignar a especialista en transmisión/embrague',
+                ],
+                'especialidad_recomendada' => 'Transmisión manual y automática',
+                'servicio_recomendado' => 'Diagnóstico de transmisión/embrague',
+                'prioridad' => $urgencia === 'alta' ? 'alta' : 'media',
+                'observacion_mecanico' => 'Documentar si hay patinaje, ruidos al cambiar o tirones.',
+                'advertencia' => 'Evitar forzar cambios si hay bloqueo o ruidos graves.',
+            ];
+        } else {
+            $rules = [
+                'diagnostico_detalle' => 'Con la información disponible se sugiere un diagnóstico general orientado por la descripción del cliente. '
+                    . 'El mecánico debe confirmar en taller con inspección y, si aplica, scanner.',
                 'posibles_causas' => [
                     'Requiere inspección visual en taller',
                     'Posible falla intermitente no identificada',
                     'Componente desgastado por uso',
                 ],
+                'acciones_recomendadas' => [
+                    'Entrevista detallada al cliente sobre cuándo ocurre la falla',
+                    'Inspección visual general y prueba de ruta si es seguro',
+                    'Lectura OBD si hay luces de tablero',
+                    'Asignar según hallazgos al especialista correspondiente',
+                ],
+                'especialidad_recomendada' => 'Diagnóstico computarizado (scanner OBD)',
                 'servicio_recomendado' => 'Diagnóstico general de vehículo',
-                'prioridad' => $payload['urgencia'] ?? 'media',
-                'observacion_mecanico' => 'Realizar entrevista al cliente y prueba de ruta si es seguro.',
+                'prioridad' => in_array($urgencia, ['baja', 'media', 'alta'], true) ? $urgencia : 'media',
+                'observacion_mecanico' => 'Completar síntomas (ruidos, luces, momento exacto) antes de desarmar.',
                 'advertencia' => 'Esta sugerencia es orientativa y requiere confirmación del mecánico.',
-            ],
-        };
+            ];
+        }
 
         $descripcion = $payload['descripcion'] ?? $payload['falla_reportada'] ?? '';
-        $respuesta = "Sugerencia IA simulada para tipo de falla: {$tipoFalla}. "
-            . "Descripción reportada: {$descripcion}. "
-            . "Posibles causas: " . implode('; ', $rules['posibles_causas']);
+        $respuesta = "Diagnóstico IA (simulado)\n"
+            . "Detalle: {$rules['diagnostico_detalle']}\n"
+            . "Especialista sugerido: {$rules['especialidad_recomendada']}\n"
+            . 'Posibles causas: ' . implode('; ', $rules['posibles_causas']) . "\n"
+            . 'Qué hacer: ' . implode('; ', $rules['acciones_recomendadas']) . "\n"
+            . "Descripción del cliente: {$descripcion}";
 
         return array_merge($rules, [
             'respuesta_completa' => $respuesta,
             'es_simulado' => true,
         ]);
+    }
+
+    /** @param list<string> $needles */
+    private function containsAny(string $haystack, array $needles): bool
+    {
+        foreach ($needles as $needle) {
+            if ($needle !== '' && str_contains($haystack, $needle)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Busca mecánicos activos cuya especialidad coincida con la recomendada.
+     *
+     * @return list<array{id: string, nombre: string, especialidad: string, telefono: ?string}>
+     */
+    private function sugerirMecanicos(string $especialidad): array
+    {
+        $keywords = $this->keywordsEspecialidad($especialidad);
+
+        $query = MecanicoEloquentModel::query()
+            ->where('activo', true)
+            ->orderBy('nombres');
+
+        if ($keywords !== []) {
+            $query->where(function ($q) use ($keywords) {
+                foreach ($keywords as $kw) {
+                    $q->orWhereRaw('LOWER(especialidad) LIKE ?', ['%' . mb_strtolower($kw) . '%']);
+                }
+            });
+        }
+
+        $mecanicos = $query->limit(3)->get();
+
+        if ($mecanicos->isEmpty()) {
+            $mecanicos = MecanicoEloquentModel::query()
+                ->where('activo', true)
+                ->whereRaw('LOWER(especialidad) LIKE ?', ['%mantenimiento%'])
+                ->orderBy('nombres')
+                ->limit(2)
+                ->get();
+        }
+
+        return $mecanicos->map(fn (MecanicoEloquentModel $m) => [
+            'id' => $m->id,
+            'nombre' => trim($m->nombres . ' ' . $m->apellidos),
+            'especialidad' => $m->especialidad,
+            'telefono' => $m->telefono,
+        ])->values()->all();
+    }
+
+    /** @return list<string> */
+    private function keywordsEspecialidad(string $especialidad): array
+    {
+        $e = mb_strtolower($especialidad);
+
+        return match (true) {
+            str_contains($e, 'eléct') || str_contains($e, 'elect') || str_contains($e, 'bater') => ['eléct', 'elect', 'bater', 'arranque'],
+            str_contains($e, 'freno') => ['freno', 'abs'],
+            str_contains($e, 'suspens') || str_contains($e, 'direcc') => ['suspens', 'direcc', 'amortigu'],
+            str_contains($e, 'inyecc') || str_contains($e, 'sensor') => ['inyecc', 'sensor'],
+            str_contains($e, 'motor') => ['motor'],
+            str_contains($e, 'transm') => ['transm'],
+            str_contains($e, 'embrague') || str_contains($e, 'caja') => ['embrague', 'caja'],
+            str_contains($e, 'diagnóst') || str_contains($e, 'obd') || str_contains($e, 'scanner') => ['diagnóst', 'obd', 'scanner'],
+            str_contains($e, 'aire') || str_contains($e, 'clima') => ['aire', 'clima'],
+            str_contains($e, 'aline') || str_contains($e, 'balance') => ['aline', 'balance', 'llanta'],
+            default => array_values(array_filter(preg_split('/\s+/', $e) ?: [], fn ($w) => mb_strlen($w) >= 5)),
+        };
     }
 }

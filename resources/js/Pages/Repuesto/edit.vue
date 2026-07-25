@@ -6,6 +6,7 @@ import FormField from '../../components/FormField.vue'
 
 const page = usePage()
 const repuesto = (page.props as any).repuesto
+const categorias = computed(() => ((page.props as any).categorias || []) as string[])
 
 const backendErrors = computed(() => page.props.errors || {})
 const errors = computed(() => {
@@ -17,11 +18,13 @@ const errors = computed(() => {
   return result
 })
 
-const tipoProductoItems = [
-  { label: 'Tipo 1', value: 'tipo1' },
-  { label: 'Tipo 2', value: 'tipo2' },
-  { label: 'Tipo 3', value: 'tipo3' }
-]
+const categoriaItems = computed(() => {
+  const list = [...categorias.value]
+  if (repuesto.categoria && !list.includes(repuesto.categoria)) {
+    list.unshift(repuesto.categoria)
+  }
+  return list.map(c => ({ label: c, value: c }))
+})
 
 const isLoading = ref(false)
 const state = reactive({
@@ -33,7 +36,7 @@ const state = reactive({
   stockMinimo: repuesto.stockMinimo ?? 0,
   categoria: repuesto.categoria || '',
   proveedor: repuesto.proveedor || '',
-  tipoProducto: repuesto.tipoProducto,
+  tipoProducto: 'repuesto',
   activo: !!repuesto.activo
 })
 
@@ -60,8 +63,13 @@ const handleSubmit = () => {
           <FormField label="Código" name="codigo" required :error="errors.codigo">
             <UInput v-model="state.codigo" class="w-full" />
           </FormField>
-          <FormField label="Tipo de producto" name="tipoProducto" required :error="errors.tipoProducto">
-            <USelect v-model="state.tipoProducto" :items="tipoProductoItems" class="w-full" />
+          <FormField label="Categoría" name="categoria" :error="errors.categoria">
+            <USelect
+              v-model="state.categoria"
+              :items="categoriaItems"
+              placeholder="Seleccionar categoría"
+              class="w-full"
+            />
           </FormField>
           <FormField label="Nombre" name="nombre" required :error="errors.nombre" class="md:col-span-2">
             <UInput v-model="state.nombre" class="w-full" />
@@ -72,20 +80,17 @@ const handleSubmit = () => {
           <FormField label="Precio" name="precio" required :error="errors.precio">
             <UInput v-model.number="state.precio" type="number" min="0" step="0.01" class="w-full" />
           </FormField>
+          <FormField label="Proveedor" name="proveedor" :error="errors.proveedor">
+            <UInput v-model="state.proveedor" class="w-full" />
+          </FormField>
           <FormField label="Stock" name="stock" required :error="errors.stock">
             <UInput v-model.number="state.stock" type="number" min="0" class="w-full" />
           </FormField>
-          <FormField label="Stock mínimo" name="stockMinimo" :error="errors.stockMinimo">
+          <FormField label="Stock mínimo (alerta)" name="stockMinimo" :error="errors.stockMinimo">
             <UInput v-model.number="state.stockMinimo" type="number" min="0" class="w-full" />
           </FormField>
-          <FormField label="Categoría" name="categoria" :error="errors.categoria">
-            <UInput v-model="state.categoria" class="w-full" />
-          </FormField>
-          <FormField label="Proveedor" name="proveedor" :error="errors.proveedor" class="md:col-span-2">
-            <UInput v-model="state.proveedor" class="w-full" />
-          </FormField>
           <div class="md:col-span-2">
-            <UCheckbox v-model="state.activo" label="Repuesto activo" />
+            <UCheckbox v-model="state.activo" label="Repuesto activo (disponible en órdenes)" />
           </div>
           <div class="md:col-span-2 flex gap-3">
             <UButton type="submit" label="Actualizar" :loading="isLoading" />

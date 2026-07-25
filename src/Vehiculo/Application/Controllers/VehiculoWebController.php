@@ -26,6 +26,7 @@ class VehiculoWebController extends Controller
 
         return Inertia::render('Vehiculo/index', [
             'vehiculos' => InertiaTablePaginator::make($paginator),
+            'clientes' => $this->clientesOptions(),
         ]);
     }
 

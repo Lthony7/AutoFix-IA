@@ -1,25 +1,30 @@
 <script setup lang="ts">
-import { computed } from 'vue'
-import { router, usePage } from '@inertiajs/vue3'
+import { computed, ref, watch } from 'vue'
+import { usePage } from '@inertiajs/vue3'
 import { route } from 'ziggy-js'
-
-interface Cliente {
-  id: string
-  nombreCompleto: string
-  numeroDocumento: string
-  telefono: string
-  email: string
-  estado: boolean
-}
+import ClienteFichaSlideover, { type ClienteFicha } from '../../components/ClienteFichaSlideover.vue'
 
 const page = usePage()
 const customers = computed(() => (page.props as any).customers)
 const stats = computed(() => (page.props as any).stats)
 
-const destroy = (id: string) => {
-  if (!confirm('¿Eliminar este cliente?')) return
-  router.delete(route('clientes.destroy', id))
+const fichaOpen = ref(false)
+const clienteSeleccionado = ref<ClienteFicha | null>(null)
+
+const abrirFicha = (cliente: ClienteFicha) => {
+  clienteSeleccionado.value = cliente
+  fichaOpen.value = true
 }
+
+watch(customers, (lista) => {
+  if (!clienteSeleccionado.value || !fichaOpen.value) return
+  const actualizado = (lista?.data || []).find((c: ClienteFicha) => c.id === clienteSeleccionado.value?.id)
+  if (actualizado) clienteSeleccionado.value = actualizado
+  else {
+    fichaOpen.value = false
+    clienteSeleccionado.value = null
+  }
+})
 </script>
 
 <template>
@@ -51,24 +56,36 @@ const destroy = (id: string) => {
                 <th class="py-3 pr-3">Documento</th>
                 <th class="py-3 pr-3">Teléfono</th>
                 <th class="py-3 pr-3">Email</th>
+                <th class="py-3 pr-3">Vehículos</th>
                 <th class="py-3 pr-3">Estado</th>
                 <th class="py-3">Acciones</th>
               </tr>
             </thead>
             <tbody>
-              <tr v-for="cliente in (customers?.data || []) as Cliente[]" :key="cliente.id" class="border-b border-default/60">
+              <tr
+                v-for="cliente in (customers?.data || []) as ClienteFicha[]"
+                :key="cliente.id"
+                class="border-b border-default/60 cursor-pointer hover:bg-elevated/40 transition-colors"
+                @click="abrirFicha(cliente)"
+              >
                 <td class="py-3 pr-3 font-medium">{{ cliente.nombreCompleto }}</td>
                 <td class="py-3 pr-3">{{ cliente.numeroDocumento }}</td>
                 <td class="py-3 pr-3">{{ cliente.telefono }}</td>
                 <td class="py-3 pr-3">{{ cliente.email }}</td>
+                <td class="py-3 pr-3">{{ cliente.vehiculos?.length ?? 0 }}</td>
                 <td class="py-3 pr-3">
                   <UBadge :color="cliente.estado ? 'success' : 'neutral'" variant="subtle">
                     {{ cliente.estado ? 'Activo' : 'Inactivo' }}
                   </UBadge>
                 </td>
-                <td class="py-3 flex gap-2">
-                  <UButton size="xs" variant="ghost" icon="i-lucide-pencil" :to="route('clientes.edit', cliente.id)" />
-                  <UButton size="xs" color="error" variant="ghost" icon="i-lucide-trash" @click="destroy(cliente.id)" />
+                <td class="py-3 flex gap-2" @click.stop>
+                  <UButton
+                    size="xs"
+                    variant="ghost"
+                    icon="i-lucide-eye"
+                    title="Ver ficha"
+                    @click="abrirFicha(cliente)"
+                  />
                 </td>
               </tr>
             </tbody>
@@ -76,6 +93,8 @@ const destroy = (id: string) => {
         </div>
         <AppPagination :meta="customers?.meta" />
       </UCard>
+
+      <ClienteFichaSlideover v-model:open="fichaOpen" :cliente="clienteSeleccionado" />
     </template>
   </AppDashboardPanel>
 </template>

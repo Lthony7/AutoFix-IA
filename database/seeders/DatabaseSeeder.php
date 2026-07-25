@@ -13,6 +13,9 @@ class DatabaseSeeder extends Seeder
     {
         $this->call([
             AutofixWeek1Seeder::class,
+            CatalogoTallerSeeder::class,
+            MecanicosTallerSeeder::class,
+            ClientesVehiculosTallerSeeder::class,
             AutofixDemoSeeder::class,
         ]);
     }

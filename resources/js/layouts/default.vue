@@ -72,7 +72,9 @@ const links = computed(() => {
   } else if (role.value === 'cliente') {
     items.push(
       item('Mis vehículos', 'i-lucide-car', '/portal/mis-vehiculos', 'portal.mis-vehiculos'),
-      item('Mis órdenes', 'i-lucide-clipboard-list', '/portal/mis-ordenes', 'portal.mis-ordenes')
+      item('Mis órdenes', 'i-lucide-clipboard-list', '/portal/mis-ordenes', 'portal.mis-ordenes'),
+      item('Historial', 'i-lucide-history', '/portal/historial', 'portal.historial'),
+      item('Mis datos', 'i-lucide-user-round', '/portal/mis-datos', 'portal.mis-datos')
     )
   }
 

@@ -1,27 +1,33 @@
 <script setup lang="ts">
-import { computed } from 'vue'
-import { router, usePage } from '@inertiajs/vue3'
+import { computed, ref, watch } from 'vue'
+import { usePage } from '@inertiajs/vue3'
 import { route } from 'ziggy-js'
-
-interface Vehiculo {
-  id: string
-  placa: string
-  marca: string
-  modelo: string
-  anio: number
-  clienteNombre?: string
-  kilometraje: number
-  tipoCombustible: string
-  activo: boolean
-}
+import VehiculoFichaSlideover, {
+  type ClienteOption,
+  type VehiculoFicha
+} from '../../components/VehiculoFichaSlideover.vue'
 
 const page = usePage()
 const vehiculos = computed(() => (page.props as any).vehiculos)
+const clientes = computed(() => ((page.props as any).clientes || []) as ClienteOption[])
 
-const destroy = (id: string) => {
-  if (!confirm('¿Eliminar este vehículo?')) return
-  router.delete(route('vehiculos.destroy', id))
+const fichaOpen = ref(false)
+const vehiculoSeleccionado = ref<VehiculoFicha | null>(null)
+
+const abrirFicha = (vehiculo: VehiculoFicha) => {
+  vehiculoSeleccionado.value = vehiculo
+  fichaOpen.value = true
 }
+
+watch(vehiculos, (lista) => {
+  if (!vehiculoSeleccionado.value || !fichaOpen.value) return
+  const actualizado = (lista?.data || []).find((v: VehiculoFicha) => v.id === vehiculoSeleccionado.value?.id)
+  if (actualizado) vehiculoSeleccionado.value = actualizado
+  else {
+    fichaOpen.value = false
+    vehiculoSeleccionado.value = null
+  }
+})
 </script>
 
 <template>
@@ -52,21 +58,37 @@ const destroy = (id: string) => {
               </tr>
             </thead>
             <tbody>
-              <tr v-for="item in (vehiculos?.data || []) as Vehiculo[]" :key="item.id" class="border-b border-default/60">
+              <tr
+                v-for="item in (vehiculos?.data || []) as VehiculoFicha[]"
+                :key="item.id"
+                class="border-b border-default/60 cursor-pointer hover:bg-elevated/40 transition-colors"
+                @click="abrirFicha(item)"
+              >
                 <td class="py-3 pr-3 font-medium">{{ item.placa }}</td>
                 <td class="py-3 pr-3">{{ item.marca }} {{ item.modelo }} ({{ item.anio }})</td>
                 <td class="py-3 pr-3">{{ item.clienteNombre || '—' }}</td>
-                <td class="py-3 pr-3">{{ item.kilometraje.toLocaleString() }}</td>
+                <td class="py-3 pr-3">{{ Number(item.kilometraje || 0).toLocaleString() }}</td>
                 <td class="py-3 pr-3 capitalize">{{ item.tipoCombustible }}</td>
                 <td class="py-3 pr-3">
                   <UBadge :color="item.activo ? 'success' : 'neutral'" variant="subtle">
                     {{ item.activo ? 'Activo' : 'Inactivo' }}
                   </UBadge>
                 </td>
-                <td class="py-3 flex gap-2">
-                  <UButton size="xs" variant="ghost" icon="i-lucide-history" :to="route('historial.vehiculo', item.id)" />
-                  <UButton size="xs" variant="ghost" icon="i-lucide-pencil" :to="route('vehiculos.edit', item.id)" />
-                  <UButton size="xs" color="error" variant="ghost" icon="i-lucide-trash" @click="destroy(item.id)" />
+                <td class="py-3 flex gap-2" @click.stop>
+                  <UButton
+                    size="xs"
+                    variant="ghost"
+                    icon="i-lucide-eye"
+                    title="Ver ficha"
+                    @click="abrirFicha(item)"
+                  />
+                  <UButton
+                    size="xs"
+                    variant="ghost"
+                    icon="i-lucide-history"
+                    title="Historial"
+                    :to="route('historial.vehiculo', item.id)"
+                  />
                 </td>
               </tr>
             </tbody>
@@ -74,6 +96,12 @@ const destroy = (id: string) => {
         </div>
         <AppPagination :meta="vehiculos?.meta" />
       </UCard>
+
+      <VehiculoFichaSlideover
+        v-model:open="fichaOpen"
+        :vehiculo="vehiculoSeleccionado"
+        :clientes="clientes"
+      />
     </template>
   </AppDashboardPanel>
 </template>

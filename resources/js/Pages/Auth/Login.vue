@@ -38,7 +38,12 @@ const isLoading = ref(false)
 const handleSubmit = () => {
   isLoading.value = true
 
-  router.post(route('login'), state, {
+  // Ruta relativa: evita POST a otro host si Ziggy/APP_URL están mal configurados
+  router.post('/login', {
+    email: state.email.trim(),
+    password: state.password,
+    remember: state.remember
+  }, {
     onFinish: () => {
       isLoading.value = false
     },
@@ -101,15 +106,24 @@ const handleSubmit = () => {
         </form>
 
         <template #footer>
-          <div class="text-center text-sm">
-            <span class="text-muted">¿No tienes una cuenta?</span>
+          <div class="space-y-2 text-center text-sm">
+            <div>
+              <span class="text-muted">¿No tienes una cuenta?</span>
+              <UButton
+                :to="route('register')"
+                variant="link"
+                color="primary"
+                label="Regístrate"
+                :padded="false"
+                class="ml-1"
+              />
+            </div>
             <UButton
-              :to="route('register')"
+              :to="route('welcome')"
               variant="link"
-              color="primary"
-              label="Regístrate"
+              color="neutral"
+              label="Volver al inicio"
               :padded="false"
-              class="ml-1"
             />
           </div>
         </template>

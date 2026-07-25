@@ -4,10 +4,21 @@ import { router, usePage } from '@inertiajs/vue3'
 import { route } from 'ziggy-js'
 import FormField from '../../components/FormField.vue'
 
+interface MecanicoSugerido {
+  id: string
+  nombre: string
+  especialidad: string
+  telefono?: string | null
+}
+
 interface Diagnostico {
   id: string
   ordenTrabajoId: string
+  diagnosticoDetalle: string | null
   posiblesCausas: string[] | string
+  accionesRecomendadas: string[] | string
+  especialidadRecomendada: string | null
+  mecanicosSugeridos: MecanicoSugerido[]
   servicioRecomendado: string
   prioridad: string
   observacionMecanico: string | null
@@ -23,6 +34,23 @@ interface Diagnostico {
 
 const page = usePage()
 const diagnostico = (page.props as any).diagnostico as Diagnostico
+
+const asList = (raw: string[] | string | null | undefined): string[] => {
+  if (Array.isArray(raw)) return raw
+  if (typeof raw === 'string') {
+    try {
+      const parsed = JSON.parse(raw)
+      return Array.isArray(parsed) ? parsed : [raw]
+    } catch {
+      return raw ? [raw] : []
+    }
+  }
+  return []
+}
+
+const causas = computed(() => asList(diagnostico.posiblesCausas))
+const acciones = computed(() => asList(diagnostico.accionesRecomendadas))
+const mecanicos = computed(() => diagnostico.mecanicosSugeridos || [])
 
 const backendErrors = computed(() => page.props.errors || {})
 const errors = computed(() => {
@@ -104,6 +132,39 @@ const submitRevision = (accion: 'confirmar' | 'modificar' | 'descartar') => {
             <div>
               <dt class="text-muted">Vehículo</dt>
               <dd class="font-medium">{{ diagnostico.orden.vehiculoPlaca || '—' }}</dd>
+            </div>
+            <div class="sm:col-span-2" v-if="diagnostico.diagnosticoDetalle">
+              <dt class="text-muted">Diagnóstico detallado</dt>
+              <dd class="mt-1 leading-relaxed">{{ diagnostico.diagnosticoDetalle }}</dd>
+            </div>
+            <div class="sm:col-span-2" v-if="causas.length">
+              <dt class="text-muted">Posibles causas</dt>
+              <dd class="mt-1">
+                <ol class="list-decimal pl-5 space-y-1">
+                  <li v-for="(c, i) in causas" :key="i">{{ c }}</li>
+                </ol>
+              </dd>
+            </div>
+            <div class="sm:col-span-2" v-if="acciones.length">
+              <dt class="text-muted">Qué hacer</dt>
+              <dd class="mt-1">
+                <ol class="list-decimal pl-5 space-y-1">
+                  <li v-for="(a, i) in acciones" :key="i">{{ a }}</li>
+                </ol>
+              </dd>
+            </div>
+            <div class="sm:col-span-2">
+              <dt class="text-muted">Especialidad / a quién recomendar</dt>
+              <dd class="font-medium">{{ diagnostico.especialidadRecomendada || '—' }}</dd>
+            </div>
+            <div class="sm:col-span-2" v-if="mecanicos.length">
+              <dt class="text-muted">Mecánicos sugeridos</dt>
+              <dd class="mt-1 space-y-1">
+                <p v-for="m in mecanicos" :key="m.id" class="font-medium">
+                  {{ m.nombre }}
+                  <span class="text-muted font-normal"> — {{ m.especialidad }}</span>
+                </p>
+              </dd>
             </div>
             <div class="sm:col-span-2">
               <dt class="text-muted">Servicio recomendado (IA)</dt>

@@ -38,6 +38,7 @@ class DiagnosticoIaWebController extends Controller
                 'vehiculoPlaca' => $d->ordenTrabajo?->vehiculo?->placa,
                 'prioridad' => $d->prioridad,
                 'servicioRecomendado' => $d->servicio_recomendado,
+                'especialidadRecomendada' => $d->especialidad_recomendada,
                 'estado' => $d->estado?->value ?? $d->estado,
                 'estadoLabel' => $d->estado?->label(),
                 'esSimulado' => $d->es_simulado,
@@ -59,25 +60,14 @@ class DiagnosticoIaWebController extends Controller
             ->whereIn('estado', [OrdenEstado::Pendiente->value, OrdenEstado::EnDiagnostico->value])
             ->orderByDesc('created_at')
             ->get()
-            ->map(fn ($o) => [
-                'id' => $o->id,
-                'numero' => $o->numero,
-                'label' => $o->numero . ' — ' . ($o->vehiculo?->placa ?? ''),
-                'clienteNombre' => $o->cliente?->razon_social,
-                'vehiculoPlaca' => $o->vehiculo?->placa,
-            ])->toArray();
+            ->map(fn ($o) => $this->mapOrdenOption($o))
+            ->values()
+            ->toArray();
 
         if ($ordenId) {
             $ordenModel = OrdenTrabajoEloquentModel::with(['cliente', 'vehiculo'])->find($ordenId);
             if ($ordenModel) {
-                $orden = [
-                    'id' => $ordenModel->id,
-                    'numero' => $ordenModel->numero,
-                    'clienteNombre' => $ordenModel->cliente?->razon_social,
-                    'vehiculoPlaca' => $ordenModel->vehiculo?->placa,
-                    'tipoFalla' => $ordenModel->tipo_falla,
-                    'fallaReportada' => $ordenModel->falla_reportada,
-                ];
+                $orden = $this->mapOrdenOption($ordenModel);
             }
         }
 
@@ -93,10 +83,18 @@ class DiagnosticoIaWebController extends Controller
             $validated = $request->validated();
             $orden = OrdenTrabajoEloquentModel::with(['cliente', 'vehiculo'])->findOrFail($validated['orden_trabajo_id']);
 
+            $vehiculo = $orden->vehiculo;
+            $kilometraje = $orden->kilometraje_ingreso ?? $vehiculo?->kilometraje;
+
             $inputData = [
                 'orden_trabajo_id' => $orden->id,
+                'orden_numero' => $orden->numero,
                 'cliente' => $orden->cliente?->razon_social,
-                'vehiculo' => $orden->vehiculo?->placa,
+                'vehiculo_placa' => $vehiculo?->placa,
+                'vehiculo_marca' => $vehiculo?->marca,
+                'vehiculo_modelo' => $vehiculo?->modelo,
+                'vehiculo_anio' => $vehiculo?->anio,
+                'kilometraje' => $kilometraje,
                 'tipo_falla' => $validated['tipo_falla'],
                 'descripcion' => $validated['descripcion'],
                 'momento' => $validated['momento'],
@@ -114,8 +112,12 @@ class DiagnosticoIaWebController extends Controller
                 'orden_trabajo_id' => $orden->id,
                 'input_data' => $inputData,
                 'respuesta_completa' => $resultado['respuesta_completa'],
+                'diagnostico_detalle' => $resultado['diagnostico_detalle'] ?? null,
                 'posibles_causas' => $resultado['posibles_causas'],
                 'servicio_recomendado' => $resultado['servicio_recomendado'],
+                'especialidad_recomendada' => $resultado['especialidad_recomendada'] ?? null,
+                'acciones_recomendadas' => $resultado['acciones_recomendadas'] ?? [],
+                'mecanicos_sugeridos' => $resultado['mecanicos_sugeridos'] ?? [],
                 'prioridad' => $resultado['prioridad'],
                 'observacion_mecanico' => $resultado['observacion_mecanico'],
                 'advertencia' => $resultado['advertencia'],
@@ -198,7 +200,11 @@ class DiagnosticoIaWebController extends Controller
             'ordenTrabajoId' => $diagnostico->orden_trabajo_id,
             'inputData' => $diagnostico->input_data,
             'respuestaCompleta' => $diagnostico->respuesta_completa,
+            'diagnosticoDetalle' => $diagnostico->diagnostico_detalle,
             'posiblesCausas' => $diagnostico->posibles_causas,
+            'accionesRecomendadas' => $diagnostico->acciones_recomendadas ?? [],
+            'especialidadRecomendada' => $diagnostico->especialidad_recomendada,
+            'mecanicosSugeridos' => $diagnostico->mecanicos_sugeridos ?? [],
             'servicioRecomendado' => $diagnostico->servicio_recomendado,
             'prioridad' => $diagnostico->prioridad,
             'observacionMecanico' => $diagnostico->observacion_mecanico,
@@ -211,8 +217,39 @@ class DiagnosticoIaWebController extends Controller
                 'numero' => $diagnostico->ordenTrabajo?->numero,
                 'clienteNombre' => $diagnostico->ordenTrabajo?->cliente?->razon_social,
                 'vehiculoPlaca' => $diagnostico->ordenTrabajo?->vehiculo?->placa,
+                'vehiculoMarca' => $diagnostico->ordenTrabajo?->vehiculo?->marca,
+                'vehiculoModelo' => $diagnostico->ordenTrabajo?->vehiculo?->modelo,
+                'vehiculoAnio' => $diagnostico->ordenTrabajo?->vehiculo?->anio,
+                'kilometrajeIngreso' => $diagnostico->ordenTrabajo?->kilometraje_ingreso,
             ],
             'createdAt' => $diagnostico->created_at?->format('Y-m-d H:i:s'),
+        ];
+    }
+
+    private function mapOrdenOption(OrdenTrabajoEloquentModel $orden): array
+    {
+        $vehiculo = $orden->vehiculo;
+        $placa = $vehiculo?->placa ?? 'Sin placa';
+        $cliente = $orden->cliente?->razon_social ?? 'Cliente';
+
+        return [
+            'id' => $orden->id,
+            'numero' => $orden->numero,
+            'label' => $orden->numero . ' — ' . $placa . ' — ' . $cliente,
+            'clienteNombre' => $orden->cliente?->razon_social,
+            'vehiculoPlaca' => $vehiculo?->placa,
+            'vehiculoMarca' => $vehiculo?->marca,
+            'vehiculoModelo' => $vehiculo?->modelo,
+            'vehiculoAnio' => $vehiculo?->anio,
+            'vehiculoColor' => $vehiculo?->color,
+            'vehiculoCombustible' => $vehiculo?->tipo_combustible,
+            'kilometrajeIngreso' => $orden->kilometraje_ingreso,
+            'kilometrajeVehiculo' => $vehiculo?->kilometraje,
+            'tipoFalla' => $orden->tipo_falla,
+            'fallaReportada' => $orden->falla_reportada,
+            'prioridad' => $orden->prioridad,
+            'estado' => $orden->estado instanceof \BackedEnum ? $orden->estado->value : (string) $orden->estado,
+            'estadoLabel' => $orden->estado instanceof \BackedEnum ? $orden->estado->label() : (string) $orden->estado,
         ];
     }
 }

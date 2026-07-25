@@ -11,6 +11,7 @@ interface Diagnostico {
   vehiculoPlaca: string | null
   prioridad: string | null
   servicioRecomendado: string | null
+  especialidadRecomendada: string | null
   estado: string
   estadoLabel: string
   esSimulado: boolean
@@ -63,6 +64,7 @@ const estadoColor = (estado: string) => {
                 <th class="py-3 pr-3">Cliente</th>
                 <th class="py-3 pr-3">Placa</th>
                 <th class="py-3 pr-3">Prioridad</th>
+                <th class="py-3 pr-3">Especialidad</th>
                 <th class="py-3 pr-3">Servicio</th>
                 <th class="py-3 pr-3">Estado</th>
                 <th class="py-3">Acciones</th>
@@ -78,6 +80,7 @@ const estadoColor = (estado: string) => {
                 <td class="py-3 pr-3">{{ item.clienteNombre || '—' }}</td>
                 <td class="py-3 pr-3">{{ item.vehiculoPlaca || '—' }}</td>
                 <td class="py-3 pr-3 capitalize">{{ item.prioridad || '—' }}</td>
+                <td class="py-3 pr-3">{{ item.especialidadRecomendada || '—' }}</td>
                 <td class="py-3 pr-3">{{ item.servicioRecomendado || '—' }}</td>
                 <td class="py-3 pr-3">
                   <div class="flex items-center gap-2">

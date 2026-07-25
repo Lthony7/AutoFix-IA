@@ -13,6 +13,16 @@ interface Option {
   clienteId?: string
 }
 
+interface VehiculoOption extends Option {
+  placa?: string
+  marca?: string
+  modelo?: string
+  anio?: number | null
+  color?: string | null
+  kilometraje?: number
+  tipoCombustible?: string | null
+}
+
 interface MecanicoOption extends MecanicoFicha {
   label: string
 }
@@ -28,15 +38,24 @@ interface OrdenRepuesto {
   precioUnitario: number
 }
 
+interface Avance {
+  id: string
+  mensaje: string
+  usuarioNombre: string
+  createdAt: string
+}
+
 const page = usePage()
-const orden = (page.props as any).orden
-const soloDiagnostico = !!(page.props as any).soloDiagnostico
-const puedeEditarDiagnostico = !!(page.props as any).puedeEditarDiagnostico
+const orden = computed(() => (page.props as any).orden)
+const soloDiagnostico = computed(() => !!(page.props as any).soloDiagnostico)
+const puedeEditarDiagnostico = computed(() => !!(page.props as any).puedeEditarDiagnostico)
+const puedeRegistrarAvance = computed(() => !!(page.props as any).puedeRegistrarAvance)
 const clientes = computed(() => ((page.props as any).clientes || []) as Option[])
-const vehiculos = computed(() => ((page.props as any).vehiculos || []) as Option[])
+const vehiculos = computed(() => ((page.props as any).vehiculos || []) as VehiculoOption[])
 const mecanicos = computed(() => ((page.props as any).mecanicos || []) as MecanicoOption[])
 const serviciosOpts = computed(() => ((page.props as any).servicios || []) as Option[])
 const repuestosOpts = computed(() => ((page.props as any).repuestos || []) as Option[])
+const avances = computed(() => ((orden.value?.avances || []) as Avance[]))
 
 const backendErrors = computed(() => page.props.errors || {})
 const errors = computed(() => {
@@ -64,27 +83,41 @@ const prioridadItems = [
   { label: 'Alta', value: 'alta' }
 ]
 
-const incluirServicio = ref((orden.servicios?.length ?? 0) > 0)
-const incluirRepuesto = ref((orden.repuestos?.length ?? 0) > 0)
-const servicioSeleccionado = ref(orden.servicios?.[0]?.servicioId || '')
-const repuestoSeleccionado = ref(orden.repuestos?.[0]?.productoId || '')
-const servicioPrecio = ref(orden.servicios?.[0]?.precio ?? 0)
-const repuestoCantidad = ref(orden.repuestos?.[0]?.cantidad ?? 1)
-const repuestoPrecio = ref(orden.repuestos?.[0]?.precioUnitario ?? 0)
-const nuevoEstado = ref(orden.estado)
+const tipoFallaItems = [
+  { label: 'Frenos', value: 'Frenos' },
+  { label: 'Motor', value: 'Motor' },
+  { label: 'Suspensión', value: 'Suspensión' },
+  { label: 'Eléctrico', value: 'Eléctrico' },
+  { label: 'Transmisión', value: 'Transmisión' },
+  { label: 'Aire acondicionado', value: 'Aire acondicionado' },
+  { label: 'Inyección', value: 'Inyección' },
+  { label: 'Otro', value: 'Otro' }
+]
+
+const ordenInicial = (page.props as any).orden
+const incluirServicio = ref((ordenInicial.servicios?.length ?? 0) > 0)
+const incluirRepuesto = ref((ordenInicial.repuestos?.length ?? 0) > 0)
+const servicioSeleccionado = ref(ordenInicial.servicios?.[0]?.servicioId || '')
+const repuestoSeleccionado = ref(ordenInicial.repuestos?.[0]?.productoId || '')
+const servicioPrecio = ref(ordenInicial.servicios?.[0]?.precio ?? 0)
+const repuestoCantidad = ref(ordenInicial.repuestos?.[0]?.cantidad ?? 1)
+const repuestoPrecio = ref(ordenInicial.repuestos?.[0]?.precioUnitario ?? 0)
+const nuevoEstado = ref(ordenInicial.estado)
 const cambiandoEstado = ref(false)
+const nuevoAvance = ref('')
+const guardandoAvance = ref(false)
 
 const isLoading = ref(false)
 const state = reactive({
-  clienteId: orden.clienteId,
-  vehiculoId: orden.vehiculoId,
-  mecanicoId: orden.mecanicoId || '',
-  tipoFalla: orden.tipoFalla || '',
-  fallaReportada: orden.fallaReportada || '',
-  kilometrajeIngreso: orden.kilometrajeIngreso ?? 0,
-  observaciones: orden.observaciones || '',
-  diagnosticoTecnico: orden.diagnosticoTecnico || '',
-  prioridad: orden.prioridad || 'media'
+  clienteId: ordenInicial.clienteId,
+  vehiculoId: ordenInicial.vehiculoId,
+  mecanicoId: ordenInicial.mecanicoId || '',
+  tipoFalla: ordenInicial.tipoFalla || '',
+  fallaReportada: ordenInicial.fallaReportada || '',
+  kilometrajeIngreso: ordenInicial.kilometrajeIngreso ?? 0,
+  observaciones: ordenInicial.observaciones || '',
+  diagnosticoTecnico: ordenInicial.diagnosticoTecnico || '',
+  prioridad: ordenInicial.prioridad || 'media'
 })
 
 const fichaOpen = ref(false)
@@ -101,28 +134,45 @@ const vehiculosFiltrados = computed(() => {
   return vehiculos.value.filter(v => v.clienteId === state.clienteId)
 })
 
+const vehiculoSeleccionado = computed(() =>
+  vehiculos.value.find(v => v.id === state.vehiculoId) ?? null
+)
+
+watch(() => state.vehiculoId, (id) => {
+  if (!id) return
+
+  const vehiculo = vehiculos.value.find(v => v.id === id)
+  if (!vehiculo) return
+
+  state.kilometrajeIngreso = vehiculo.kilometraje ?? 0
+
+  if (vehiculo.clienteId && state.clienteId !== vehiculo.clienteId) {
+    state.clienteId = vehiculo.clienteId
+  }
+})
+
 watch(servicioSeleccionado, (id) => {
   const servicio = serviciosOpts.value.find(s => s.id === id)
-  if (servicio && !orden.servicios?.some((s: OrdenServicio) => s.servicioId === id)) {
+  if (servicio && !orden.value.servicios?.some((s: OrdenServicio) => s.servicioId === id)) {
     servicioPrecio.value = servicio.precioBase ?? 0
   }
 })
 
 watch(repuestoSeleccionado, (id) => {
   const repuesto = repuestosOpts.value.find(r => r.id === id)
-  if (repuesto && !orden.repuestos?.some((r: OrdenRepuesto) => r.productoId === id)) {
+  if (repuesto && !orden.value.repuestos?.some((r: OrdenRepuesto) => r.productoId === id)) {
     repuestoPrecio.value = repuesto.precio ?? 0
   }
 })
 
 const handleSubmit = () => {
   isLoading.value = true
-  const payload: Record<string, unknown> = soloDiagnostico
+  const payload: Record<string, unknown> = soloDiagnostico.value
     ? { diagnosticoTecnico: state.diagnosticoTecnico, observaciones: state.observaciones }
     : { ...state }
 
-  if (!soloDiagnostico) {
-    if (!puedeEditarDiagnostico) {
+  if (!soloDiagnostico.value) {
+    if (!puedeEditarDiagnostico.value) {
       delete payload.diagnosticoTecnico
     }
 
@@ -145,16 +195,27 @@ const handleSubmit = () => {
     if (!payload.mecanicoId) payload.mecanicoId = null
   }
 
-  router.put(route('ordenes.update', orden.id), payload, {
+  router.put(route('ordenes.update', orden.value.id), payload, {
     onFinish: () => { isLoading.value = false }
   })
 }
 
 const cambiarEstado = () => {
-  if (nuevoEstado.value === orden.estado) return
+  if (nuevoEstado.value === orden.value.estado) return
   cambiandoEstado.value = true
-  router.put(route('ordenes.cambiar-estado', orden.id), { estado: nuevoEstado.value }, {
+  router.put(route('ordenes.cambiar-estado', orden.value.id), { estado: nuevoEstado.value }, {
     onFinish: () => { cambiandoEstado.value = false }
+  })
+}
+
+const registrarAvance = () => {
+  const mensaje = nuevoAvance.value.trim()
+  if (!mensaje) return
+  guardandoAvance.value = true
+  router.post(route('ordenes.avances.store', orden.value.id), { mensaje }, {
+    preserveScroll: true,
+    onSuccess: () => { nuevoAvance.value = '' },
+    onFinish: () => { guardandoAvance.value = false }
   })
 }
 </script>
@@ -212,6 +273,15 @@ const cambiarEstado = () => {
                 :items="vehiculosFiltrados.map(v => ({ label: v.label, value: v.id }))"
                 class="w-full"
               />
+              <p v-if="vehiculoSeleccionado" class="mt-2 text-sm text-muted">
+                {{ vehiculoSeleccionado.marca }} {{ vehiculoSeleccionado.modelo }}
+                <span v-if="vehiculoSeleccionado.anio"> ({{ vehiculoSeleccionado.anio }})</span>
+                <span v-if="vehiculoSeleccionado.color"> · {{ vehiculoSeleccionado.color }}</span>
+                · Km registrado:
+                <span class="font-medium text-highlighted">
+                  {{ Number(vehiculoSeleccionado.kilometraje ?? 0).toLocaleString() }}
+                </span>
+              </p>
             </FormField>
             <FormField label="Mecánico" name="mecanicoId" :error="errors.mecanicoId" class="md:col-span-2">
               <div class="flex flex-col gap-2 sm:flex-row sm:items-start">
@@ -235,7 +305,12 @@ const cambiarEstado = () => {
               </p>
             </FormField>
             <FormField label="Tipo de falla" name="tipoFalla" :error="errors.tipoFalla">
-              <UInput v-model="state.tipoFalla" class="w-full" />
+              <USelect
+                v-model="state.tipoFalla"
+                :items="tipoFallaItems"
+                placeholder="Seleccionar tipo"
+                class="w-full"
+              />
             </FormField>
             <FormField label="Prioridad" name="prioridad" :error="errors.prioridad">
               <div translate="no">
@@ -260,6 +335,9 @@ const cambiarEstado = () => {
             </FormField>
             <FormField label="Kilometraje ingreso" name="kilometrajeIngreso" :error="errors.kilometrajeIngreso">
               <UInput v-model.number="state.kilometrajeIngreso" type="number" min="0" class="w-full" />
+              <p class="mt-1 text-xs text-muted">
+                Al cambiar de vehículo se actualiza con su kilometraje registrado.
+              </p>
             </FormField>
             <FormField
               v-if="puedeEditarDiagnostico"
@@ -338,6 +416,52 @@ const cambiarEstado = () => {
           </div>
         </form>
       </UCard>
+
+        <UCard>
+          <div class="space-y-4">
+            <div>
+              <h3 class="text-base font-semibold">Bitácora de avances</h3>
+              <p class="text-sm text-muted">Registro cronológico del progreso del servicio.</p>
+            </div>
+
+            <form
+              v-if="puedeRegistrarAvance"
+              class="space-y-3"
+              @submit.prevent="registrarAvance"
+            >
+              <FormField label="Nuevo avance" name="mensaje" :error="errors.mensaje">
+                <UTextarea
+                  v-model="nuevoAvance"
+                  class="w-full"
+                  :rows="3"
+                  placeholder="Ej: Se desmontaron pastillas delanteras; discos con desgaste irregular."
+                />
+              </FormField>
+              <UButton
+                type="submit"
+                icon="i-lucide-message-square-plus"
+                label="Registrar avance"
+                :loading="guardandoAvance"
+                :disabled="!nuevoAvance.trim()"
+              />
+            </form>
+
+            <div v-if="avances.length" class="space-y-3">
+              <div
+                v-for="avance in avances"
+                :key="avance.id"
+                class="rounded-md border border-default/60 bg-elevated/30 p-3"
+              >
+                <div class="flex flex-wrap items-center justify-between gap-2 text-xs text-muted">
+                  <span class="font-medium text-highlighted">{{ avance.usuarioNombre }}</span>
+                  <span>{{ avance.createdAt }}</span>
+                </div>
+                <p class="mt-2 text-sm whitespace-pre-wrap">{{ avance.mensaje }}</p>
+              </div>
+            </div>
+            <p v-else class="text-sm text-muted">Aún no hay avances registrados en esta orden.</p>
+          </div>
+        </UCard>
 
       <MecanicoFichaSlideover v-model:open="fichaOpen" :mecanico="mecanicoSeleccionado" />
       </div>

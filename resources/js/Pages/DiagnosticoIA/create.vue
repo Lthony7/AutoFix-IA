@@ -8,18 +8,24 @@ interface OrdenOption {
   id: string
   label: string
   numero: string
-}
-
-interface OrdenPrefill {
-  id: string
-  numero: string
-  tipoFalla?: string
-  fallaReportada?: string
+  clienteNombre?: string | null
+  vehiculoPlaca?: string | null
+  vehiculoMarca?: string | null
+  vehiculoModelo?: string | null
+  vehiculoAnio?: number | null
+  vehiculoColor?: string | null
+  vehiculoCombustible?: string | null
+  kilometrajeIngreso?: number | null
+  kilometrajeVehiculo?: number | null
+  tipoFalla?: string | null
+  fallaReportada?: string | null
+  prioridad?: string | null
+  estadoLabel?: string | null
 }
 
 const page = usePage()
 const ordenes = computed(() => ((page.props as any).ordenes || []) as OrdenOption[])
-const ordenPrefill = computed(() => (page.props as any).orden as OrdenPrefill | null)
+const ordenPrefill = computed(() => (page.props as any).orden as OrdenOption | null)
 
 const backendErrors = computed(() => page.props.errors || {})
 const errors = computed(() => {
@@ -37,6 +43,17 @@ const urgenciaItems = [
   { label: 'Alta', value: 'alta' }
 ]
 
+const tipoFallaItems = [
+  { label: 'Frenos', value: 'Frenos' },
+  { label: 'Motor', value: 'Motor' },
+  { label: 'Suspensión', value: 'Suspensión' },
+  { label: 'Eléctrico', value: 'Eléctrico' },
+  { label: 'Transmisión', value: 'Transmisión' },
+  { label: 'Aire acondicionado', value: 'Aire acondicionado' },
+  { label: 'Inyección', value: 'Inyección' },
+  { label: 'Otro', value: 'Otro' }
+]
+
 const isLoading = ref(false)
 const state = reactive({
   ordenTrabajoId: ordenPrefill.value?.id || '',
@@ -46,19 +63,45 @@ const state = reactive({
   lucesTablero: '',
   ruidos: '',
   puedeCircular: true,
-  urgencia: 'media',
+  urgencia: (ordenPrefill.value?.prioridad as string) || 'media',
   observaciones: ''
 })
+
+const ordenSeleccionada = computed(() =>
+  ordenes.value.find(o => o.id === state.ordenTrabajoId)
+  || (ordenPrefill.value?.id === state.ordenTrabajoId ? ordenPrefill.value : null)
+)
+
+const kilometrajeMostrar = computed(() => {
+  const orden = ordenSeleccionada.value
+  if (!orden) return null
+  return orden.kilometrajeIngreso ?? orden.kilometrajeVehiculo ?? null
+})
+
+const aplicarDatosOrden = (orden: OrdenOption | null | undefined) => {
+  if (!orden) return
+  if (orden.tipoFalla) state.tipoFalla = orden.tipoFalla
+  if (orden.fallaReportada) state.descripcion = orden.fallaReportada
+  if (orden.prioridad && ['baja', 'media', 'alta'].includes(orden.prioridad)) {
+    state.urgencia = orden.prioridad
+  }
+}
 
 watch(ordenPrefill, (orden) => {
   if (orden) {
     state.ordenTrabajoId = orden.id
-    if (orden.tipoFalla) state.tipoFalla = orden.tipoFalla
-    if (orden.fallaReportada) state.descripcion = orden.fallaReportada
+    aplicarDatosOrden(orden)
   }
 }, { immediate: true })
 
+watch(() => state.ordenTrabajoId, (id) => {
+  if (!id) return
+  const orden = ordenes.value.find(o => o.id === id)
+  aplicarDatosOrden(orden)
+})
+
 const handleSubmit = () => {
+  if (!state.ordenTrabajoId) return
   isLoading.value = true
   router.post(route('diagnosticos-ia.store'), state, {
     onFinish: () => { isLoading.value = false }
@@ -85,7 +128,28 @@ const handleSubmit = () => {
           description="La información generada por Inteligencia Artificial es únicamente una sugerencia inicial. El diagnóstico final debe ser realizado y confirmado por un mecánico autorizado."
         />
 
-        <UCard>
+        <UAlert
+          color="info"
+          variant="subtle"
+          icon="i-lucide-link"
+          title="Siempre enlazado a una orden de trabajo"
+          description="El diagnóstico IA se genera sobre una OT existente: usa el cliente, vehículo y kilometraje de esa orden. Si no hay órdenes pendientes, crea una primero."
+        />
+
+        <UCard v-if="!ordenes.length">
+          <div class="space-y-3 text-center py-4">
+            <p class="text-sm text-muted">
+              No hay órdenes pendientes de diagnóstico IA.
+            </p>
+            <UButton
+              icon="i-lucide-clipboard-plus"
+              label="Crear orden de trabajo"
+              :to="route('ordenes.create')"
+            />
+          </div>
+        </UCard>
+
+        <UCard v-else>
           <form class="grid grid-cols-1 md:grid-cols-2 gap-4" @submit.prevent="handleSubmit">
             <FormField label="Orden de trabajo" name="ordenTrabajoId" required :error="errors.ordenTrabajoId" class="md:col-span-2">
               <USelect
@@ -95,8 +159,58 @@ const handleSubmit = () => {
                 class="w-full"
               />
             </FormField>
+
+            <div
+              v-if="ordenSeleccionada"
+              class="md:col-span-2 rounded-lg border border-default/70 bg-elevated/40 p-4 space-y-3"
+            >
+              <div class="flex flex-wrap items-center justify-between gap-2">
+                <p class="font-semibold">Datos de la orden {{ ordenSeleccionada.numero }}</p>
+                <UBadge v-if="ordenSeleccionada.estadoLabel" color="neutral" variant="subtle">
+                  {{ ordenSeleccionada.estadoLabel }}
+                </UBadge>
+              </div>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                <div>
+                  <p class="text-xs uppercase tracking-wide text-muted">Cliente</p>
+                  <p class="mt-1">{{ ordenSeleccionada.clienteNombre || '—' }}</p>
+                </div>
+                <div>
+                  <p class="text-xs uppercase tracking-wide text-muted">Vehículo</p>
+                  <p class="mt-1">
+                    {{ ordenSeleccionada.vehiculoPlaca || '—' }}
+                    <span v-if="ordenSeleccionada.vehiculoMarca">
+                      — {{ ordenSeleccionada.vehiculoMarca }} {{ ordenSeleccionada.vehiculoModelo }}
+                      <span v-if="ordenSeleccionada.vehiculoAnio">({{ ordenSeleccionada.vehiculoAnio }})</span>
+                    </span>
+                  </p>
+                </div>
+                <div>
+                  <p class="text-xs uppercase tracking-wide text-muted">Kilometraje</p>
+                  <p class="mt-1 font-medium">
+                    {{ kilometrajeMostrar != null ? `${Number(kilometrajeMostrar).toLocaleString()} km` : 'No registrado en la OT' }}
+                  </p>
+                  <p v-if="ordenSeleccionada.kilometrajeIngreso == null && ordenSeleccionada.kilometrajeVehiculo != null" class="text-xs text-muted">
+                    Tomado del registro del vehículo
+                  </p>
+                </div>
+                <div>
+                  <p class="text-xs uppercase tracking-wide text-muted">Combustible / color</p>
+                  <p class="mt-1 capitalize">
+                    {{ ordenSeleccionada.vehiculoCombustible || '—' }}
+                    <span v-if="ordenSeleccionada.vehiculoColor"> · {{ ordenSeleccionada.vehiculoColor }}</span>
+                  </p>
+                </div>
+              </div>
+            </div>
+
             <FormField label="Tipo de falla" name="tipoFalla" required :error="errors.tipoFalla">
-              <UInput v-model="state.tipoFalla" class="w-full" />
+              <USelect
+                v-model="state.tipoFalla"
+                :items="tipoFallaItems"
+                placeholder="Seleccionar tipo"
+                class="w-full"
+              />
             </FormField>
             <FormField label="Urgencia" name="urgencia" required :error="errors.urgencia">
               <div translate="no">
@@ -129,8 +243,14 @@ const handleSubmit = () => {
               <UTextarea v-model="state.observaciones" class="w-full" />
             </FormField>
             <div class="md:col-span-2 flex gap-3">
-              <UButton type="submit" label="Generar diagnóstico" icon="i-lucide-sparkles" :loading="isLoading" />
-              <UButton variant="ghost" color="neutral" label="Cancelar" :to="route('ordenes.index')" />
+              <UButton
+                type="submit"
+                label="Generar diagnóstico"
+                icon="i-lucide-sparkles"
+                :loading="isLoading"
+                :disabled="!state.ordenTrabajoId"
+              />
+              <UButton variant="ghost" color="neutral" label="Cancelar" :to="route('diagnosticos-ia.index')" />
             </div>
           </form>
         </UCard>
