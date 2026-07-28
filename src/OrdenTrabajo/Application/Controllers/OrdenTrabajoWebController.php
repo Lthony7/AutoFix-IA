@@ -60,6 +60,7 @@ class OrdenTrabajoWebController extends Controller
 
         return Inertia::render('OrdenTrabajo/index', [
             'ordenes' => InertiaTablePaginator::make($paginator),
+            'mecanicos' => $this->mecanicosOptions(),
         ]);
     }
 
@@ -77,7 +78,9 @@ class OrdenTrabajoWebController extends Controller
     public function store(StoreOrdenTrabajoRequest $request): RedirectResponse
     {
         try {
-            DB::transaction(function () use ($request) {
+            $ordenId = null;
+
+            DB::transaction(function () use ($request, &$ordenId) {
                 $data = $request->validated();
                 unset($data['servicios'], $data['repuestos']);
 
@@ -87,11 +90,12 @@ class OrdenTrabajoWebController extends Controller
                     'updated_by' => $request->user()?->id,
                 ]));
 
-                $this->syncServicios($orden, $request->input('servicios', []));
-                $this->stockService->aplicarNuevos($orden, $request->input('repuestos', []));
+                $ordenId = $orden->id;
             });
 
-            return redirect()->route('ordenes.index')->with('success', 'Orden de trabajo creada exitosamente');
+            return redirect()
+                ->route('diagnosticos-ia.create', ['ordenTrabajoId' => $ordenId])
+                ->with('success', 'Orden creada. Ahora genera el diagnóstico IA para asignar especialista, servicios y repuestos.');
         } catch (Exception $e) {
             return redirect()->back()->withInput()->with('error', 'Error al crear la orden: ' . $e->getMessage());
         }
@@ -109,20 +113,41 @@ class OrdenTrabajoWebController extends Controller
             'avances.user',
             'creator',
             'updater',
+            'sugerenciaIa',
+            'factura',
         ]);
+
+        $sugerencia = $orden->sugerenciaIa;
 
         return Inertia::render('OrdenTrabajo/edit', [
             'orden' => $this->mapOrden($orden, true),
+            'sugerenciaIa' => $sugerencia ? [
+                'id' => $sugerencia->id,
+                'estado' => $sugerencia->estado instanceof \BackedEnum ? $sugerencia->estado->value : $sugerencia->estado,
+                'estadoLabel' => $sugerencia->estado instanceof \BackedEnum ? $sugerencia->estado->label() : $sugerencia->estado,
+                'diagnosticoDetalle' => $sugerencia->diagnostico_detalle,
+                'servicioRecomendado' => $sugerencia->servicio_recomendado,
+                'especialidadRecomendada' => $sugerencia->especialidad_recomendada,
+                'prioridad' => $sugerencia->prioridad,
+                'mecanicosSugeridos' => $sugerencia->mecanicos_sugeridos ?? [],
+                'serviciosSugeridos' => $sugerencia->input_data['servicios_sugeridos'] ?? [],
+                'repuestosSugeridos' => $sugerencia->input_data['repuestos_sugeridos'] ?? [],
+                'esSimulado' => (bool) $sugerencia->es_simulado,
+            ] : null,
             'clientes' => $this->clientesOptions(),
             'vehiculos' => $this->vehiculosOptions(),
             'mecanicos' => $this->mecanicosOptions(),
             'servicios' => $this->serviciosOptions(),
             'repuestos' => $this->repuestosOptions(),
-            'soloDiagnostico' => $request->user()->hasRole(UserRole::Mecanico),
+            'soloDiagnostico' => false,
             'puedeEditarDiagnostico' => $request->user()->hasRole(UserRole::Administrador)
                 || $request->user()->hasRole(UserRole::Mecanico),
             'puedeRegistrarAvance' => $request->user()->hasRole(UserRole::Administrador)
                 || $request->user()->hasRole(UserRole::Mecanico),
+            'puedeCorregirItems' => $request->user()->hasRole(UserRole::Administrador)
+                || $request->user()->hasRole(UserRole::Recepcionista)
+                || $request->user()->hasRole(UserRole::Mecanico),
+            'esMecanico' => $request->user()->hasRole(UserRole::Mecanico),
         ]);
     }
 
@@ -160,29 +185,38 @@ class OrdenTrabajoWebController extends Controller
 
                 $data['updated_by'] = $request->user()?->id;
 
-                if ($request->user()->hasRole(UserRole::Mecanico)) {
+                $esMecanico = $request->user()->hasRole(UserRole::Mecanico);
+
+                if ($esMecanico) {
                     $orden->update(array_filter([
                         'diagnostico_tecnico' => $data['diagnostico_tecnico'] ?? null,
                         'observaciones' => $data['observaciones'] ?? null,
+                        'mecanico_id' => $data['mecanico_id'] ?? $orden->mecanico_id,
                         'updated_by' => $data['updated_by'],
                     ], fn ($v) => $v !== null));
-                } else {
-                    if ($data !== []) {
-                        $orden->update($data);
-                    }
+                } elseif ($data !== []) {
+                    $orden->update($data);
+                }
 
-                    if ($servicios !== null) {
-                        $orden->ordenServicios()->delete();
-                        $this->syncServicios($orden, $servicios);
-                    }
+                if ($servicios !== null && (
+                    $request->user()->hasRole(UserRole::Administrador)
+                    || $request->user()->hasRole(UserRole::Recepcionista)
+                    || $esMecanico
+                )) {
+                    $orden->ordenServicios()->delete();
+                    $this->syncServicios($orden, $servicios);
+                }
 
-                    if ($repuestos !== null) {
-                        $this->stockService->reemplazar($orden, $repuestos);
-                    }
+                if ($repuestos !== null && (
+                    $request->user()->hasRole(UserRole::Administrador)
+                    || $request->user()->hasRole(UserRole::Recepcionista)
+                    || $esMecanico
+                )) {
+                    $this->stockService->reemplazar($orden, $repuestos);
                 }
             });
 
-            return redirect()->route('ordenes.index')->with('success', 'Orden actualizada exitosamente');
+            return redirect()->route('ordenes.edit', $orden->id)->with('success', 'Orden actualizada. Si ya está lista, genera la factura.');
         } catch (Exception $e) {
             return redirect()->back()->withInput()->with('error', 'Error al actualizar la orden: ' . $e->getMessage());
         }
@@ -221,7 +255,8 @@ class OrdenTrabajoWebController extends Controller
 
     public function cambiarEstado(CambiarEstadoOrdenRequest $request, string $id): RedirectResponse
     {
-        $orden = OrdenTrabajoEloquentModel::with(['cliente', 'vehiculo'])->findOrFail($id);
+        $orden = $this->findOrdenForUser($request, $id);
+        $orden->load(['cliente', 'vehiculo']);
         $estadoAnterior = $orden->estado instanceof \BackedEnum ? $orden->estado->value : (string) $orden->estado;
         $orden->update([
             'estado' => $request->validated('estado'),

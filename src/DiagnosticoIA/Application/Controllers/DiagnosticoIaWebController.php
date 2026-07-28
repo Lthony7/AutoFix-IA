@@ -5,11 +5,14 @@ namespace Src\DiagnosticoIA\Application\Controllers;
 use App\Enums\OrdenEstado;
 use App\Enums\SugerenciaIaEstado;
 use App\Http\Controllers\Controller;
+use App\Services\AplicarSugerenciaIaAOrdenService;
 use App\Services\GroqDiagnosticService;
+use App\Services\OrdenRepuestoStockService;
 use App\Support\InertiaTablePaginator;
 use Exception;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
 use Src\DiagnosticoIA\Infrastructure\Models\DiagnosticoIaEloquentModel;
@@ -20,7 +23,9 @@ use Src\OrdenTrabajo\Infrastructure\Models\OrdenTrabajoEloquentModel;
 class DiagnosticoIaWebController extends Controller
 {
     public function __construct(
-        private readonly GroqDiagnosticService $groqService
+        private readonly GroqDiagnosticService $groqService,
+        private readonly AplicarSugerenciaIaAOrdenService $aplicarSugerencia,
+        private readonly OrdenRepuestoStockService $stockService,
     ) {
     }
 
@@ -108,32 +113,39 @@ class DiagnosticoIaWebController extends Controller
 
             $resultado = $this->groqService->analyze($inputData);
 
-            DiagnosticoIaEloquentModel::create([
-                'orden_trabajo_id' => $orden->id,
-                'input_data' => $inputData,
-                'respuesta_completa' => $resultado['respuesta_completa'],
-                'diagnostico_detalle' => $resultado['diagnostico_detalle'] ?? null,
-                'posibles_causas' => $resultado['posibles_causas'],
-                'servicio_recomendado' => $resultado['servicio_recomendado'],
-                'especialidad_recomendada' => $resultado['especialidad_recomendada'] ?? null,
-                'acciones_recomendadas' => $resultado['acciones_recomendadas'] ?? [],
-                'mecanicos_sugeridos' => $resultado['mecanicos_sugeridos'] ?? [],
-                'prioridad' => $resultado['prioridad'],
-                'observacion_mecanico' => $resultado['observacion_mecanico'],
-                'advertencia' => $resultado['advertencia'],
-                'estado' => SugerenciaIaEstado::Generada,
-                'es_simulado' => $resultado['es_simulado'],
-            ]);
+            DB::transaction(function () use ($orden, $inputData, $resultado, $validated) {
+                DiagnosticoIaEloquentModel::create([
+                    'orden_trabajo_id' => $orden->id,
+                    'input_data' => array_merge($inputData, [
+                        'servicios_sugeridos' => $resultado['servicios_sugeridos'] ?? [],
+                        'repuestos_sugeridos' => $resultado['repuestos_sugeridos'] ?? [],
+                    ]),
+                    'respuesta_completa' => $resultado['respuesta_completa'],
+                    'diagnostico_detalle' => $resultado['diagnostico_detalle'] ?? null,
+                    'posibles_causas' => $resultado['posibles_causas'],
+                    'servicio_recomendado' => $resultado['servicio_recomendado'],
+                    'especialidad_recomendada' => $resultado['especialidad_recomendada'] ?? null,
+                    'acciones_recomendadas' => $resultado['acciones_recomendadas'] ?? [],
+                    'mecanicos_sugeridos' => $resultado['mecanicos_sugeridos'] ?? [],
+                    'prioridad' => $resultado['prioridad'],
+                    'observacion_mecanico' => $resultado['observacion_mecanico'],
+                    'advertencia' => $resultado['advertencia'],
+                    'estado' => SugerenciaIaEstado::Generada,
+                    'es_simulado' => $resultado['es_simulado'],
+                ]);
 
-            $orden->update([
-                'estado' => OrdenEstado::EnDiagnostico,
-                'tipo_falla' => $validated['tipo_falla'],
-                'prioridad' => $resultado['prioridad'],
-            ]);
+                $orden->update([
+                    'estado' => OrdenEstado::EnDiagnostico,
+                    'tipo_falla' => $validated['tipo_falla'],
+                    'prioridad' => $resultado['prioridad'],
+                ]);
+
+                $this->aplicarSugerencia->aplicar($orden->fresh(), $resultado, $this->stockService);
+            });
 
             return redirect()
-                ->route('diagnosticos-ia.show', $orden->id)
-                ->with('success', 'Diagnóstico IA generado exitosamente');
+                ->route('ordenes.edit', $orden->id)
+                ->with('success', 'Diagnóstico IA generado. Se asignaron mecánico, servicios y repuestos sugeridos: revísalos y corrige si hace falta antes de facturar.');
         } catch (Exception $e) {
             return redirect()->back()->withInput()->with('error', 'Error al generar diagnóstico: ' . $e->getMessage());
         }
@@ -186,6 +198,10 @@ class DiagnosticoIaWebController extends Controller
 
         if ($accion === 'confirmar' || $accion === 'modificar') {
             $diagnostico->ordenTrabajo?->update(['estado' => OrdenEstado::EnReparacion]);
+
+            return redirect()
+                ->route('ordenes.edit', $ordenTrabajoId)
+                ->with('success', 'Sugerencia IA revisada. Corrige la orden si hace falta y continúa a facturación.');
         }
 
         return redirect()

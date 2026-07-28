@@ -45,7 +45,7 @@ class WebAuthController extends Controller
 
         $request->session()->regenerate();
 
-        return redirect()->intended(route('dashboard'))
+        return redirect()->intended($this->homeRouteFor(Auth::user()))
             ->with('success', 'Bienvenido de vuelta.');
     }
 
@@ -65,7 +65,7 @@ class WebAuthController extends Controller
 
         $request->session()->regenerate();
 
-        return redirect()->route('dashboard')
+        return redirect()->route('portal.mis-ordenes')
             ->with('success', 'Registro exitoso. Bienvenido.');
     }
 
@@ -76,7 +76,24 @@ class WebAuthController extends Controller
         $request->session()->invalidate();
         $request->session()->regenerateToken();
 
-        return redirect()->route('login')
+        return redirect()->route('welcome')
             ->with('success', 'Sesión cerrada exitosamente.');
+    }
+
+    private function homeRouteFor(mixed $user): string
+    {
+        if (!$user instanceof UserEloquentModel) {
+            return route('dashboard');
+        }
+
+        if ($user->hasRole(UserRole::Cliente)) {
+            return route('portal.mis-ordenes');
+        }
+
+        if ($user->hasRole(UserRole::Mecanico)) {
+            return route('ordenes.index');
+        }
+
+        return route('dashboard');
     }
 }

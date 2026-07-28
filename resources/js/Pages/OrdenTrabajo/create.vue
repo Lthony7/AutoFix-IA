@@ -3,14 +3,10 @@ import { reactive, computed, ref, watch } from 'vue'
 import { router, usePage } from '@inertiajs/vue3'
 import { route } from 'ziggy-js'
 import FormField from '../../components/FormField.vue'
-import MecanicoFichaSlideover, { type MecanicoFicha } from '../../components/MecanicoFichaSlideover.vue'
 
 interface Option {
   id: string
   label: string
-  precioBase?: number
-  precio?: number
-  stock?: number
   clienteId?: string
 }
 
@@ -24,16 +20,9 @@ interface VehiculoOption extends Option {
   tipoCombustible?: string | null
 }
 
-interface MecanicoOption extends MecanicoFicha {
-  label: string
-}
-
 const page = usePage()
 const clientes = computed(() => ((page.props as any).clientes || []) as Option[])
 const vehiculos = computed(() => ((page.props as any).vehiculos || []) as VehiculoOption[])
-const mecanicos = computed(() => ((page.props as any).mecanicos || []) as MecanicoOption[])
-const servicios = computed(() => ((page.props as any).servicios || []) as Option[])
-const repuestos = computed(() => ((page.props as any).repuestos || []) as Option[])
 
 const backendErrors = computed(() => page.props.errors || {})
 const errors = computed(() => {
@@ -47,7 +36,6 @@ const errors = computed(() => {
 
 const prioridadItems = [
   { label: 'Baja', value: 'baja' },
-  // ZWNJ evita que Chrome traduzca "Media" → "Medios de comunicación"
   { label: 'Media\u200C', value: 'media' },
   { label: 'Alta', value: 'alta' }
 ]
@@ -63,33 +51,15 @@ const tipoFallaItems = [
   { label: 'Otro', value: 'Otro' }
 ]
 
-const incluirServicio = ref(false)
-const incluirRepuesto = ref(false)
-const servicioSeleccionado = ref('')
-const repuestoSeleccionado = ref('')
-const servicioPrecio = ref(0)
-const repuestoCantidad = ref(1)
-const repuestoPrecio = ref(0)
-
 const isLoading = ref(false)
 const state = reactive({
   clienteId: '',
   vehiculoId: '',
-  mecanicoId: '',
   tipoFalla: '',
   fallaReportada: '',
   kilometrajeIngreso: 0,
   observaciones: '',
   prioridad: 'media'
-})
-
-const fichaOpen = ref(false)
-const mecanicoSeleccionado = computed(() =>
-  mecanicos.value.find(m => m.id === state.mecanicoId) ?? null
-)
-
-watch(() => state.mecanicoId, (id) => {
-  if (id) fichaOpen.value = true
 })
 
 const vehiculosFiltrados = computed(() => {
@@ -124,35 +94,9 @@ watch(() => state.vehiculoId, (id) => {
   }
 })
 
-watch(servicioSeleccionado, (id) => {
-  const servicio = servicios.value.find(s => s.id === id)
-  servicioPrecio.value = servicio?.precioBase ?? 0
-})
-
-watch(repuestoSeleccionado, (id) => {
-  const repuesto = repuestos.value.find(r => r.id === id)
-  repuestoPrecio.value = repuesto?.precio ?? 0
-})
-
 const handleSubmit = () => {
   isLoading.value = true
-  const payload: Record<string, unknown> = { ...state }
-
-  if (incluirServicio.value && servicioSeleccionado.value) {
-    payload.servicios = [{ servicioId: servicioSeleccionado.value, precio: servicioPrecio.value }]
-  }
-
-  if (incluirRepuesto.value && repuestoSeleccionado.value) {
-    payload.repuestos = [{
-      productoId: repuestoSeleccionado.value,
-      cantidad: repuestoCantidad.value,
-      precioUnitario: repuestoPrecio.value
-    }]
-  }
-
-  if (!payload.mecanicoId) delete payload.mecanicoId
-
-  router.post(route('ordenes.store'), payload, {
+  router.post(route('ordenes.store'), { ...state }, {
     onFinish: () => { isLoading.value = false }
   })
 }
@@ -169,6 +113,15 @@ const handleSubmit = () => {
     </template>
     <template #body>
       <UCard class="max-w-4xl">
+        <UAlert
+          class="mb-4"
+          color="info"
+          variant="subtle"
+          icon="i-lucide-brain"
+          title="Flujo recomendado"
+          description="Guarda la orden con la falla reportada. En el siguiente paso la IA generará el diagnóstico, asignará especialista, servicios y repuestos para que el mecánico los revise."
+        />
+
         <form class="grid grid-cols-1 md:grid-cols-2 gap-4" @submit.prevent="handleSubmit">
           <FormField label="Cliente" name="clienteId" required :error="errors.clienteId" class="md:col-span-2">
             <USelect
@@ -189,32 +142,10 @@ const handleSubmit = () => {
               {{ vehiculoSeleccionado.marca }} {{ vehiculoSeleccionado.modelo }}
               <span v-if="vehiculoSeleccionado.anio"> ({{ vehiculoSeleccionado.anio }})</span>
               <span v-if="vehiculoSeleccionado.color"> · {{ vehiculoSeleccionado.color }}</span>
-              <span v-if="vehiculoSeleccionado.tipoCombustible"> · {{ vehiculoSeleccionado.tipoCombustible }}</span>
-              · Km registrado:
+              · Km:
               <span class="font-medium text-highlighted">
                 {{ Number(vehiculoSeleccionado.kilometraje ?? 0).toLocaleString() }}
               </span>
-            </p>
-          </FormField>
-          <FormField label="Mecánico" name="mecanicoId" :error="errors.mecanicoId" class="md:col-span-2">
-            <div class="flex flex-col gap-2 sm:flex-row sm:items-start">
-              <USelect
-                v-model="state.mecanicoId"
-                :items="mecanicos.map(m => ({ label: m.label, value: m.id }))"
-                placeholder="Opcional"
-                class="w-full"
-              />
-              <UButton
-                type="button"
-                variant="soft"
-                icon="i-lucide-id-card"
-                label="Ver ficha"
-                :disabled="!state.mecanicoId"
-                @click="fichaOpen = true"
-              />
-            </div>
-            <p v-if="mecanicoSeleccionado" class="mt-2 text-sm text-muted">
-              Especialidad: <span class="font-medium text-highlighted">{{ mecanicoSeleccionado.especialidad }}</span>
             </p>
           </FormField>
           <FormField label="Tipo de falla" name="tipoFalla" :error="errors.tipoFalla">
@@ -244,69 +175,26 @@ const handleSubmit = () => {
             </div>
           </FormField>
           <FormField label="Falla reportada" name="fallaReportada" required :error="errors.fallaReportada" class="md:col-span-2">
-            <UTextarea v-model="state.fallaReportada" class="w-full" :rows="3" />
+            <UTextarea
+              v-model="state.fallaReportada"
+              class="w-full"
+              :rows="3"
+              placeholder="Ej. Al querer encender el vehículo no enciende"
+            />
           </FormField>
           <FormField label="Kilometraje ingreso" name="kilometrajeIngreso" :error="errors.kilometrajeIngreso">
-            <UInput
-              v-model.number="state.kilometrajeIngreso"
-              type="number"
-              min="0"
-              class="w-full"
-              :placeholder="vehiculoSeleccionado ? 'Se completa al elegir el vehículo' : 'Selecciona un vehículo'"
-            />
-            <p class="mt-1 text-xs text-muted">
-              Se rellena con el kilometraje del vehículo; puedes ajustarlo si el odómetro cambió.
-            </p>
+            <UInput v-model.number="state.kilometrajeIngreso" type="number" min="0" class="w-full" />
           </FormField>
           <FormField label="Observaciones" name="observaciones" :error="errors.observaciones">
             <UTextarea v-model="state.observaciones" class="w-full" />
           </FormField>
 
-          <div class="md:col-span-2 border-t border-default pt-4 space-y-4">
-            <UCheckbox v-model="incluirServicio" label="Agregar servicio (opcional)" />
-            <div v-if="incluirServicio" class="grid grid-cols-1 md:grid-cols-2 gap-4 pl-6">
-              <FormField label="Servicio" name="servicioId" :error="errors['servicios.0.servicioId']">
-                <USelect
-                  v-model="servicioSeleccionado"
-                  :items="servicios.map(s => ({ label: s.label, value: s.id }))"
-                  placeholder="Seleccionar servicio"
-                  class="w-full"
-                />
-              </FormField>
-              <FormField label="Precio" name="servicioPrecio">
-                <UInput v-model.number="servicioPrecio" type="number" min="0" step="0.01" class="w-full" />
-              </FormField>
-            </div>
-          </div>
-
-          <div class="md:col-span-2 border-t border-default pt-4 space-y-4">
-            <UCheckbox v-model="incluirRepuesto" label="Agregar repuesto (opcional)" />
-            <div v-if="incluirRepuesto" class="grid grid-cols-1 md:grid-cols-3 gap-4 pl-6">
-              <FormField label="Repuesto" name="productoId" :error="errors['repuestos.0.productoId']">
-                <USelect
-                  v-model="repuestoSeleccionado"
-                  :items="repuestos.map(r => ({ label: r.label, value: r.id }))"
-                  placeholder="Seleccionar repuesto"
-                  class="w-full"
-                />
-              </FormField>
-              <FormField label="Cantidad" name="cantidad">
-                <UInput v-model.number="repuestoCantidad" type="number" min="1" class="w-full" />
-              </FormField>
-              <FormField label="Precio unitario" name="precioUnitario">
-                <UInput v-model.number="repuestoPrecio" type="number" min="0" step="0.01" class="w-full" />
-              </FormField>
-            </div>
-          </div>
-
           <div class="md:col-span-2 flex gap-3">
-            <UButton type="submit" label="Guardar" :loading="isLoading" />
+            <UButton type="submit" label="Guardar y diagnosticar con IA" icon="i-lucide-brain" :loading="isLoading" />
             <UButton variant="ghost" color="neutral" label="Cancelar" :to="route('ordenes.index')" />
           </div>
         </form>
       </UCard>
-
-      <MecanicoFichaSlideover v-model:open="fichaOpen" :mecanico="mecanicoSeleccionado" />
     </template>
   </AppDashboardPanel>
 </template>

@@ -9,14 +9,14 @@ Route::middleware(['auth', 'role:administrador,recepcionista'])->group(function 
     Route::delete('ordenes/{orden}', [OrdenTrabajoWebController::class, 'destroy'])->name('ordenes.destroy');
     Route::put('ordenes/{orden}/asignar-mecanico', [OrdenTrabajoWebController::class, 'asignarMecanico'])
         ->name('ordenes.asignar-mecanico');
-    Route::put('ordenes/{orden}/cambiar-estado', [OrdenTrabajoWebController::class, 'cambiarEstado'])
-        ->name('ordenes.cambiar-estado');
 });
 
 Route::middleware(['auth', 'role:administrador,recepcionista,mecanico'])->group(function () {
     Route::get('ordenes', [OrdenTrabajoWebController::class, 'index'])->name('ordenes.index');
     Route::get('ordenes/{orden}/edit', [OrdenTrabajoWebController::class, 'edit'])->name('ordenes.edit');
     Route::put('ordenes/{orden}', [OrdenTrabajoWebController::class, 'update'])->name('ordenes.update');
+    Route::put('ordenes/{orden}/cambiar-estado', [OrdenTrabajoWebController::class, 'cambiarEstado'])
+        ->name('ordenes.cambiar-estado');
 });
 
 Route::middleware(['auth', 'role:administrador,mecanico'])->group(function () {

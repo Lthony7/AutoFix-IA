@@ -62,7 +62,6 @@ const handleSubmit = () => {
             <AppLogo size="lg" />
             <div>
               <h2 class="text-2xl font-bold">Crear Cuenta</h2>
-              <p class="text-sm text-muted">Completa el formulario para registrarte en el sistema</p>
             </div>
           </div>
         </template>

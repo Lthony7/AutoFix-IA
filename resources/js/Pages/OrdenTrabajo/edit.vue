@@ -47,9 +47,12 @@ interface Avance {
 
 const page = usePage()
 const orden = computed(() => (page.props as any).orden)
+const sugerenciaIa = computed(() => (page.props as any).sugerenciaIa)
 const soloDiagnostico = computed(() => !!(page.props as any).soloDiagnostico)
 const puedeEditarDiagnostico = computed(() => !!(page.props as any).puedeEditarDiagnostico)
 const puedeRegistrarAvance = computed(() => !!(page.props as any).puedeRegistrarAvance)
+const puedeCorregirItems = computed(() => !!(page.props as any).puedeCorregirItems)
+const esMecanico = computed(() => !!(page.props as any).esMecanico)
 const clientes = computed(() => ((page.props as any).clientes || []) as Option[])
 const vehiculos = computed(() => ((page.props as any).vehiculos || []) as VehiculoOption[])
 const mecanicos = computed(() => ((page.props as any).mecanicos || []) as MecanicoOption[])
@@ -228,17 +231,64 @@ const registrarAvance = () => {
           <UDashboardSidebarCollapse />
         </template>
         <template #right>
-          <UButton
-            variant="ghost"
-            icon="i-lucide-brain"
-            label="Diagnóstico IA"
-            :to="route('diagnosticos-ia.create', { ordenTrabajoId: orden.id })"
-          />
+          <div class="flex gap-2">
+            <UButton
+              v-if="!sugerenciaIa"
+              variant="soft"
+              icon="i-lucide-brain"
+              label="Generar IA"
+              :to="route('diagnosticos-ia.create', { ordenTrabajoId: orden.id })"
+            />
+            <UButton
+              v-else
+              variant="ghost"
+              icon="i-lucide-brain"
+              label="Ver IA"
+              :to="route('diagnosticos-ia.show', orden.id)"
+            />
+            <UButton
+              v-if="orden.puedeFacturar"
+              color="primary"
+              icon="i-lucide-file-text"
+              label="Facturar"
+              :to="route('facturas.create', { ordenTrabajoId: orden.id })"
+            />
+            <UButton
+              v-else-if="orden.facturaId"
+              variant="soft"
+              icon="i-lucide-wallet"
+              label="Ver factura"
+              :to="route('facturas.show', orden.facturaId)"
+            />
+          </div>
         </template>
       </UDashboardNavbar>
     </template>
     <template #body>
       <div class="space-y-4 max-w-4xl">
+        <UAlert
+          v-if="sugerenciaIa"
+          color="info"
+          variant="subtle"
+          icon="i-lucide-brain"
+          :title="`Sugerencia IA (${sugerenciaIa.estadoLabel})${sugerenciaIa.esSimulado ? ' · simulado' : ''}`"
+          :description="[
+            sugerenciaIa.diagnosticoDetalle,
+            sugerenciaIa.especialidadRecomendada ? `Especialista: ${sugerenciaIa.especialidadRecomendada}` : null,
+            sugerenciaIa.servicioRecomendado ? `Servicio: ${sugerenciaIa.servicioRecomendado}` : null,
+            'Revisa mecánico, servicios y repuestos cargados automáticamente y corrige si hace falta. Luego facturación → pago.'
+          ].filter(Boolean).join(' · ')"
+        />
+
+        <UAlert
+          v-else
+          color="warning"
+          variant="subtle"
+          icon="i-lucide-triangle-alert"
+          title="Falta diagnóstico IA"
+          description="Genera el diagnóstico para asignar especialista, servicios y repuestos sugeridos."
+        />
+
         <UAlert
           v-if="orden.updatedByNombre || orden.createdByNombre"
           color="neutral"
@@ -335,9 +385,6 @@ const registrarAvance = () => {
             </FormField>
             <FormField label="Kilometraje ingreso" name="kilometrajeIngreso" :error="errors.kilometrajeIngreso">
               <UInput v-model.number="state.kilometrajeIngreso" type="number" min="0" class="w-full" />
-              <p class="mt-1 text-xs text-muted">
-                Al cambiar de vehículo se actualiza con su kilometraje registrado.
-              </p>
             </FormField>
             <FormField
               v-if="puedeEditarDiagnostico"
@@ -357,8 +404,8 @@ const registrarAvance = () => {
               <UTextarea v-model="state.observaciones" class="w-full" />
             </FormField>
 
-            <div class="md:col-span-2 border-t border-default pt-4 space-y-4">
-              <UCheckbox v-model="incluirServicio" label="Incluir servicio" />
+            <div v-if="puedeCorregirItems" class="md:col-span-2 border-t border-default pt-4 space-y-4">
+              <UCheckbox v-model="incluirServicio" label="Servicio (sugerido por IA / corregible)" />
               <div v-if="incluirServicio" class="grid grid-cols-1 md:grid-cols-2 gap-4 pl-6">
                 <FormField label="Servicio" name="servicioId">
                   <USelect
@@ -373,8 +420,8 @@ const registrarAvance = () => {
               </div>
             </div>
 
-            <div class="md:col-span-2 border-t border-default pt-4 space-y-4">
-              <UCheckbox v-model="incluirRepuesto" label="Incluir repuesto" />
+            <div v-if="puedeCorregirItems" class="md:col-span-2 border-t border-default pt-4 space-y-4">
+              <UCheckbox v-model="incluirRepuesto" label="Repuesto (sugerido por IA / corregible)" />
               <div v-if="incluirRepuesto" class="grid grid-cols-1 md:grid-cols-3 gap-4 pl-6">
                 <FormField label="Repuesto" name="productoId">
                   <USelect

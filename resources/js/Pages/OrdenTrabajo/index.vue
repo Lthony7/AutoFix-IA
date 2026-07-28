@@ -1,25 +1,42 @@
 <script setup lang="ts">
-import { computed } from 'vue'
-import { router, usePage } from '@inertiajs/vue3'
+import { computed, ref, watch } from 'vue'
+import { usePage } from '@inertiajs/vue3'
 import { route } from 'ziggy-js'
+import OrdenFichaSlideover, { type OrdenFicha } from '../../components/OrdenFichaSlideover.vue'
 
-interface Orden {
+interface MecanicoOption {
   id: string
-  numero: string
-  clienteNombre: string | null
-  vehiculoPlaca: string | null
-  estado: string
-  estadoLabel: string
-  mecanicoNombre: string | null
-  facturaId: string | null
-  puedeFacturar: boolean
+  label: string
 }
 
 const page = usePage()
 const ordenes = computed(() => (page.props as any).ordenes)
+const mecanicos = computed(() => ((page.props as any).mecanicos || []) as MecanicoOption[])
 const role = computed(() => (page.props as any).auth?.user?.role as string | undefined)
-const canDelete = computed(() => role.value !== 'mecanico')
+const canDelete = computed(() => role.value === 'administrador' || role.value === 'recepcionista')
 const canFacturar = computed(() => role.value === 'administrador' || role.value === 'recepcionista')
+const canCambiarEstado = computed(() =>
+  role.value === 'administrador' || role.value === 'recepcionista' || role.value === 'mecanico'
+)
+const canEditarDiagnostico = computed(() => role.value === 'administrador' || role.value === 'mecanico')
+
+const fichaOpen = ref(false)
+const ordenSeleccionada = ref<OrdenFicha | null>(null)
+
+const abrirFicha = (orden: OrdenFicha) => {
+  ordenSeleccionada.value = orden
+  fichaOpen.value = true
+}
+
+watch(ordenes, (lista) => {
+  if (!ordenSeleccionada.value || !fichaOpen.value) return
+  const actualizado = (lista?.data || []).find((o: OrdenFicha) => o.id === ordenSeleccionada.value?.id)
+  if (actualizado) ordenSeleccionada.value = actualizado
+  else {
+    fichaOpen.value = false
+    ordenSeleccionada.value = null
+  }
+})
 
 const estadoColor = (estado: string) => {
   const map: Record<string, string> = {
@@ -31,11 +48,6 @@ const estadoColor = (estado: string) => {
     cancelada: 'error'
   }
   return map[estado] || 'neutral'
-}
-
-const destroy = (id: string) => {
-  if (!confirm('¿Eliminar esta orden de trabajo?')) return
-  router.delete(route('ordenes.destroy', id))
 }
 </script>
 
@@ -73,9 +85,10 @@ const destroy = (id: string) => {
             </thead>
             <tbody>
               <tr
-                v-for="orden in (ordenes?.data || []) as Orden[]"
+                v-for="orden in (ordenes?.data || []) as OrdenFicha[]"
                 :key="orden.id"
-                class="border-b border-default/60"
+                class="border-b border-default/60 cursor-pointer hover:bg-elevated/40 transition-colors"
+                @click="abrirFicha(orden)"
               >
                 <td class="py-3 pr-3 font-medium">{{ orden.numero }}</td>
                 <td class="py-3 pr-3">{{ orden.clienteNombre || '—' }}</td>
@@ -86,38 +99,13 @@ const destroy = (id: string) => {
                   </UBadge>
                 </td>
                 <td class="py-3 pr-3">{{ orden.mecanicoNombre || '—' }}</td>
-                <td class="py-3 flex flex-wrap gap-2">
-                  <UButton size="xs" variant="ghost" icon="i-lucide-pencil" :to="route('ordenes.edit', orden.id)" />
+                <td class="py-3" @click.stop>
                   <UButton
                     size="xs"
-                    variant="ghost"
-                    color="primary"
-                    icon="i-lucide-brain"
-                    :to="route('diagnosticos-ia.create', { ordenTrabajoId: orden.id })"
-                  />
-                  <UButton
-                    v-if="canFacturar && orden.facturaId"
-                    size="xs"
-                    variant="ghost"
-                    color="success"
-                    icon="i-lucide-file-text"
-                    :to="route('facturas.show', orden.facturaId)"
-                  />
-                  <UButton
-                    v-else-if="canFacturar && orden.puedeFacturar"
-                    size="xs"
-                    variant="ghost"
-                    color="success"
-                    icon="i-lucide-file-plus"
-                    :to="route('facturas.create', { ordenTrabajoId: orden.id })"
-                  />
-                  <UButton
-                    v-if="canDelete"
-                    size="xs"
-                    color="error"
-                    variant="ghost"
-                    icon="i-lucide-trash"
-                    @click="destroy(orden.id)"
+                    variant="soft"
+                    icon="i-lucide-panel-right-open"
+                    label="Gestionar"
+                    @click="abrirFicha(orden)"
                   />
                 </td>
               </tr>
@@ -126,6 +114,17 @@ const destroy = (id: string) => {
         </div>
         <AppPagination :meta="ordenes?.meta" />
       </UCard>
+
+      <OrdenFichaSlideover
+        v-model:open="fichaOpen"
+        :orden="ordenSeleccionada"
+        :mecanicos="mecanicos"
+        :can-delete="canDelete"
+        :can-facturar="canFacturar"
+        :can-cambiar-estado="canCambiarEstado"
+        :can-editar-diagnostico="canEditarDiagnostico"
+        @deleted="ordenSeleccionada = null"
+      />
     </template>
   </AppDashboardPanel>
 </template>

@@ -63,7 +63,6 @@ const handleSubmit = () => {
             <AppLogo size="lg" />
             <div>
               <h2 class="text-2xl font-bold">Iniciar Sesión</h2>
-              <p class="text-sm text-muted">Ingresa tus credenciales para acceder al sistema</p>
             </div>
           </div>
         </template>
