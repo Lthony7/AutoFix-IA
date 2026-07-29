@@ -88,3 +88,4 @@ Auth, Cliente, Vehiculo, Mecanico, Servicio, Producto (repuestos), OrdenTrabajo,
 - **No** subir `.env` ni keys de Groq.
 - Facturación electrónica SRI / PDF fiscal: fuera de alcance actual.
 - Documentación API legacy: ver `DOCUMENTATION.md` (boilerplate; el dominio Autofix está en este README).
+- Inventario de consultas SQL/Eloquent, índices y recomendaciones de BD: ver [`docs/CONSULTAS_BASE_DE_DATOS.md`](docs/CONSULTAS_BASE_DE_DATOS.md).
