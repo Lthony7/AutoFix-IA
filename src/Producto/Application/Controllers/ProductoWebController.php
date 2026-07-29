@@ -75,8 +75,9 @@ class ProductoWebController extends Controller
             ->values()
             ->all();
 
-        return Inertia::render('Repuesto/index', [
+        return Inertia::render('Inventario/index', [
             'repuestos' => InertiaTablePaginator::make($paginator),
+            'inventario' => InertiaTablePaginator::make($paginator),
             'categorias' => $categorias,
             'filters' => [
                 'q' => $request->query('q', ''),
@@ -89,7 +90,7 @@ class ProductoWebController extends Controller
 
     public function create(): Response
     {
-        return Inertia::render('Repuesto/create', [
+        return Inertia::render('Inventario/create', [
             'categorias' => $this->categoriasSugeridas(),
         ]);
     }
@@ -103,13 +104,13 @@ class ProductoWebController extends Controller
             ProductoEloquentModel::create($data);
 
             return redirect()
-                ->route('repuestos.index')
-                ->with('success', 'Repuesto registrado exitosamente');
+                ->route('inventario.index')
+                ->with('success', 'Ítem de inventario registrado exitosamente');
         } catch (Exception $e) {
             return redirect()
                 ->back()
                 ->withInput()
-                ->with('error', 'Error al registrar el repuesto: '.$e->getMessage());
+                ->with('error', 'Error al registrar en inventario: '.$e->getMessage());
         }
     }
 
@@ -117,7 +118,7 @@ class ProductoWebController extends Controller
     {
         $repuesto = ProductoEloquentModel::where('tipo_producto', 'repuesto')->findOrFail($id);
 
-        return Inertia::render('Repuesto/edit', [
+        return Inertia::render('Inventario/edit', [
             'repuesto' => [
                 'id' => $repuesto->id,
                 'codigo' => $repuesto->codigo,
@@ -144,13 +145,13 @@ class ProductoWebController extends Controller
             $repuesto->update($data);
 
             return redirect()
-                ->route('repuestos.index')
-                ->with('success', 'Repuesto actualizado exitosamente');
+                ->route('inventario.index')
+                ->with('success', 'Ítem de inventario actualizado exitosamente');
         } catch (Exception $e) {
             return redirect()
                 ->back()
                 ->withInput()
-                ->with('error', 'Error al actualizar el repuesto: '.$e->getMessage());
+                ->with('error', 'Error al actualizar inventario: '.$e->getMessage());
         }
     }
 
@@ -169,7 +170,7 @@ class ProductoWebController extends Controller
         $repuesto = ProductoEloquentModel::where('tipo_producto', 'repuesto')->find($id);
 
         if (!$repuesto) {
-            return redirect()->back()->with('error', 'Repuesto no encontrado');
+            return redirect()->back()->with('error', 'Ítem de inventario no encontrado');
         }
 
         $usadoEnOrdenes = DB::table('orden_repuesto')
@@ -180,15 +181,15 @@ class ProductoWebController extends Controller
             $repuesto->update(['activo' => false]);
 
             return redirect()
-                ->route('repuestos.index')
-                ->with('success', 'El repuesto ya se usó en órdenes: se desactivó (no se eliminó) para conservar el historial.');
+                ->route('inventario.index')
+                ->with('success', 'El ítem ya se usó en órdenes: se desactivó (no se eliminó) para conservar el historial.');
         }
 
         $repuesto->delete();
 
         return redirect()
-            ->route('repuestos.index')
-            ->with('success', 'Repuesto eliminado exitosamente');
+            ->route('inventario.index')
+            ->with('success', 'Ítem de inventario eliminado exitosamente');
     }
 
     /** @return list<string> */

@@ -17,6 +17,7 @@ interface OrdenOption {
 
 const page = usePage()
 const ordenes = computed(() => ((page.props as any).ordenes || []) as OrdenOption[])
+const ivaRate = computed(() => Number((page.props as any).ivaRate ?? 0.15))
 
 const backendErrors = computed(() => page.props.errors || {})
 const errors = computed(() => {
@@ -42,13 +43,9 @@ const metodoItems = [
 ]
 
 const isLoading = ref(false)
-const aplicandoDesdeOrden = ref(false)
 const state = reactive({
-  ordenTrabajoId: '',
-  valorServicios: 0,
-  valorRepuestos: 0,
+  ordenTrabajoId: String((page.props as any).ordenTrabajoId || ''),
   descuento: 0,
-  total: 0,
   estado: 'pendiente',
   metodoPago: ''
 })
@@ -57,47 +54,51 @@ const ordenSeleccionada = computed(() =>
   ordenes.value.find(o => o.id === state.ordenTrabajoId) || null
 )
 
+const valorServicios = computed(() => ordenSeleccionada.value?.valorServicios ?? 0)
+const valorRepuestos = computed(() => ordenSeleccionada.value?.valorRepuestos ?? 0)
+const subtotal = computed(() => valorServicios.value + valorRepuestos.value)
+
+const descuentoAplicado = computed(() => {
+  const d = Math.max(0, Number(state.descuento) || 0)
+  return Math.min(d, subtotal.value)
+})
+
+const totalCalculado = computed(() => {
+  if (!ordenSeleccionada.value) return 0
+  const base = Math.max(0, subtotal.value - descuentoAplicado.value)
+  if (ordenSeleccionada.value.tieneFactura) {
+    const iva = Number((base * ivaRate.value).toFixed(2))
+    return Number((base + iva).toFixed(2))
+  }
+  return Number(base.toFixed(2))
+})
+
+const ivaCalculado = computed(() => {
+  if (!ordenSeleccionada.value?.tieneFactura) return 0
+  const base = Math.max(0, subtotal.value - descuentoAplicado.value)
+  return Number((base * ivaRate.value).toFixed(2))
+})
+
 const formatMoney = (value: number) =>
-  new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(value || 0)
+  new Intl.NumberFormat('es-EC', { style: 'currency', currency: 'USD' }).format(value || 0)
 
 watch(
   () => state.ordenTrabajoId,
   (ordenId) => {
     const orden = ordenes.value.find(o => o.id === ordenId)
-    if (!orden) {
-      state.valorServicios = 0
-      state.valorRepuestos = 0
-      state.descuento = 0
-      state.total = 0
-      return
-    }
-
-    aplicandoDesdeOrden.value = true
-    state.valorServicios = orden.valorServicios
-    state.valorRepuestos = orden.valorRepuestos
-    state.descuento = orden.descuento
-    state.total = orden.total
-    queueMicrotask(() => {
-      aplicandoDesdeOrden.value = false
-    })
-  }
-)
-
-watch(
-  () => [state.valorServicios, state.valorRepuestos, state.descuento],
-  () => {
-    if (aplicandoDesdeOrden.value) return
-    state.total = Math.max(
-      0,
-      Number(state.valorServicios || 0) + Number(state.valorRepuestos || 0) - Number(state.descuento || 0)
-    )
-  }
+    state.descuento = orden ? orden.descuento : 0
+  },
+  { immediate: true }
 )
 
 const handleSubmit = () => {
   isLoading.value = true
-  const payload = { ...state }
-  if (!payload.metodoPago) delete payload.metodoPago
+  const payload: Record<string, unknown> = {
+    ordenTrabajoId: state.ordenTrabajoId,
+    descuento: descuentoAplicado.value,
+    estado: state.estado
+  }
+  if (state.metodoPago) payload.metodoPago = state.metodoPago
   router.post(route('pagos.store'), payload, {
     onFinish: () => { isLoading.value = false }
   })
@@ -116,7 +117,7 @@ const handleSubmit = () => {
     <template #body>
       <UCard class="max-w-3xl">
         <form class="grid grid-cols-1 md:grid-cols-2 gap-4" @submit.prevent="handleSubmit">
-          <FormField label="Orden de trabajo" name="ordenTrabajoId" required :error="errors.ordenTrabajoId" class="md:col-span-2">
+          <FormField label="Orden de trabajo" name="ordenTrabajoId" required :error="errors.ordenTrabajoId || errors.orden_trabajo_id" class="md:col-span-2">
             <USelect
               v-model="state.ordenTrabajoId"
               :items="ordenes.map(o => ({ label: o.label, value: o.id }))"
@@ -130,29 +131,51 @@ const handleSubmit = () => {
             class="md:col-span-2"
             color="info"
             variant="subtle"
-            icon="i-lucide-calculator"
+            icon="i-lucide-lock"
             :title="ordenSeleccionada.tieneFactura
-              ? `Valores tomados de la factura ${ordenSeleccionada.facturaNumero || ''}`
-              : 'Valores calculados desde servicios y repuestos de la OT'"
-            :description="`Servicios ${formatMoney(ordenSeleccionada.valorServicios)} · Repuestos ${formatMoney(ordenSeleccionada.valorRepuestos)} · Total ${formatMoney(ordenSeleccionada.total)}`"
+              ? `Valores fijos de la factura ${ordenSeleccionada.facturaNumero || ''}`
+              : 'Valores fijos desde servicios y repuestos de la OT'"
+            description="Servicios, repuestos y total no se editan. Solo puedes aplicar un descuento según el caso."
           />
 
-          <FormField label="Valor servicios" name="valorServicios" :error="errors.valorServicios">
-            <UInput v-model.number="state.valorServicios" type="number" min="0" step="0.01" class="w-full" />
+          <div class="rounded-lg border border-default p-3">
+            <p class="text-xs uppercase tracking-wide text-muted">Valor servicios</p>
+            <p class="mt-1 text-sm font-semibold">{{ formatMoney(valorServicios) }}</p>
+          </div>
+          <div class="rounded-lg border border-default p-3">
+            <p class="text-xs uppercase tracking-wide text-muted">Valor repuestos</p>
+            <p class="mt-1 text-sm font-semibold">{{ formatMoney(valorRepuestos) }}</p>
+          </div>
+
+          <FormField label="Descuento" name="descuento" :error="errors.descuento" class="md:col-span-2">
+            <UInput
+              v-model.number="state.descuento"
+              type="number"
+              min="0"
+              :max="subtotal"
+              step="0.01"
+              class="w-full"
+              :disabled="!ordenSeleccionada"
+              placeholder="Aplicar descuento si corresponde"
+            />
+            <p class="mt-1.5 text-xs text-muted">
+              Opcional. No puede superar el subtotal ({{ formatMoney(subtotal) }}).
+            </p>
           </FormField>
-          <FormField label="Valor repuestos" name="valorRepuestos" :error="errors.valorRepuestos">
-            <UInput v-model.number="state.valorRepuestos" type="number" min="0" step="0.01" class="w-full" />
-          </FormField>
-          <FormField label="Descuento" name="descuento" :error="errors.descuento">
-            <UInput v-model.number="state.descuento" type="number" min="0" step="0.01" class="w-full" />
-          </FormField>
-          <FormField label="Total" name="total" :error="errors.total">
-            <UInput v-model.number="state.total" type="number" min="0" step="0.01" class="w-full" />
-          </FormField>
+
+          <div v-if="ordenSeleccionada?.tieneFactura" class="rounded-lg border border-default p-3">
+            <p class="text-xs uppercase tracking-wide text-muted">IVA ({{ (ivaRate * 100).toFixed(0) }}%)</p>
+            <p class="mt-1 text-sm font-semibold">{{ formatMoney(ivaCalculado) }}</p>
+          </div>
+          <div class="rounded-lg border border-default bg-elevated/40 p-3" :class="ordenSeleccionada?.tieneFactura ? '' : 'md:col-span-2'">
+            <p class="text-xs uppercase tracking-wide text-muted">Total a pagar</p>
+            <p class="mt-1 text-lg font-semibold">{{ formatMoney(totalCalculado) }}</p>
+          </div>
+
           <FormField label="Estado" name="estado" :error="errors.estado">
             <USelect v-model="state.estado" :items="estadoItems" class="w-full" />
           </FormField>
-          <FormField label="Método de pago" name="metodoPago" :error="errors.metodoPago">
+          <FormField label="Método de pago" name="metodoPago" :error="errors.metodoPago || errors.metodo_pago">
             <USelect
               v-model="state.metodoPago"
               :items="metodoItems"
@@ -161,7 +184,7 @@ const handleSubmit = () => {
             />
           </FormField>
           <div class="md:col-span-2 flex gap-3">
-            <UButton type="submit" label="Guardar" :loading="isLoading" />
+            <UButton type="submit" label="Registrar pago" :loading="isLoading" :disabled="!state.ordenTrabajoId" />
             <UButton variant="ghost" color="neutral" label="Cancelar" :to="route('pagos.index')" />
           </div>
         </form>

@@ -31,23 +31,23 @@ class GroqDiagnosticService
 
             $system = <<<'PROMPT'
 Eres un asistente de taller automotriz AUTOFIX IA. NO emitas un diagnóstico definitivo.
-Analiza la falla reportada y responde SOLO en JSON con estas claves:
+Analiza vehículo, tipo de falla, prioridad y reporte del cliente. Responde SOLO en JSON con:
 - diagnostico_detalle (string): explicación clara del problema probable y por qué.
-- posibles_causas (array de strings): causas ordenadas de más a menos probable.
-- acciones_recomendadas (array de strings): pasos concretos que debe hacer el taller.
-- especialidad_recomendada (string): especialidad del mecánico a asignar, por ejemplo:
+- posibles_causas (array de strings): causas de más a menos probable.
+- acciones_recomendadas (array de strings): pasos concretos del taller.
+- especialidad_recomendada (string): especialidad del mecánico, ej:
   "Sistema eléctrico y baterías", "Motor", "Frenos", "Suspensión y dirección",
   "Inyección electrónica y sensores", "Transmisión", "Diagnóstico computarizado (scanner OBD)",
   "Aire acondicionado y clima", "Embrague y caja de cambios", "Mantenimiento general y lubricación".
-- servicio_recomendado (string): nombre de servicio del taller (ej. "Revisión de frenos", "Cambio de aceite")
-- servicios_sugeridos (array de strings): 1 o 2 nombres de servicios del catálogo
-- repuestos_sugeridos (array de strings): 1 a 3 nombres de repuestos del inventario (ej. "Pastillas de freno delanteras", "Aceite 5W-30 sintético 4L")
-- prioridad (baja|media|alta)
-- observacion_mecanico (string)
-- advertencia (string)
+- servicio_recomendado (string): preferir un nombre exacto de catalogo_servicios si viene en el payload.
+- servicios_sugeridos (array de strings): 2–4 nombres; el PRIMERO debe ser "Diagnóstico computarizado" cuando exista en el catálogo; luego servicios del caso (ej. "Limpieza de inyectores", "Cambio de filtro de aire", "Limpieza de cuerpo de aceleración"). Preferir coincidencias exactas de catalogo_servicios.
+- repuestos_sugeridos (array de strings): 1–4 nombres; preferir coincidencias exactas de catalogo_repuestos.
+- prioridad (baja|media|alta): respeta urgencia del cliente salvo riesgo de seguridad (entonces alta).
+- observacion_mecanico (string): observaciones prácticas para el mecánico asignado.
+- advertencia (string): riesgos o precauciones.
 - respuesta_completa (string): resumen legible para el taller.
 
-Si el vehículo no enciende, prioriza sistema eléctrico/arranque y recomienda electromecánico o especialista eléctrico.
+Si no enciende: prioriza eléctrico/arranque. Usa el catálogo cuando exista; si no hay match, sugiere nombres reales de taller.
 PROMPT;
 
             $response = $request->post(rtrim(config('services.groq.url'), '/') . '/chat/completions', [
@@ -140,7 +140,7 @@ PROMPT;
                 ],
                 'especialidad_recomendada' => 'Sistema eléctrico y baterías',
                 'servicio_recomendado' => 'Sistema eléctrico',
-                'servicios_sugeridos' => ['Sistema eléctrico', 'Diagnóstico computarizado'],
+                'servicios_sugeridos' => ['Diagnóstico computarizado', 'Sistema eléctrico', 'Carga / prueba de batería'],
                 'repuestos_sugeridos' => ['Batería 12V 60Ah', 'Relé de arranque', 'Kit de fusibles surtido'],
                 'prioridad' => $noArranca ? 'alta' : ($urgencia === 'alta' ? 'alta' : 'media'),
                 'observacion_mecanico' => 'Confirmar si hay click al girar llave, luces débiles o tablero muerto. Eso orienta a batería vs arrancador.',
@@ -164,7 +164,7 @@ PROMPT;
                 ],
                 'especialidad_recomendada' => 'Frenos (discos, pastillas, ABS y freno de mano)',
                 'servicio_recomendado' => 'Cambio de pastillas de freno',
-                'servicios_sugeridos' => ['Cambio de pastillas de freno', 'Revisión de frenos'],
+                'servicios_sugeridos' => ['Diagnóstico computarizado', 'Cambio de pastillas de freno', 'Revisión de frenos'],
                 'repuestos_sugeridos' => ['Pastillas de freno delanteras', 'Líquido de frenos DOT 4', 'Limpiador de frenos spray'],
                 'prioridad' => 'alta',
                 'observacion_mecanico' => 'Priorizar seguridad: no entregar el vehículo si hay pedal esponjoso o pérdida de frenado.',
@@ -187,7 +187,7 @@ PROMPT;
                 ],
                 'especialidad_recomendada' => 'Suspensión y dirección (amortiguadores, rótulas, cremallera)',
                 'servicio_recomendado' => 'Suspensión y dirección',
-                'servicios_sugeridos' => ['Suspensión y dirección', 'Alineación y balanceo'],
+                'servicios_sugeridos' => ['Diagnóstico computarizado', 'Suspensión y dirección', 'Alineación y balanceo'],
                 'repuestos_sugeridos' => ['Amortiguador delantero', 'Rótula superior', 'Pesas de balanceo surtido'],
                 'prioridad' => $urgencia === 'alta' ? 'alta' : 'media',
                 'observacion_mecanico' => 'Preguntar si el ruido aparece en baches, al girar o a cierta velocidad.',
@@ -210,7 +210,7 @@ PROMPT;
                 ],
                 'especialidad_recomendada' => 'Inyección electrónica y sensores',
                 'servicio_recomendado' => 'Inyección electrónica',
-                'servicios_sugeridos' => ['Inyección electrónica', 'Diagnóstico computarizado'],
+                'servicios_sugeridos' => ['Diagnóstico computarizado', 'Limpieza de inyectores', 'Limpieza de cuerpo de aceleración', 'Cambio de filtro de aire'],
                 'repuestos_sugeridos' => ['Sensor de oxígeno O2', 'Limpiador de inyectores', 'Bujías iridio (juego x4)'],
                 'prioridad' => $urgencia === 'alta' ? 'alta' : 'media',
                 'observacion_mecanico' => 'Guardar captura de códigos antes de borrarlos.',
@@ -233,7 +233,7 @@ PROMPT;
                 ],
                 'especialidad_recomendada' => 'Motor (reparación, sincronización y sobrecalentamiento)',
                 'servicio_recomendado' => 'Revisión de motor',
-                'servicios_sugeridos' => ['Revisión de motor', 'Cambio de aceite'],
+                'servicios_sugeridos' => ['Diagnóstico computarizado', 'Revisión de motor', 'Cambio de aceite', 'Cambio de filtro de aceite'],
                 'repuestos_sugeridos' => ['Aceite 5W-30 sintético 4L', 'Filtro de aceite estándar', 'Bujías iridio (juego x4)'],
                 'prioridad' => $urgencia === 'alta' ? 'alta' : 'media',
                 'observacion_mecanico' => 'No operar el motor si hay sobrecalentamiento o ruido metálico fuerte.',
@@ -256,7 +256,7 @@ PROMPT;
                 ],
                 'especialidad_recomendada' => 'Transmisión manual y automática',
                 'servicio_recomendado' => 'Transmisión',
-                'servicios_sugeridos' => ['Transmisión', 'Embrague'],
+                'servicios_sugeridos' => ['Diagnóstico computarizado', 'Transmisión', 'Embrague'],
                 'repuestos_sugeridos' => ['Kit de embrague', 'Aceite transmisión ATF 1L', 'Collarín de embrague'],
                 'prioridad' => $urgencia === 'alta' ? 'alta' : 'media',
                 'observacion_mecanico' => 'Documentar si hay patinaje, ruidos al cambiar o tirones.',
@@ -279,7 +279,7 @@ PROMPT;
                 ],
                 'especialidad_recomendada' => 'Diagnóstico computarizado (scanner OBD)',
                 'servicio_recomendado' => 'Diagnóstico computarizado',
-                'servicios_sugeridos' => ['Diagnóstico computarizado', 'Mantenimiento preventivo'],
+                'servicios_sugeridos' => ['Diagnóstico computarizado', 'Mantenimiento preventivo', 'Cambio de filtro de aire'],
                 'repuestos_sugeridos' => ['Filtro de aire motor', 'Filtro de aceite estándar'],
                 'prioridad' => in_array($urgencia, ['baja', 'media', 'alta'], true) ? $urgencia : 'media',
                 'observacion_mecanico' => 'Completar síntomas (ruidos, luces, momento exacto) antes de desarmar.',

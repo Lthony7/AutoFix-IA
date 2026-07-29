@@ -3,6 +3,8 @@
 namespace Src\OrdenTrabajo\Application\Controllers;
 
 use App\Enums\UserRole;
+use App\Enums\CitaEstado;
+use App\Enums\CitaTipo;
 use App\Http\Controllers\Controller;
 use App\Services\OrdenEstadoNotifier;
 use App\Services\OrdenRepuestoStockService;
@@ -13,6 +15,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
+use Src\Cita\Infrastructure\Models\CitaEloquentModel;
 use Src\Cliente\Infrastructure\Models\ClienteEloquentModel;
 use Src\Mecanico\Infrastructure\Models\MecanicoEloquentModel;
 use Src\OrdenTrabajo\Infrastructure\Models\OrdenAvanceEloquentModel;
@@ -82,13 +85,29 @@ class OrdenTrabajoWebController extends Controller
 
             DB::transaction(function () use ($request, &$ordenId) {
                 $data = $request->validated();
-                unset($data['servicios'], $data['repuestos']);
+                $fechaCita = $data['fecha_cita'] ?? null;
+                $tipoCita = $data['tipo_cita'] ?? CitaTipo::Reparacion->value;
+                unset($data['servicios'], $data['repuestos'], $data['fecha_cita'], $data['tipo_cita']);
 
                 $orden = OrdenTrabajoEloquentModel::create(array_merge($data, [
                     'numero' => OrdenTrabajoEloquentModel::generarNumero(),
                     'created_by' => $request->user()?->id,
                     'updated_by' => $request->user()?->id,
                 ]));
+
+                if ($fechaCita) {
+                    CitaEloquentModel::create([
+                        'cliente_id' => $orden->cliente_id,
+                        'vehiculo_id' => $orden->vehiculo_id,
+                        'mecanico_id' => $orden->mecanico_id,
+                        'orden_trabajo_id' => $orden->id,
+                        'fecha_hora' => $fechaCita,
+                        'duracion_minutos' => 60,
+                        'tipo' => CitaTipo::tryFrom($tipoCita) ?? CitaTipo::Reparacion,
+                        'estado' => CitaEstado::Programada,
+                        'notas' => 'Cita vinculada a ' . $orden->numero,
+                    ]);
+                }
 
                 $ordenId = $orden->id;
             });
@@ -144,6 +163,10 @@ class OrdenTrabajoWebController extends Controller
                 || $request->user()->hasRole(UserRole::Mecanico),
             'puedeRegistrarAvance' => $request->user()->hasRole(UserRole::Administrador)
                 || $request->user()->hasRole(UserRole::Mecanico),
+            'puedeGestionarServicios' => $request->user()->hasRole(UserRole::Mecanico)
+                || $request->user()->hasRole(UserRole::Administrador),
+            'puedeGestionarRepuestos' => $request->user()->hasRole(UserRole::Mecanico)
+                || $request->user()->hasRole(UserRole::Administrador),
             'puedeCorregirItems' => $request->user()->hasRole(UserRole::Administrador)
                 || $request->user()->hasRole(UserRole::Recepcionista)
                 || $request->user()->hasRole(UserRole::Mecanico),
@@ -198,19 +221,24 @@ class OrdenTrabajoWebController extends Controller
                     $orden->update($data);
                 }
 
+                if (array_key_exists('mecanico_id', $data) || $esMecanico) {
+                    $orden->load('cita');
+                    if ($orden->cita) {
+                        $orden->cita->update(['mecanico_id' => $orden->fresh()->mecanico_id]);
+                    }
+                }
+
                 if ($servicios !== null && (
-                    $request->user()->hasRole(UserRole::Administrador)
-                    || $request->user()->hasRole(UserRole::Recepcionista)
-                    || $esMecanico
+                    $request->user()->hasRole(UserRole::Mecanico)
+                    || $request->user()->hasRole(UserRole::Administrador)
                 )) {
                     $orden->ordenServicios()->delete();
                     $this->syncServicios($orden, $servicios);
                 }
 
                 if ($repuestos !== null && (
-                    $request->user()->hasRole(UserRole::Administrador)
-                    || $request->user()->hasRole(UserRole::Recepcionista)
-                    || $esMecanico
+                    $request->user()->hasRole(UserRole::Mecanico)
+                    || $request->user()->hasRole(UserRole::Administrador)
                 )) {
                     $this->stockService->reemplazar($orden, $repuestos);
                 }
@@ -244,11 +272,15 @@ class OrdenTrabajoWebController extends Controller
 
     public function asignarMecanico(AsignarMecanicoRequest $request, string $id): RedirectResponse
     {
-        $orden = OrdenTrabajoEloquentModel::findOrFail($id);
+        $orden = OrdenTrabajoEloquentModel::with('cita')->findOrFail($id);
         $orden->update([
             'mecanico_id' => $request->validated('mecanico_id'),
             'updated_by' => $request->user()?->id,
         ]);
+
+        if ($orden->cita) {
+            $orden->cita->update(['mecanico_id' => $request->validated('mecanico_id')]);
+        }
 
         return redirect()->back()->with('success', 'Mecánico asignado exitosamente');
     }
@@ -397,8 +429,26 @@ class OrdenTrabajoWebController extends Controller
 
     private function serviciosOptions(): array
     {
-        return ServicioEloquentModel::where('activo', true)->orderBy('nombre')->get()
-            ->map(fn ($s) => ['id' => $s->id, 'label' => $s->nombre, 'precioBase' => (float) $s->precio_base])->values()->toArray();
+        $servicios = ServicioEloquentModel::where('activo', true)->get();
+
+        return $servicios
+            ->sortBy(function ($s) {
+                $nombre = mb_strtolower((string) $s->nombre);
+                // Diagnóstico computarizado siempre primero en el listado
+                if (str_contains($nombre, 'diagnóstico computarizado') || str_contains($nombre, 'diagnostico computarizado')) {
+                    return '0_' . $nombre;
+                }
+
+                return '1_' . $nombre;
+            })
+            ->values()
+            ->map(fn ($s) => [
+                'id' => $s->id,
+                'label' => $s->nombre,
+                'precioBase' => (float) $s->precio_base,
+                'descripcion' => $s->descripcion,
+            ])
+            ->all();
     }
 
     private function repuestosOptions(): array

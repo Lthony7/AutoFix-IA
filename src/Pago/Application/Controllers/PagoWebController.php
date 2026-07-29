@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use App\Support\InertiaTablePaginator;
 use Exception;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
 use Src\Factura\Infrastructure\Models\FacturaEloquentModel;
@@ -31,10 +32,12 @@ class PagoWebController extends Controller
         ]);
     }
 
-    public function create(): Response
+    public function create(Request $request): Response
     {
         return Inertia::render('Pago/create', [
             'ordenes' => $this->ordenesSinPagoOptions(),
+            'ivaRate' => (float) config('autofix.iva_rate', 0.15),
+            'ordenTrabajoId' => $request->query('ordenTrabajoId'),
         ]);
     }
 
@@ -45,28 +48,26 @@ class PagoWebController extends Controller
             $orden = OrdenTrabajoEloquentModel::with(['ordenServicios', 'ordenRepuestos', 'factura'])
                 ->findOrFail($data['orden_trabajo_id']);
 
-            $calculado = PagoEloquentModel::calcularDesdeOrden($orden);
-            $valorServicios = $data['valor_servicios'] ?? $calculado['valor_servicios'];
-            $valorRepuestos = $data['valor_repuestos'] ?? $calculado['valor_repuestos'];
-            $descuento = $data['descuento'] ?? ($orden->factura?->descuento ?? 0);
-            $total = $data['total'] ?? ($orden->factura
-                ? (float) $orden->factura->total
-                : ($valorServicios + $valorRepuestos - $descuento));
+            $montos = $this->resolverMontosPago(
+                $orden,
+                isset($data['descuento']) ? (float) $data['descuento'] : null
+            );
 
             $estado = $data['estado'] ?? PagoEstado::Pendiente->value;
 
             $pago = PagoEloquentModel::create([
                 'orden_trabajo_id' => $orden->id,
                 'factura_id' => $orden->factura?->id,
-                'valor_servicios' => $valorServicios,
-                'valor_repuestos' => $valorRepuestos,
-                'descuento' => $descuento,
-                'total' => max(0, $total),
+                'valor_servicios' => $montos['valor_servicios'],
+                'valor_repuestos' => $montos['valor_repuestos'],
+                'descuento' => $montos['descuento'],
+                'total' => $montos['total'],
                 'estado' => $estado,
                 'metodo_pago' => $data['metodo_pago'] ?? null,
                 'registrado_por' => $data['registrado_por'] ?? $request->user()?->id,
             ]);
 
+            $this->sincronizarMontosFactura($pago, $montos);
             $this->sincronizarEstadoFactura($pago);
 
             return redirect()->route('pagos.index')->with('success', 'Pago registrado exitosamente');
@@ -77,10 +78,11 @@ class PagoWebController extends Controller
 
     public function edit(string $id): Response
     {
-        $pago = PagoEloquentModel::with(['ordenTrabajo'])->findOrFail($id);
+        $pago = PagoEloquentModel::with(['ordenTrabajo.cliente', 'ordenTrabajo.vehiculo', 'factura'])->findOrFail($id);
 
         return Inertia::render('Pago/edit', [
             'pago' => $this->mapPago($pago),
+            'ivaRate' => (float) config('autofix.iva_rate', 0.15),
         ]);
     }
 
@@ -95,25 +97,25 @@ class PagoWebController extends Controller
             ])->findOrFail($id);
 
             $data = $request->validated();
-            $calculado = PagoEloquentModel::calcularDesdeOrden($pago->ordenTrabajo);
-
-            $valorServicios = $data['valor_servicios'] ?? $calculado['valor_servicios'];
-            $valorRepuestos = $data['valor_repuestos'] ?? $calculado['valor_repuestos'];
-            $descuento = $data['descuento'] ?? $pago->descuento;
-            $total = $data['total'] ?? ($valorServicios + $valorRepuestos - $descuento);
+            $montos = $this->resolverMontosPago(
+                $pago->ordenTrabajo,
+                array_key_exists('descuento', $data) ? (float) $data['descuento'] : (float) $pago->descuento
+            );
 
             if (!$pago->factura_id && $pago->ordenTrabajo?->factura) {
                 $data['factura_id'] = $pago->ordenTrabajo->factura->id;
             }
 
             $pago->update(array_merge($data, [
-                'valor_servicios' => $valorServicios,
-                'valor_repuestos' => $valorRepuestos,
-                'descuento' => $descuento,
-                'total' => max(0, $total),
+                'valor_servicios' => $montos['valor_servicios'],
+                'valor_repuestos' => $montos['valor_repuestos'],
+                'descuento' => $montos['descuento'],
+                'total' => $montos['total'],
             ]));
 
-            $this->sincronizarEstadoFactura($pago->fresh('factura'));
+            $pago = $pago->fresh(['factura']);
+            $this->sincronizarMontosFactura($pago, $montos);
+            $this->sincronizarEstadoFactura($pago);
 
             return redirect()->route('pagos.index')->with('success', 'Pago actualizado exitosamente');
         } catch (Exception $e) {
@@ -132,6 +134,64 @@ class PagoWebController extends Controller
         $pago->delete();
 
         return redirect()->route('pagos.index')->with('success', 'Pago eliminado exitosamente');
+    }
+
+    /**
+     * @return array{valor_servicios: float, valor_repuestos: float, descuento: float, total: float, iva: float, subtotal: float}
+     */
+    private function resolverMontosPago(OrdenTrabajoEloquentModel $orden, ?float $descuentoSolicitado): array
+    {
+        $calculado = PagoEloquentModel::calcularDesdeOrden($orden);
+        $valorServicios = $calculado['valor_servicios'];
+        $valorRepuestos = $calculado['valor_repuestos'];
+        $subtotal = $valorServicios + $valorRepuestos;
+
+        $descuento = $descuentoSolicitado ?? (float) ($orden->factura?->descuento ?? 0);
+        $descuento = max(0, min($descuento, $subtotal));
+
+        if ($orden->factura) {
+            $facturaCalc = FacturaEloquentModel::calcularDesdeOrden($orden, $descuento);
+
+            return [
+                'valor_servicios' => $valorServicios,
+                'valor_repuestos' => $valorRepuestos,
+                'descuento' => (float) $facturaCalc['descuento'],
+                'total' => (float) $facturaCalc['total'],
+                'iva' => (float) $facturaCalc['iva'],
+                'subtotal' => (float) $facturaCalc['subtotal'],
+            ];
+        }
+
+        $total = max(0, $subtotal - $descuento);
+
+        return [
+            'valor_servicios' => $valorServicios,
+            'valor_repuestos' => $valorRepuestos,
+            'descuento' => round($descuento, 2),
+            'total' => round($total, 2),
+            'iva' => 0.0,
+            'subtotal' => round($subtotal, 2),
+        ];
+    }
+
+    /**
+     * @param  array{descuento: float, total: float, iva: float, subtotal: float}  $montos
+     */
+    private function sincronizarMontosFactura(PagoEloquentModel $pago, array $montos): void
+    {
+        $factura = $pago->factura
+            ?? ($pago->factura_id ? FacturaEloquentModel::find($pago->factura_id) : null);
+
+        if (!$factura || $factura->estado === FacturaEstado::Anulada) {
+            return;
+        }
+
+        $factura->update([
+            'descuento' => $montos['descuento'],
+            'subtotal' => $montos['subtotal'],
+            'iva' => $montos['iva'],
+            'total' => $montos['total'],
+        ]);
     }
 
     private function sincronizarEstadoFactura(PagoEloquentModel $pago): void
@@ -163,6 +223,7 @@ class PagoWebController extends Controller
             'id' => $pago->id,
             'ordenTrabajoId' => $pago->orden_trabajo_id,
             'facturaId' => $pago->factura_id,
+            'tieneFactura' => (bool) $pago->factura_id,
             'ordenNumero' => $pago->ordenTrabajo?->numero,
             'clienteNombre' => $pago->ordenTrabajo?->cliente?->razon_social,
             'vehiculoPlaca' => $pago->ordenTrabajo?->vehiculo?->placa,

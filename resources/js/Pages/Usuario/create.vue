@@ -11,7 +11,7 @@ import {
 } from '../../composables/useFormValidation'
 
 const page = usePage()
-const roles = computed(() => ((page.props as any).roles || []) as { value: string, label: string }[])
+const roles = computed(() => ((page.props as any).roles || []) as { value: string, label: string, description?: string }[])
 const localErrors = ref<FormErrors>({})
 const backendErrors = computed(() => page.props.errors || {})
 const errors = computed(() => mergeErrors(localErrors.value, backendErrors.value as Record<string, unknown>))

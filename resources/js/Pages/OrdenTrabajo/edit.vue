@@ -51,7 +51,6 @@ const sugerenciaIa = computed(() => (page.props as any).sugerenciaIa)
 const soloDiagnostico = computed(() => !!(page.props as any).soloDiagnostico)
 const puedeEditarDiagnostico = computed(() => !!(page.props as any).puedeEditarDiagnostico)
 const puedeRegistrarAvance = computed(() => !!(page.props as any).puedeRegistrarAvance)
-const puedeCorregirItems = computed(() => !!(page.props as any).puedeCorregirItems)
 const esMecanico = computed(() => !!(page.props as any).esMecanico)
 const clientes = computed(() => ((page.props as any).clientes || []) as Option[])
 const vehiculos = computed(() => ((page.props as any).vehiculos || []) as VehiculoOption[])
@@ -98,17 +97,56 @@ const tipoFallaItems = [
 ]
 
 const ordenInicial = (page.props as any).orden
-const incluirServicio = ref((ordenInicial.servicios?.length ?? 0) > 0)
-const incluirRepuesto = ref((ordenInicial.repuestos?.length ?? 0) > 0)
-const servicioSeleccionado = ref(ordenInicial.servicios?.[0]?.servicioId || '')
-const repuestoSeleccionado = ref(ordenInicial.repuestos?.[0]?.productoId || '')
-const servicioPrecio = ref(ordenInicial.servicios?.[0]?.precio ?? 0)
-const repuestoCantidad = ref(ordenInicial.repuestos?.[0]?.cantidad ?? 1)
-const repuestoPrecio = ref(ordenInicial.repuestos?.[0]?.precioUnitario ?? 0)
+const role = computed(() => String((page.props as any).auth?.user?.role || ''))
+const puedeGestionarServicios = computed(() =>
+  !!(page.props as any).puedeGestionarServicios
+  || role.value === 'mecanico'
+  || role.value === 'administrador'
+)
+const puedeGestionarRepuestos = computed(() =>
+  !!(page.props as any).puedeGestionarRepuestos
+  || role.value === 'mecanico'
+  || role.value === 'administrador'
+)
 const nuevoEstado = ref(ordenInicial.estado)
 const cambiandoEstado = ref(false)
 const nuevoAvance = ref('')
 const guardandoAvance = ref(false)
+const servicioParaAgregar = ref('')
+const repuestoParaAgregar = ref('')
+const repuestoClienteNuevo = ref('')
+
+type LineaServicio = { servicioId: string, precio: number }
+type LineaRepuesto = { productoId: string, cantidad: number, precioUnitario: number }
+
+const MARCADOR_CLIENTE = 'Repuestos que aporta el cliente:'
+
+const parseRepuestosCliente = (obs: string | null | undefined): string[] => {
+  if (!obs) return []
+  const match = obs.match(/Repuestos que aporta el cliente:\s*(.+?)(?:\.|$)/is)
+  if (!match?.[1]) return []
+  return match[1]
+    .split(';')
+    .map(s => s.trim().replace(/\.$/, ''))
+    .filter(Boolean)
+}
+
+const lineasServicios = ref<LineaServicio[]>(
+  (ordenInicial.servicios || []).map((s: OrdenServicio) => ({
+    servicioId: s.servicioId,
+    precio: s.precio
+  }))
+)
+
+const lineasRepuestos = ref<LineaRepuesto[]>(
+  (ordenInicial.repuestos || []).map((r: OrdenRepuesto) => ({
+    productoId: r.productoId,
+    cantidad: r.cantidad,
+    precioUnitario: r.precioUnitario
+  }))
+)
+
+const repuestosCliente = ref<string[]>(parseRepuestosCliente(ordenInicial.observaciones))
 
 const isLoading = ref(false)
 const state = reactive({
@@ -118,7 +156,9 @@ const state = reactive({
   tipoFalla: ordenInicial.tipoFalla || '',
   fallaReportada: ordenInicial.fallaReportada || '',
   kilometrajeIngreso: ordenInicial.kilometrajeIngreso ?? 0,
-  observaciones: ordenInicial.observaciones || '',
+  observaciones: String(ordenInicial.observaciones || '')
+    .replace(/\n?Repuestos que aporta el cliente:.*$/is, '')
+    .trim(),
   diagnosticoTecnico: ordenInicial.diagnosticoTecnico || '',
   prioridad: ordenInicial.prioridad || 'media'
 })
@@ -154,45 +194,130 @@ watch(() => state.vehiculoId, (id) => {
   }
 })
 
-watch(servicioSeleccionado, (id) => {
-  const servicio = serviciosOpts.value.find(s => s.id === id)
-  if (servicio && !orden.value.servicios?.some((s: OrdenServicio) => s.servicioId === id)) {
-    servicioPrecio.value = servicio.precioBase ?? 0
-  }
+const nombreServicio = (id: string) =>
+  serviciosOpts.value.find(s => s.id === id)?.label || 'Servicio'
+
+const nombreRepuesto = (id: string) =>
+  repuestosOpts.value.find(r => r.id === id)?.label || 'Repuesto'
+
+const serviciosDisponiblesParaAgregar = computed(() => {
+  const usados = new Set(lineasServicios.value.map(l => l.servicioId))
+  return serviciosOpts.value.filter(s => !usados.has(s.id))
 })
 
-watch(repuestoSeleccionado, (id) => {
-  const repuesto = repuestosOpts.value.find(r => r.id === id)
-  if (repuesto && !orden.value.repuestos?.some((r: OrdenRepuesto) => r.productoId === id)) {
-    repuestoPrecio.value = repuesto.precio ?? 0
+const repuestosDisponiblesParaAgregar = computed(() => {
+  const usados = new Set(lineasRepuestos.value.map(l => l.productoId))
+  return repuestosOpts.value.filter(r => !usados.has(r.id))
+})
+
+const agregarServicio = (servicioId?: string) => {
+  const id = servicioId || servicioParaAgregar.value || serviciosDisponiblesParaAgregar.value[0]?.id || serviciosOpts.value[0]?.id
+  if (!id) return
+  if (lineasServicios.value.some(l => l.servicioId === id)) return
+
+  const servicio = serviciosOpts.value.find(s => s.id === id)
+  lineasServicios.value.push({
+    servicioId: id,
+    precio: servicio?.precioBase ?? 0
+  })
+  servicioParaAgregar.value = ''
+}
+
+const quitarServicio = (index: number) => {
+  lineasServicios.value.splice(index, 1)
+}
+
+const onServicioChange = (index: number, servicioId: string) => {
+  const servicio = serviciosOpts.value.find(s => s.id === servicioId)
+  if (servicio) {
+    lineasServicios.value[index].servicioId = servicioId
+    lineasServicios.value[index].precio = servicio.precioBase ?? 0
   }
+}
+
+const totalServicios = computed(() =>
+  lineasServicios.value.reduce((acc, l) => acc + (Number(l.precio) || 0), 0)
+)
+
+const agregarRepuesto = (productoId?: string) => {
+  const id = productoId || repuestoParaAgregar.value || repuestosDisponiblesParaAgregar.value[0]?.id
+  if (!id) return
+  if (lineasRepuestos.value.some(l => l.productoId === id)) return
+
+  const repuesto = repuestosOpts.value.find(r => r.id === id)
+  lineasRepuestos.value.push({
+    productoId: id,
+    cantidad: 1,
+    precioUnitario: repuesto?.precio ?? 0
+  })
+  repuestoParaAgregar.value = ''
+}
+
+const quitarRepuesto = (index: number) => {
+  lineasRepuestos.value.splice(index, 1)
+}
+
+const onRepuestoChange = (index: number, productoId: string) => {
+  const repuesto = repuestosOpts.value.find(r => r.id === productoId)
+  if (repuesto) {
+    lineasRepuestos.value[index].productoId = productoId
+    lineasRepuestos.value[index].precioUnitario = repuesto.precio ?? 0
+  }
+}
+
+const totalRepuestos = computed(() =>
+  lineasRepuestos.value.reduce(
+    (acc, l) => acc + (Number(l.cantidad) || 0) * (Number(l.precioUnitario) || 0),
+    0
+  )
+)
+
+const agregarRepuestoCliente = () => {
+  const nombre = repuestoClienteNuevo.value.trim()
+  if (!nombre) return
+  const existe = repuestosCliente.value.some(n => n.toLowerCase() === nombre.toLowerCase())
+  if (!existe) repuestosCliente.value.push(nombre)
+  repuestoClienteNuevo.value = ''
+}
+
+const quitarRepuestoCliente = (index: number) => {
+  repuestosCliente.value.splice(index, 1)
+}
+
+const observacionesConCliente = computed(() => {
+  const base = String(state.observaciones || '')
+    .replace(/\n?Repuestos que aporta el cliente:.*$/is, '')
+    .trim()
+  if (!repuestosCliente.value.length) return base
+  const bloque = `${MARCADOR_CLIENTE} ${repuestosCliente.value.join('; ')}.`
+  return base ? `${base}\n${bloque}` : bloque
 })
 
 const handleSubmit = () => {
   isLoading.value = true
   const payload: Record<string, unknown> = soloDiagnostico.value
-    ? { diagnosticoTecnico: state.diagnosticoTecnico, observaciones: state.observaciones }
-    : { ...state }
+    ? { diagnosticoTecnico: state.diagnosticoTecnico, observaciones: observacionesConCliente.value }
+    : { ...state, observaciones: observacionesConCliente.value }
 
   if (!soloDiagnostico.value) {
     if (!puedeEditarDiagnostico.value) {
       delete payload.diagnosticoTecnico
     }
 
-    if (incluirServicio.value && servicioSeleccionado.value) {
-      payload.servicios = [{ servicioId: servicioSeleccionado.value, precio: servicioPrecio.value }]
-    } else {
-      payload.servicios = []
+    if (puedeGestionarServicios.value) {
+      payload.servicios = lineasServicios.value
+        .filter(l => l.servicioId)
+        .map(l => ({ servicioId: l.servicioId, precio: Number(l.precio) || 0 }))
     }
 
-    if (incluirRepuesto.value && repuestoSeleccionado.value) {
-      payload.repuestos = [{
-        productoId: repuestoSeleccionado.value,
-        cantidad: repuestoCantidad.value,
-        precioUnitario: repuestoPrecio.value
-      }]
-    } else {
-      payload.repuestos = []
+    if (puedeGestionarRepuestos.value) {
+      payload.repuestos = lineasRepuestos.value
+        .filter(l => l.productoId)
+        .map(l => ({
+          productoId: l.productoId,
+          cantidad: Math.max(1, Number(l.cantidad) || 1),
+          precioUnitario: Number(l.precioUnitario) || 0
+        }))
     }
 
     if (!payload.mecanicoId) payload.mecanicoId = null
@@ -402,40 +527,241 @@ const registrarAvance = () => {
             </div>
             <FormField label="Observaciones" name="observaciones" :error="errors.observaciones" class="md:col-span-2">
               <UTextarea v-model="state.observaciones" class="w-full" />
+              <p v-if="repuestosCliente.length" class="mt-1.5 text-xs text-warning">
+                Al guardar se añadirá automáticamente: {{ MARCADOR_CLIENTE }} {{ repuestosCliente.join('; ') }}.
+              </p>
             </FormField>
 
-            <div v-if="puedeCorregirItems" class="md:col-span-2 border-t border-default pt-4 space-y-4">
-              <UCheckbox v-model="incluirServicio" label="Servicio (sugerido por IA / corregible)" />
-              <div v-if="incluirServicio" class="grid grid-cols-1 md:grid-cols-2 gap-4 pl-6">
-                <FormField label="Servicio" name="servicioId">
-                  <USelect
-                    v-model="servicioSeleccionado"
-                    :items="serviciosOpts.map(s => ({ label: s.label, value: s.id }))"
-                    class="w-full"
-                  />
-                </FormField>
-                <FormField label="Precio" name="servicioPrecio">
-                  <UInput v-model.number="servicioPrecio" type="number" min="0" step="0.01" class="w-full" />
-                </FormField>
+            <div class="md:col-span-2 border-t border-default pt-4 space-y-4">
+              <div class="flex flex-wrap items-start justify-between gap-2">
+                <div>
+                  <h3 class="font-semibold text-sm">Servicios de la sesión</h3>
+                  <p class="text-xs text-muted mt-0.5">
+                    En cada sesión suele ir primero el diagnóstico computarizado y luego los demás (limpieza de inyectores, filtros, cuerpo de aceleración, etc.).
+                    <span v-if="!puedeGestionarServicios"> Solo el mecánico puede cargarlos o corregirlos.</span>
+                  </p>
+                </div>
+              </div>
+
+              <div v-if="puedeGestionarServicios" class="space-y-3">
+                <div
+                  v-for="(linea, index) in lineasServicios"
+                  :key="`${linea.servicioId}-${index}`"
+                  class="grid grid-cols-1 md:grid-cols-12 gap-3 items-end rounded-lg border border-default/60 p-3"
+                >
+                  <FormField :label="index === 0 ? 'Servicio' : `Servicio ${index + 1}`" class="md:col-span-7">
+                    <USelect
+                      :model-value="linea.servicioId"
+                      :items="serviciosOpts.map(s => ({ label: s.label, value: s.id }))"
+                      class="w-full"
+                      @update:model-value="(v: string) => onServicioChange(index, v)"
+                    />
+                  </FormField>
+                  <FormField label="Precio" class="md:col-span-3">
+                    <UInput v-model.number="linea.precio" type="number" min="0" step="0.01" class="w-full" />
+                  </FormField>
+                  <div class="md:col-span-2">
+                    <UButton
+                      type="button"
+                      color="error"
+                      variant="ghost"
+                      icon="i-lucide-trash"
+                      block
+                      @click="quitarServicio(index)"
+                    />
+                  </div>
+                </div>
+
+                <div class="rounded-lg border border-dashed border-primary/40 bg-primary/5 p-3 space-y-3">
+                  <p class="text-sm font-medium">Agregar otro servicio</p>
+                  <div class="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
+                    <FormField label="Servicio del catálogo" class="md:col-span-8">
+                      <USelect
+                        v-model="servicioParaAgregar"
+                        :items="serviciosDisponiblesParaAgregar.map(s => ({ label: s.label, value: s.id }))"
+                        placeholder="Ej: Limpieza de inyectores, cambio de filtro…"
+                        class="w-full"
+                      />
+                    </FormField>
+                    <div class="md:col-span-4">
+                      <UButton
+                        type="button"
+                        icon="i-lucide-plus"
+                        label="Agregar servicio"
+                        block
+                        :disabled="!servicioParaAgregar && !serviciosDisponiblesParaAgregar.length"
+                        @click="agregarServicio()"
+                      />
+                    </div>
+                  </div>
+                  <p v-if="!serviciosDisponiblesParaAgregar.length" class="text-xs text-muted">
+                    Ya están todos los servicios del catálogo en esta sesión.
+                  </p>
+                </div>
+
+                <p v-if="!lineasServicios.length" class="text-sm text-muted">
+                  Sin servicios. Usa “Agregar servicio” para incluir el diagnóstico computarizado y los del caso.
+                </p>
+                <p v-else class="text-sm text-muted">
+                  Total servicios: <span class="font-medium text-highlighted">{{ totalServicios.toFixed(2) }}</span>
+                </p>
+              </div>
+
+              <div v-else class="space-y-2">
+                <div
+                  v-for="(linea, index) in (orden.servicios || [])"
+                  :key="index"
+                  class="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-default/50 px-3 py-2 text-sm"
+                >
+                  <span>{{ nombreServicio(linea.servicioId) }}</span>
+                  <span class="font-medium">{{ Number(linea.precio).toFixed(2) }}</span>
+                </div>
+                <p v-if="!(orden.servicios || []).length" class="text-sm text-muted">
+                  Aún no hay servicios cargados. El mecánico los agregará tras el diagnóstico.
+                </p>
               </div>
             </div>
 
-            <div v-if="puedeCorregirItems" class="md:col-span-2 border-t border-default pt-4 space-y-4">
-              <UCheckbox v-model="incluirRepuesto" label="Repuesto (sugerido por IA / corregible)" />
-              <div v-if="incluirRepuesto" class="grid grid-cols-1 md:grid-cols-3 gap-4 pl-6">
-                <FormField label="Repuesto" name="productoId">
-                  <USelect
-                    v-model="repuestoSeleccionado"
-                    :items="repuestosOpts.map(r => ({ label: r.label, value: r.id }))"
-                    class="w-full"
-                  />
-                </FormField>
-                <FormField label="Cantidad" name="cantidad">
-                  <UInput v-model.number="repuestoCantidad" type="number" min="1" class="w-full" />
-                </FormField>
-                <FormField label="Precio unitario" name="precioUnitario">
-                  <UInput v-model.number="repuestoPrecio" type="number" min="0" step="0.01" class="w-full" />
-                </FormField>
+            <div class="md:col-span-2 border-t border-default pt-4 space-y-4">
+              <div>
+                <h3 class="font-semibold text-sm">Repuestos de la sesión</h3>
+                <p class="text-xs text-muted mt-0.5">
+                  Si el repuesto está en inventario, agrégalo aquí. Si no existe, anótalo: el cliente lo compra por su cuenta.
+                  <span v-if="!puedeGestionarRepuestos"> Solo el mecánico puede cargarlos o corregirlos.</span>
+                </p>
+              </div>
+
+              <div v-if="puedeGestionarRepuestos" class="space-y-3">
+                <div
+                  v-for="(linea, index) in lineasRepuestos"
+                  :key="`${linea.productoId}-${index}`"
+                  class="grid grid-cols-1 md:grid-cols-12 gap-3 items-end rounded-lg border border-default/60 p-3"
+                >
+                  <FormField :label="index === 0 ? 'Repuesto (inventario)' : `Repuesto ${index + 1}`" class="md:col-span-5">
+                    <USelect
+                      :model-value="linea.productoId"
+                      :items="repuestosOpts.map(r => ({ label: r.label, value: r.id }))"
+                      class="w-full"
+                      @update:model-value="(v: string) => onRepuestoChange(index, v)"
+                    />
+                  </FormField>
+                  <FormField label="Cant." class="md:col-span-2">
+                    <UInput v-model.number="linea.cantidad" type="number" min="1" class="w-full" />
+                  </FormField>
+                  <FormField label="P. unit." class="md:col-span-3">
+                    <UInput v-model.number="linea.precioUnitario" type="number" min="0" step="0.01" class="w-full" />
+                  </FormField>
+                  <div class="md:col-span-2">
+                    <UButton
+                      type="button"
+                      color="error"
+                      variant="ghost"
+                      icon="i-lucide-trash"
+                      block
+                      @click="quitarRepuesto(index)"
+                    />
+                  </div>
+                </div>
+
+                <div class="rounded-lg border border-dashed border-primary/40 bg-primary/5 p-3 space-y-3">
+                  <p class="text-sm font-medium">Agregar repuesto del inventario</p>
+                  <div class="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
+                    <FormField label="Repuesto existente" class="md:col-span-8">
+                      <USelect
+                        v-model="repuestoParaAgregar"
+                        :items="repuestosDisponiblesParaAgregar.map(r => ({ label: r.label, value: r.id }))"
+                        placeholder="Buscar en inventario…"
+                        class="w-full"
+                      />
+                    </FormField>
+                    <div class="md:col-span-4">
+                      <UButton
+                        type="button"
+                        icon="i-lucide-plus"
+                        label="Agregar repuesto"
+                        block
+                        :disabled="!repuestoParaAgregar && !repuestosDisponiblesParaAgregar.length"
+                        @click="agregarRepuesto()"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div class="rounded-lg border border-dashed border-warning/40 bg-warning/5 p-3 space-y-3">
+                  <p class="text-sm font-medium">No está en inventario</p>
+                  <p class="text-xs text-muted">
+                    Se registrará en observaciones: el cliente compra el repuesto por su parte.
+                  </p>
+                  <div class="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
+                    <FormField label="Nombre del repuesto" class="md:col-span-8">
+                      <UInput
+                        v-model="repuestoClienteNuevo"
+                        class="w-full"
+                        placeholder="Ej: Sensor MAP original, junta de tapa…"
+                        @keydown.enter.prevent="agregarRepuestoCliente"
+                      />
+                    </FormField>
+                    <div class="md:col-span-4">
+                      <UButton
+                        type="button"
+                        color="warning"
+                        variant="soft"
+                        icon="i-lucide-notebook-pen"
+                        label="Anotar (cliente)"
+                        block
+                        :disabled="!repuestoClienteNuevo.trim()"
+                        @click="agregarRepuestoCliente"
+                      />
+                    </div>
+                  </div>
+                  <div v-if="repuestosCliente.length" class="space-y-2">
+                    <div
+                      v-for="(nombre, index) in repuestosCliente"
+                      :key="`${nombre}-${index}`"
+                      class="flex items-center justify-between gap-2 rounded-md border border-warning/30 bg-default px-3 py-2 text-sm"
+                    >
+                      <span>{{ nombre }}</span>
+                      <UButton
+                        type="button"
+                        size="xs"
+                        color="error"
+                        variant="ghost"
+                        icon="i-lucide-x"
+                        @click="quitarRepuestoCliente(index)"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <p v-if="!lineasRepuestos.length && !repuestosCliente.length" class="text-sm text-muted">
+                  Sin repuestos. Agrega del inventario o anota los que aportará el cliente.
+                </p>
+                <p v-else class="text-sm text-muted">
+                  Total inventario:
+                  <span class="font-medium text-highlighted">{{ totalRepuestos.toFixed(2) }}</span>
+                  <span v-if="repuestosCliente.length">
+                    · Cliente aporta: {{ repuestosCliente.length }}
+                  </span>
+                </p>
+              </div>
+
+              <div v-else class="space-y-2">
+                <div
+                  v-for="(linea, index) in (orden.repuestos || [])"
+                  :key="index"
+                  class="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-default/50 px-3 py-2 text-sm"
+                >
+                  <span>{{ nombreRepuesto(linea.productoId) }}</span>
+                  <span class="font-medium">
+                    {{ linea.cantidad }} × {{ Number(linea.precioUnitario).toFixed(2) }}
+                  </span>
+                </div>
+                <p v-if="parseRepuestosCliente(orden.observaciones).length" class="text-sm text-warning">
+                  Cliente aporta: {{ parseRepuestosCliente(orden.observaciones).join('; ') }}
+                </p>
+                <p v-if="!(orden.repuestos || []).length && !parseRepuestosCliente(orden.observaciones).length" class="text-sm text-muted">
+                  Aún no hay repuestos cargados.
+                </p>
               </div>
             </div>
 

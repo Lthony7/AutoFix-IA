@@ -70,7 +70,7 @@ class MecanicoWebController extends Controller
             $mecanico->update($request->validated());
 
             return redirect()
-                ->route('mecanicos.index')
+                ->back()
                 ->with('success', 'Mecánico actualizado exitosamente');
         } catch (Exception $e) {
             return redirect()
@@ -91,7 +91,7 @@ class MecanicoWebController extends Controller
         $mecanico->delete();
 
         return redirect()
-            ->route('mecanicos.index')
+            ->back()
             ->with('success', 'Mecánico eliminado exitosamente');
     }
 

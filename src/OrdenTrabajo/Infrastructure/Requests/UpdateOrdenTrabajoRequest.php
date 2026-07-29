@@ -51,7 +51,23 @@ class UpdateOrdenTrabajoRequest extends FormRequest
             'repuestos.*.precioUnitario' => 'required_with:repuestos|numeric|min:0',
         ];
 
-        // PDF: el recepcionista no debe modificar diagnósticos técnicos
+        // Repuestos de inventario: mecánico (y admin)
+        if (
+            !$this->user()?->hasRole(UserRole::Mecanico)
+            && !$this->user()?->hasRole(UserRole::Administrador)
+        ) {
+            $rules['repuestos'] = 'exclude';
+        }
+
+        // Servicios de la sesión: mecánico (y admin para soporte)
+        if (
+            !$this->user()?->hasRole(UserRole::Mecanico)
+            && !$this->user()?->hasRole(UserRole::Administrador)
+        ) {
+            $rules['servicios'] = 'exclude';
+        }
+
+        // PDF: el recepcionista no modifica diagnóstico técnico
         if ($this->user()?->hasRole(UserRole::Recepcionista)) {
             $rules['diagnostico_tecnico'] = 'exclude';
         }

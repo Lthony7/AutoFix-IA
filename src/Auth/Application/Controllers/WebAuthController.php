@@ -4,6 +4,7 @@ namespace Src\Auth\Application\Controllers;
 
 use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
+use App\Services\ClienteCuentaService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -15,6 +16,10 @@ use Src\Auth\Infrastructure\Requests\RegisterRequest;
 
 class WebAuthController extends Controller
 {
+    public function __construct(
+        private readonly ClienteCuentaService $clienteCuenta,
+    ) {
+    }
     public function showLoginForm(): Response
     {
         return Inertia::render('Auth/Login');
@@ -61,12 +66,14 @@ class WebAuthController extends Controller
             'activo' => true,
         ]);
 
+        $this->clienteCuenta->ensureForUser($user);
+
         Auth::login($user);
 
         $request->session()->regenerate();
 
-        return redirect()->route('portal.mis-ordenes')
-            ->with('success', 'Registro exitoso. Bienvenido.');
+        return redirect()->route('portal.vehiculos.create')
+            ->with('success', 'Registro exitoso. Registra tu vehículo para continuar.');
     }
 
     public function logout(Request $request): RedirectResponse

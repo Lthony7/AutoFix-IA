@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
-import { router, usePage } from '@inertiajs/vue3'
+import { computed, ref, watch } from 'vue'
+import { usePage } from '@inertiajs/vue3'
 import { route } from 'ziggy-js'
 import MecanicoFichaSlideover, { type MecanicoFicha } from '../../components/MecanicoFichaSlideover.vue'
 
@@ -12,15 +12,20 @@ const mecanicos = computed(() => (page.props as any).mecanicos)
 const fichaOpen = ref(false)
 const mecanicoFicha = ref<MecanicoFicha | null>(null)
 
-const verFicha = (item: Mecanico) => {
+const abrirFicha = (item: Mecanico) => {
   mecanicoFicha.value = item
   fichaOpen.value = true
 }
 
-const destroy = (id: string) => {
-  if (!confirm('¿Eliminar este mecánico?')) return
-  router.delete(route('mecanicos.destroy', id))
-}
+watch(mecanicos, (lista) => {
+  if (!mecanicoFicha.value || !fichaOpen.value) return
+  const actualizado = (lista?.data || []).find((m: Mecanico) => m.id === mecanicoFicha.value?.id)
+  if (actualizado) mecanicoFicha.value = actualizado
+  else {
+    fichaOpen.value = false
+    mecanicoFicha.value = null
+  }
+})
 </script>
 
 <template>
@@ -50,7 +55,12 @@ const destroy = (id: string) => {
               </tr>
             </thead>
             <tbody>
-              <tr v-for="item in (mecanicos?.data || []) as Mecanico[]" :key="item.id" class="border-b border-default/60">
+              <tr
+                v-for="item in (mecanicos?.data || []) as Mecanico[]"
+                :key="item.id"
+                class="border-b border-default/60 cursor-pointer hover:bg-elevated/40 transition-colors"
+                @click="abrirFicha(item)"
+              >
                 <td class="py-3 pr-3 font-medium">{{ item.nombreCompleto }}</td>
                 <td class="py-3 pr-3">{{ item.documento }}</td>
                 <td class="py-3 pr-3">{{ item.especialidad }}</td>
@@ -60,10 +70,14 @@ const destroy = (id: string) => {
                     {{ item.activo ? 'Activo' : 'Inactivo' }}
                   </UBadge>
                 </td>
-                <td class="py-3 flex gap-2">
-                  <UButton size="xs" variant="ghost" icon="i-lucide-eye" title="Ver ficha" @click="verFicha(item)" />
-                  <UButton size="xs" variant="ghost" icon="i-lucide-pencil" :to="route('mecanicos.edit', item.id)" />
-                  <UButton size="xs" color="error" variant="ghost" icon="i-lucide-trash" @click="destroy(item.id)" />
+                <td class="py-3" @click.stop>
+                  <UButton
+                    size="xs"
+                    variant="soft"
+                    icon="i-lucide-panel-right-open"
+                    label="Gestionar"
+                    @click="abrirFicha(item)"
+                  />
                 </td>
               </tr>
             </tbody>
@@ -72,7 +86,11 @@ const destroy = (id: string) => {
         <AppPagination :meta="mecanicos?.meta" />
       </UCard>
 
-      <MecanicoFichaSlideover v-model:open="fichaOpen" :mecanico="mecanicoFicha" />
+      <MecanicoFichaSlideover
+        v-model:open="fichaOpen"
+        :mecanico="mecanicoFicha"
+        @deleted="mecanicoFicha = null"
+      />
     </template>
   </AppDashboardPanel>
 </template>

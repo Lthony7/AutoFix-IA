@@ -6,6 +6,7 @@ use App\Enums\FacturaEstado;
 use App\Enums\OrdenEstado;
 use App\Enums\PagoEstado;
 use App\Enums\UserRole;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -16,42 +17,12 @@ use Src\Pago\Infrastructure\Models\PagoEloquentModel;
 
 class DashboardController extends Controller
 {
-    public function index(Request $request): Response
+    public function index(Request $request): Response|RedirectResponse
     {
         $user = $request->user();
 
         if ($user?->hasRole(UserRole::Cliente)) {
-            $clienteIds = ClienteEloquentModel::query()
-                ->where('user_id', $user->id)
-                ->pluck('id');
-
-            $ordenesRecientes = OrdenTrabajoEloquentModel::with(['cliente', 'vehiculo'])
-                ->whereIn('cliente_id', $clienteIds)
-                ->orderByDesc('created_at')
-                ->limit(5)
-                ->get()
-                ->map(fn ($o) => $this->mapOrden($o))
-                ->toArray();
-
-            $abiertas = OrdenTrabajoEloquentModel::query()
-                ->whereIn('cliente_id', $clienteIds)
-                ->whereNotIn('estado', [
-                    OrdenEstado::Finalizada->value,
-                    OrdenEstado::Entregada->value,
-                    OrdenEstado::Cancelada->value,
-                ])
-                ->count();
-
-            return Inertia::render('Dashboard', [
-                'metrics' => [
-                    'ordenesAbiertas' => $abiertas,
-                    'facturasPendientes' => 0,
-                    'ingresosMes' => 0,
-                    'clientesActivos' => 0,
-                ],
-                'ordenesRecientes' => $ordenesRecientes,
-                'vista' => 'cliente',
-            ]);
+            return redirect()->route('portal.mis-ordenes');
         }
 
         $ordenQuery = OrdenTrabajoEloquentModel::query();

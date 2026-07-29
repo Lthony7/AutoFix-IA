@@ -26,6 +26,8 @@ class StoreOrdenTrabajoRequest extends FormRequest
             'kilometraje_ingreso' => $this->kilometrajeIngreso ?? $this->kilometraje_ingreso ?? 0,
             'diagnostico_tecnico' => $this->diagnosticoTecnico ?? $this->diagnostico_tecnico,
             'created_by' => $this->user()?->id,
+            'fecha_cita' => $this->fechaCita ?? $this->fecha_cita,
+            'tipo_cita' => $this->tipoCita ?? $this->tipo_cita,
         ]);
     }
 
@@ -42,6 +44,8 @@ class StoreOrdenTrabajoRequest extends FormRequest
             'observaciones' => 'nullable|string',
             'diagnostico_tecnico' => 'nullable|string',
             'prioridad' => 'nullable|string|in:baja,media,alta',
+            'fecha_cita' => 'nullable|date',
+            'tipo_cita' => 'nullable|string|in:mantenimiento,reparacion,diagnostico',
             'created_by' => 'nullable|uuid|exists:users,id',
             'servicios' => 'sometimes|array',
             'servicios.*.servicioId' => 'required_with:servicios|uuid|exists:servicios,id',

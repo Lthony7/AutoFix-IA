@@ -1,6 +1,9 @@
 <script setup lang="ts">
+import { route } from 'ziggy-js'
+
 /**
  * Panel del dashboard con scroll vertical en el body (formularios y listados).
+ * Incluye el botón Calendario a la derecha del header, sin tapar acciones de cada página.
  */
 defineProps<{
   id?: string
@@ -16,7 +19,22 @@ defineProps<{
     }"
   >
     <template v-if="$slots.header" #header>
-      <slot name="header" />
+      <div class="flex w-full items-stretch">
+        <div class="min-w-0 flex-1">
+          <slot name="header" />
+        </div>
+        <div class="flex shrink-0 items-center border-b border-default bg-default px-3">
+          <UTooltip text="Calendario">
+            <UButton
+              icon="i-lucide-calendar"
+              color="neutral"
+              variant="ghost"
+              aria-label="Calendario"
+              :to="route('calendario.index')"
+            />
+          </UTooltip>
+        </div>
+      </div>
     </template>
     <template v-if="$slots.body" #body>
       <div class="w-full pb-10">

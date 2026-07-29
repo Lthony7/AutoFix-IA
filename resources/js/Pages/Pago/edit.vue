@@ -6,6 +6,8 @@ import FormField from '../../components/FormField.vue'
 
 const page = usePage()
 const pago = (page.props as any).pago
+const ivaRate = computed(() => Number((page.props as any).ivaRate ?? 0.15))
+const tieneFactura = computed(() => Boolean(pago.facturaId || pago.tieneFactura))
 
 const backendErrors = computed(() => page.props.errors || {})
 const errors = computed(() => {
@@ -32,26 +34,52 @@ const metodoItems = [
 
 const isLoading = ref(false)
 const state = reactive({
-  valorServicios: pago.valorServicios,
-  valorRepuestos: pago.valorRepuestos,
   descuento: pago.descuento,
-  total: pago.total,
   estado: pago.estado,
   metodoPago: pago.metodoPago || ''
 })
 
+const valorServicios = computed(() => Number(pago.valorServicios || 0))
+const valorRepuestos = computed(() => Number(pago.valorRepuestos || 0))
+const subtotal = computed(() => valorServicios.value + valorRepuestos.value)
+
+const descuentoAplicado = computed(() => {
+  const d = Math.max(0, Number(state.descuento) || 0)
+  return Math.min(d, subtotal.value)
+})
+
+const totalCalculado = computed(() => {
+  const base = Math.max(0, subtotal.value - descuentoAplicado.value)
+  if (tieneFactura.value) {
+    const iva = Number((base * ivaRate.value).toFixed(2))
+    return Number((base + iva).toFixed(2))
+  }
+  return Number(base.toFixed(2))
+})
+
+const ivaCalculado = computed(() => {
+  if (!tieneFactura.value) return 0
+  const base = Math.max(0, subtotal.value - descuentoAplicado.value)
+  return Number((base * ivaRate.value).toFixed(2))
+})
+
+const formatMoney = (value: number) =>
+  new Intl.NumberFormat('es-EC', { style: 'currency', currency: 'USD' }).format(value || 0)
+
 watch(
-  () => [state.valorServicios, state.valorRepuestos, state.descuento],
-  () => {
-    state.total = Math.max(0, state.valorServicios + state.valorRepuestos - state.descuento)
+  () => state.descuento,
+  (d) => {
+    if (Number(d) > subtotal.value) state.descuento = subtotal.value
   }
 )
 
 const handleSubmit = () => {
   isLoading.value = true
-  const payload = { ...state }
-  if (!payload.metodoPago) payload.metodoPago = null
-  router.put(route('pagos.update', pago.id), payload, {
+  router.put(route('pagos.update', pago.id), {
+    descuento: descuentoAplicado.value,
+    estado: state.estado,
+    metodoPago: state.metodoPago || null
+  }, {
     onFinish: () => { isLoading.value = false }
   })
 }
@@ -74,22 +102,52 @@ const handleSubmit = () => {
             · Cliente: {{ pago.clienteNombre || '—' }}
             · Placa: {{ pago.vehiculoPlaca || '—' }}
           </div>
-          <FormField label="Valor servicios" name="valorServicios" :error="errors.valorServicios">
-            <UInput v-model.number="state.valorServicios" type="number" min="0" step="0.01" class="w-full" />
+
+          <UAlert
+            class="md:col-span-2"
+            color="info"
+            variant="subtle"
+            icon="i-lucide-lock"
+            title="Valores bloqueados"
+            description="Servicios, repuestos y total no se editan. Solo puedes ajustar el descuento según el caso."
+          />
+
+          <div class="rounded-lg border border-default p-3">
+            <p class="text-xs uppercase tracking-wide text-muted">Valor servicios</p>
+            <p class="mt-1 text-sm font-semibold">{{ formatMoney(valorServicios) }}</p>
+          </div>
+          <div class="rounded-lg border border-default p-3">
+            <p class="text-xs uppercase tracking-wide text-muted">Valor repuestos</p>
+            <p class="mt-1 text-sm font-semibold">{{ formatMoney(valorRepuestos) }}</p>
+          </div>
+
+          <FormField label="Descuento" name="descuento" :error="errors.descuento" class="md:col-span-2">
+            <UInput
+              v-model.number="state.descuento"
+              type="number"
+              min="0"
+              :max="subtotal"
+              step="0.01"
+              class="w-full"
+            />
+            <p class="mt-1.5 text-xs text-muted">
+              Opcional. No puede superar el subtotal ({{ formatMoney(subtotal) }}).
+            </p>
           </FormField>
-          <FormField label="Valor repuestos" name="valorRepuestos" :error="errors.valorRepuestos">
-            <UInput v-model.number="state.valorRepuestos" type="number" min="0" step="0.01" class="w-full" />
-          </FormField>
-          <FormField label="Descuento" name="descuento" :error="errors.descuento">
-            <UInput v-model.number="state.descuento" type="number" min="0" step="0.01" class="w-full" />
-          </FormField>
-          <FormField label="Total" name="total" :error="errors.total">
-            <UInput v-model.number="state.total" type="number" min="0" step="0.01" class="w-full" />
-          </FormField>
+
+          <div v-if="tieneFactura" class="rounded-lg border border-default p-3">
+            <p class="text-xs uppercase tracking-wide text-muted">IVA ({{ (ivaRate * 100).toFixed(0) }}%)</p>
+            <p class="mt-1 text-sm font-semibold">{{ formatMoney(ivaCalculado) }}</p>
+          </div>
+          <div class="rounded-lg border border-default bg-elevated/40 p-3" :class="tieneFactura ? '' : 'md:col-span-2'">
+            <p class="text-xs uppercase tracking-wide text-muted">Total a pagar</p>
+            <p class="mt-1 text-lg font-semibold">{{ formatMoney(totalCalculado) }}</p>
+          </div>
+
           <FormField label="Estado" name="estado" :error="errors.estado">
             <USelect v-model="state.estado" :items="estadoItems" class="w-full" />
           </FormField>
-          <FormField label="Método de pago" name="metodoPago" :error="errors.metodoPago">
+          <FormField label="Método de pago" name="metodoPago" :error="errors.metodoPago || errors.metodo_pago">
             <USelect v-model="state.metodoPago" :items="metodoItems" placeholder="Opcional" class="w-full" />
           </FormField>
           <div class="md:col-span-2 flex gap-3">

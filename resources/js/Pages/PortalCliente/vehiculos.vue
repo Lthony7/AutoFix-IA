@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { usePage } from '@inertiajs/vue3'
+import { route } from 'ziggy-js'
 
 interface Vehiculo {
   id: string
@@ -24,6 +25,13 @@ const rows = computed(() => (vehiculos.value?.data || []) as Vehiculo[])
       <UDashboardNavbar title="Mis vehículos">
         <template #leading>
           <UDashboardSidebarCollapse />
+        </template>
+        <template #right>
+          <UButton
+            icon="i-lucide-plus"
+            label="Registrar vehículo"
+            :to="route('portal.vehiculos.create', { return: 'vehiculos' })"
+          />
         </template>
       </UDashboardNavbar>
     </template>
@@ -60,7 +68,16 @@ const rows = computed(() => (vehiculos.value?.data || []) as Vehiculo[])
                 </td>
               </tr>
               <tr v-if="!rows.length">
-                <td colspan="6" class="py-6 text-center text-muted">No tienes vehículos registrados.</td>
+                <td colspan="6" class="py-8 text-center text-muted">
+                  No tienes vehículos registrados.
+                  <UButton
+                    class="ml-2"
+                    size="xs"
+                    variant="soft"
+                    label="Registrar uno"
+                    :to="route('portal.vehiculos.create', { return: 'vehiculos' })"
+                  />
+                </td>
               </tr>
             </tbody>
           </table>

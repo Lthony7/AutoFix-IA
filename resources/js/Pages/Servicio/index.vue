@@ -1,26 +1,32 @@
 <script setup lang="ts">
-import { computed } from 'vue'
-import { router, usePage } from '@inertiajs/vue3'
+import { computed, ref, watch } from 'vue'
+import { usePage } from '@inertiajs/vue3'
 import { route } from 'ziggy-js'
-
-interface Servicio {
-  id: string
-  nombre: string
-  descripcion: string | null
-  precioBase: number
-  activo: boolean
-}
+import ServicioFichaSlideover, { type ServicioFicha } from '../../components/ServicioFichaSlideover.vue'
 
 const page = usePage()
 const servicios = computed(() => (page.props as any).servicios)
 
+const fichaOpen = ref(false)
+const servicioSeleccionado = ref<ServicioFicha | null>(null)
+
 const formatMoney = (value: number) =>
   new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(value)
 
-const destroy = (id: string) => {
-  if (!confirm('¿Eliminar este servicio?')) return
-  router.delete(route('servicios.destroy', id))
+const abrirFicha = (servicio: ServicioFicha) => {
+  servicioSeleccionado.value = servicio
+  fichaOpen.value = true
 }
+
+watch(servicios, (lista) => {
+  if (!servicioSeleccionado.value || !fichaOpen.value) return
+  const actualizado = (lista?.data || []).find((s: ServicioFicha) => s.id === servicioSeleccionado.value?.id)
+  if (actualizado) servicioSeleccionado.value = actualizado
+  else {
+    fichaOpen.value = false
+    servicioSeleccionado.value = null
+  }
+})
 </script>
 
 <template>
@@ -51,9 +57,10 @@ const destroy = (id: string) => {
             </thead>
             <tbody>
               <tr
-                v-for="servicio in (servicios?.data || []) as Servicio[]"
+                v-for="servicio in (servicios?.data || []) as ServicioFicha[]"
                 :key="servicio.id"
-                class="border-b border-default/60"
+                class="border-b border-default/60 cursor-pointer hover:bg-elevated/40 transition-colors"
+                @click="abrirFicha(servicio)"
               >
                 <td class="py-3 pr-3 font-medium">{{ servicio.nombre }}</td>
                 <td class="py-3 pr-3">{{ servicio.descripcion || '—' }}</td>
@@ -63,9 +70,14 @@ const destroy = (id: string) => {
                     {{ servicio.activo ? 'Activo' : 'Inactivo' }}
                   </UBadge>
                 </td>
-                <td class="py-3 flex gap-2">
-                  <UButton size="xs" variant="ghost" icon="i-lucide-pencil" :to="route('servicios.edit', servicio.id)" />
-                  <UButton size="xs" color="error" variant="ghost" icon="i-lucide-trash" @click="destroy(servicio.id)" />
+                <td class="py-3" @click.stop>
+                  <UButton
+                    size="xs"
+                    variant="soft"
+                    icon="i-lucide-panel-right-open"
+                    label="Gestionar"
+                    @click="abrirFicha(servicio)"
+                  />
                 </td>
               </tr>
             </tbody>
@@ -73,6 +85,12 @@ const destroy = (id: string) => {
         </div>
         <AppPagination :meta="servicios?.meta" />
       </UCard>
+
+      <ServicioFichaSlideover
+        v-model:open="fichaOpen"
+        :servicio="servicioSeleccionado"
+        @deleted="servicioSeleccionado = null"
+      />
     </template>
   </AppDashboardPanel>
 </template>

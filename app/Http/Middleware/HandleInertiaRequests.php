@@ -50,6 +50,8 @@ class HandleInertiaRequests extends Middleware
             'flash' => [
                 'success' => $request->session()->get('success'),
                 'error' => $request->session()->get('error'),
+                'info' => $request->session()->get('info'),
+                'warning' => $request->session()->get('warning'),
             ],
             'ziggy' => fn () => [
                 ...\Illuminate\Support\Facades\Route::current() ? (new \Tighten\Ziggy\Ziggy)->toArray() : [],

@@ -59,8 +59,16 @@ const state = reactive({
   fallaReportada: '',
   kilometrajeIngreso: 0,
   observaciones: '',
-  prioridad: 'media'
+  prioridad: 'media',
+  fechaCita: '',
+  tipoCita: 'reparacion'
 })
+
+const tipoCitaItems = [
+  { label: 'Reparación', value: 'reparacion' },
+  { label: 'Diagnóstico', value: 'diagnostico' },
+  { label: 'Mantenimiento', value: 'mantenimiento' }
+]
 
 const vehiculosFiltrados = computed(() => {
   if (!state.clienteId) return vehiculos.value
@@ -187,6 +195,17 @@ const handleSubmit = () => {
           </FormField>
           <FormField label="Observaciones" name="observaciones" :error="errors.observaciones">
             <UTextarea v-model="state.observaciones" class="w-full" />
+          </FormField>
+          <FormField label="Cita en calendario (opcional)" name="fechaCita" :error="errors.fecha_cita || errors.fechaCita">
+            <UInput v-model="state.fechaCita" type="datetime-local" class="w-full" />
+            <p class="text-xs text-muted mt-1">Si la defines, el cliente y el mecánico la verán en Calendario.</p>
+          </FormField>
+          <FormField label="Tipo de cita" name="tipoCita" :error="errors.tipo_cita || errors.tipoCita">
+            <USelect
+              v-model="state.tipoCita"
+              :items="tipoCitaItems"
+              class="w-full"
+            />
           </FormField>
 
           <div class="md:col-span-2 flex gap-3">

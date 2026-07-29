@@ -11,19 +11,30 @@ class CatalogoTallerSeeder extends Seeder
     public function run(): void
     {
         $servicios = [
+            // Primero en cada sesión de diagnóstico / taller
+            ['nombre' => 'Diagnóstico computarizado', 'descripcion' => 'Lectura de fallas con scanner OBD al inicio de la sesión', 'precio_base' => 30.00],
+            ['nombre' => 'Limpieza de inyectores', 'descripcion' => 'Limpieza ultrasónica o por aditivo de inyectores', 'precio_base' => 55.00],
+            ['nombre' => 'Cambio de filtro de aire', 'descripcion' => 'Sustitución del filtro de aire del motor', 'precio_base' => 18.00],
+            ['nombre' => 'Cambio de filtro de combustible', 'descripcion' => 'Sustitución del filtro de combustible', 'precio_base' => 25.00],
+            ['nombre' => 'Cambio de filtro de aceite', 'descripcion' => 'Sustitución del filtro de aceite (sin cambio de aceite)', 'precio_base' => 12.00],
+            ['nombre' => 'Limpieza de cuerpo de aceleración', 'descripcion' => 'Limpieza del cuerpo de aceleración / mariposa', 'precio_base' => 40.00],
             ['nombre' => 'Cambio de aceite', 'descripcion' => 'Cambio de aceite y filtro de motor', 'precio_base' => 35.00],
             ['nombre' => 'Revisión de frenos', 'descripcion' => 'Inspección y ajuste del sistema de frenos', 'precio_base' => 45.00],
             ['nombre' => 'Cambio de pastillas de freno', 'descripcion' => 'Suministro e instalación de pastillas', 'precio_base' => 55.00],
+            ['nombre' => 'Rectificado / cambio de discos', 'descripcion' => 'Rectificado o sustitución de discos de freno', 'precio_base' => 70.00],
             ['nombre' => 'Alineación y balanceo', 'descripcion' => 'Alineación computarizada y balanceo de llantas', 'precio_base' => 40.00],
             ['nombre' => 'Sistema eléctrico', 'descripcion' => 'Diagnóstico de batería, alternador y cableado', 'precio_base' => 50.00],
+            ['nombre' => 'Carga / prueba de batería', 'descripcion' => 'Prueba de carga y estado de batería', 'precio_base' => 20.00],
             ['nombre' => 'Revisión de motor', 'descripcion' => 'Inspección general de motor y sincronización', 'precio_base' => 60.00],
             ['nombre' => 'Suspensión y dirección', 'descripcion' => 'Revisión de amortiguadores, rótulas y cremallera', 'precio_base' => 55.00],
             ['nombre' => 'Transmisión', 'descripcion' => 'Diagnóstico de caja manual o automática', 'precio_base' => 70.00],
             ['nombre' => 'Embrague', 'descripcion' => 'Revisión y ajuste de embrague', 'precio_base' => 65.00],
             ['nombre' => 'Aire acondicionado', 'descripcion' => 'Carga de gas y revisión de clima', 'precio_base' => 45.00],
-            ['nombre' => 'Inyección electrónica', 'descripcion' => 'Limpieza y diagnóstico de sensores', 'precio_base' => 58.00],
-            ['nombre' => 'Diagnóstico computarizado', 'descripcion' => 'Lectura de fallas con scanner OBD', 'precio_base' => 30.00],
+            ['nombre' => 'Inyección electrónica', 'descripcion' => 'Diagnóstico de sensores e inyección', 'precio_base' => 58.00],
+            ['nombre' => 'Cambio de bujías', 'descripcion' => 'Sustitución de bujías de encendido', 'precio_base' => 35.00],
+            ['nombre' => 'Cambio de correa de distribución', 'descripcion' => 'Sustitución de kit de distribución', 'precio_base' => 180.00],
             ['nombre' => 'Sistema de escape', 'descripcion' => 'Revisión de catalizador y escapes', 'precio_base' => 42.00],
+            ['nombre' => 'Lavado de motor', 'descripcion' => 'Limpieza externa del vano motor', 'precio_base' => 22.00],
             ['nombre' => 'Mantenimiento preventivo', 'descripcion' => 'Paquete de lubricación y revisión general', 'precio_base' => 80.00],
         ];
 

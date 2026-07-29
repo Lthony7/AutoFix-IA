@@ -48,6 +48,14 @@ const estadoColor = (estado: string) => {
     <template #body>
       <div class="space-y-4">
         <UAlert
+          color="info"
+          variant="subtle"
+          icon="i-lucide-sparkles"
+          title="Flujo del diagnóstico"
+          description="Escoge el vehículo → tipo de falla (eléctrico, motor, etc.) → prioridad → reporte breve → Generar. La IA responde con observaciones, mecánico, servicios y repuestos."
+        />
+
+        <UAlert
           color="warning"
           variant="subtle"
           icon="i-lucide-triangle-alert"

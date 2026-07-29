@@ -20,6 +20,8 @@ interface Diagnostico {
   especialidadRecomendada: string | null
   mecanicosSugeridos: MecanicoSugerido[]
   servicioRecomendado: string
+  serviciosSugeridos?: string[]
+  repuestosSugeridos?: string[]
   prioridad: string
   observacionMecanico: string | null
   advertencia: string | null
@@ -72,6 +74,7 @@ const accionSeleccionada = ref<'confirmar' | 'modificar' | 'descartar' | null>(n
 const isLoading = ref(false)
 
 const state = reactive({
+  coincideAnalisis: null as boolean | null,
   observacionesRevision: '',
   servicioRecomendado: diagnostico.servicioRecomendado || '',
   prioridad: diagnostico.prioridad || 'media'
@@ -83,7 +86,8 @@ const submitRevision = (accion: 'confirmar' | 'modificar' | 'descartar') => {
 
   const payload: Record<string, unknown> = {
     accion,
-    observacionesRevision: state.observacionesRevision
+    observacionesRevision: state.observacionesRevision,
+    coincideAnalisis: state.coincideAnalisis
   }
 
   if (accion === 'modificar') {
@@ -112,11 +116,11 @@ const submitRevision = (accion: 'confirmar' | 'modificar' | 'descartar') => {
     <template #body>
       <div class="max-w-4xl space-y-4">
         <UAlert
-          color="warning"
+          color="primary"
           variant="subtle"
-          icon="i-lucide-triangle-alert"
-          title="Aviso importante"
-          description="La información generada por Inteligencia Artificial es únicamente una sugerencia inicial. El diagnóstico final debe ser realizado y confirmado por un mecánico autorizado."
+          icon="i-lucide-wrench"
+          title="Solo el mecánico asignado"
+          description="Contrasta el diagnóstico IA con tu propio análisis, registra observaciones (el cliente las verá) y confirma para continuar la reparación."
         />
 
         <UCard>
@@ -134,8 +138,8 @@ const submitRevision = (accion: 'confirmar' | 'modificar' | 'descartar') => {
               <dd class="font-medium">{{ diagnostico.orden.vehiculoPlaca || '—' }}</dd>
             </div>
             <div class="sm:col-span-2" v-if="diagnostico.diagnosticoDetalle">
-              <dt class="text-muted">Diagnóstico detallado</dt>
-              <dd class="mt-1 leading-relaxed">{{ diagnostico.diagnosticoDetalle }}</dd>
+              <dt class="text-muted">Diagnóstico detallado (IA)</dt>
+              <dd class="mt-1 leading-relaxed whitespace-pre-wrap">{{ diagnostico.diagnosticoDetalle }}</dd>
             </div>
             <div class="sm:col-span-2" v-if="causas.length">
               <dt class="text-muted">Posibles causas</dt>
@@ -154,19 +158,6 @@ const submitRevision = (accion: 'confirmar' | 'modificar' | 'descartar') => {
               </dd>
             </div>
             <div class="sm:col-span-2">
-              <dt class="text-muted">Especialidad / a quién recomendar</dt>
-              <dd class="font-medium">{{ diagnostico.especialidadRecomendada || '—' }}</dd>
-            </div>
-            <div class="sm:col-span-2" v-if="mecanicos.length">
-              <dt class="text-muted">Mecánicos sugeridos</dt>
-              <dd class="mt-1 space-y-1">
-                <p v-for="m in mecanicos" :key="m.id" class="font-medium">
-                  {{ m.nombre }}
-                  <span class="text-muted font-normal"> — {{ m.especialidad }}</span>
-                </p>
-              </dd>
-            </div>
-            <div class="sm:col-span-2">
               <dt class="text-muted">Servicio recomendado (IA)</dt>
               <dd class="font-medium">{{ diagnostico.servicioRecomendado || '—' }}</dd>
             </div>
@@ -174,13 +165,51 @@ const submitRevision = (accion: 'confirmar' | 'modificar' | 'descartar') => {
               <dt class="text-muted">Prioridad (IA)</dt>
               <dd class="font-medium capitalize">{{ diagnostico.prioridad }}</dd>
             </div>
+            <div class="sm:col-span-2" v-if="diagnostico.observacionMecanico">
+              <dt class="text-muted">Notas internas de la IA para el mecánico</dt>
+              <dd class="mt-1 whitespace-pre-wrap">{{ diagnostico.observacionMecanico }}</dd>
+            </div>
           </dl>
         </UCard>
 
         <UCard>
           <form class="space-y-4" @submit.prevent>
-            <FormField label="Observaciones de revisión" name="observacionesRevision" :error="errors.observacionesRevision">
-              <UTextarea v-model="state.observacionesRevision" class="w-full" placeholder="Comentarios del mecánico sobre la sugerencia IA" />
+            <FormField
+              label="¿El diagnóstico IA coincide con tu análisis?"
+              name="coincideAnalisis"
+              required
+              :error="errors.coincide_analisis || errors.coincideAnalisis"
+            >
+              <div class="flex flex-wrap gap-3">
+                <UButton
+                  type="button"
+                  :variant="state.coincideAnalisis === true ? 'solid' : 'soft'"
+                  color="success"
+                  label="Sí, coincide"
+                  @click="state.coincideAnalisis = true"
+                />
+                <UButton
+                  type="button"
+                  :variant="state.coincideAnalisis === false ? 'solid' : 'soft'"
+                  color="warning"
+                  label="No, difiere"
+                  @click="state.coincideAnalisis = false"
+                />
+              </div>
+            </FormField>
+
+            <FormField
+              label="Tus observaciones (visibles para el cliente)"
+              name="observacionesRevision"
+              required
+              :error="errors.observaciones_revision || errors.observacionesRevision"
+            >
+              <UTextarea
+                v-model="state.observacionesRevision"
+                class="w-full"
+                :rows="4"
+                placeholder="Explica qué confirmaste, qué ajustaste y cómo procederás con la reparación."
+              />
             </FormField>
 
             <div class="border-t border-default pt-4 space-y-4">
@@ -207,7 +236,7 @@ const submitRevision = (accion: 'confirmar' | 'modificar' | 'descartar') => {
                 type="button"
                 color="success"
                 icon="i-lucide-check"
-                label="Confirmar"
+                label="Confirmar y reparar"
                 :loading="isLoading && accionSeleccionada === 'confirmar'"
                 @click="submitRevision('confirmar')"
               />
@@ -215,7 +244,7 @@ const submitRevision = (accion: 'confirmar' | 'modificar' | 'descartar') => {
                 type="button"
                 color="primary"
                 icon="i-lucide-pencil"
-                label="Modificar"
+                label="Modificar y reparar"
                 :loading="isLoading && accionSeleccionada === 'modificar'"
                 @click="submitRevision('modificar')"
               />

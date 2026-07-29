@@ -32,9 +32,20 @@ const item = (label: string, icon: string, path: string, routeName?: string): Na
 })
 
 const links = computed(() => {
-  const items: NavigationMenuItem[] = [
-    item('Home', 'i-lucide-house', '/dashboard')
-  ]
+  const items: NavigationMenuItem[] = []
+
+  if (role.value === 'cliente') {
+    items.push(
+      item('Mis vehículos', 'i-lucide-car', '/portal/mis-vehiculos', 'portal.mis-vehiculos'),
+      item('Presupuestos', 'i-lucide-calculator', '/portal/presupuestos', 'portal.presupuestos.index'),
+      item('Mis órdenes', 'i-lucide-clipboard-list', '/portal/mis-ordenes', 'portal.mis-ordenes'),
+      item('Historial', 'i-lucide-history', '/portal/historial', 'portal.historial'),
+      item('Mis datos', 'i-lucide-user-round', '/portal/mis-datos', 'portal.mis-datos')
+    )
+    return [items]
+  }
+
+  items.push(item('Home', 'i-lucide-house', '/dashboard'))
 
   if (role.value === 'administrador') {
     items.push(
@@ -42,39 +53,35 @@ const links = computed(() => {
       item('Vehículos', 'i-lucide-car', '/vehiculos', 'vehiculos.index'),
       item('Mecánicos', 'i-lucide-wrench', '/mecanicos', 'mecanicos.index'),
       item('Servicios', 'i-lucide-cog', '/servicios', 'servicios.index'),
-      item('Repuestos', 'i-lucide-package', '/repuestos', 'repuestos.index'),
       item('Órdenes', 'i-lucide-clipboard-list', '/ordenes', 'ordenes.index'),
+      item('Presupuestos', 'i-lucide-calculator', '/presupuestos', 'presupuestos.index'),
       item('Diagnóstico IA', 'i-lucide-brain', '/diagnosticos-ia', 'diagnosticos-ia.index'),
       item('Facturas', 'i-lucide-file-text', '/facturas', 'facturas.index'),
       item('Pagos', 'i-lucide-wallet', '/pagos', 'pagos.index'),
       item('Historial', 'i-lucide-history', '/historial', 'historial.index'),
+      item('Inventario', 'i-lucide-package', '/inventario', 'inventario.index'),
       item('Reportes', 'i-lucide-bar-chart-3', '/reportes', 'reportes.index'),
       item('Usuarios', 'i-lucide-shield-user', '/usuarios', 'usuarios.index')
     )
   } else if (role.value === 'recepcionista') {
+    // Recepción: OT, facturas, pagos, clientes/vehículos — sin usuarios ni mecánicos
     items.push(
       item('Clientes', 'i-lucide-users-round', '/clientes', 'clientes.index'),
       item('Vehículos', 'i-lucide-car', '/vehiculos', 'vehiculos.index'),
       item('Servicios', 'i-lucide-cog', '/servicios', 'servicios.index'),
-      item('Repuestos', 'i-lucide-package', '/repuestos', 'repuestos.index'),
       item('Órdenes', 'i-lucide-clipboard-list', '/ordenes', 'ordenes.index'),
+      item('Presupuestos', 'i-lucide-calculator', '/presupuestos', 'presupuestos.index'),
       item('Diagnóstico IA', 'i-lucide-brain', '/diagnosticos-ia', 'diagnosticos-ia.index'),
       item('Facturas', 'i-lucide-file-text', '/facturas', 'facturas.index'),
       item('Pagos', 'i-lucide-wallet', '/pagos', 'pagos.index'),
       item('Historial', 'i-lucide-history', '/historial', 'historial.index'),
+      item('Inventario', 'i-lucide-package', '/inventario', 'inventario.index'),
       item('Reportes', 'i-lucide-bar-chart-3', '/reportes', 'reportes.index')
     )
   } else if (role.value === 'mecanico') {
     items.push(
       item('Órdenes', 'i-lucide-clipboard-list', '/ordenes', 'ordenes.index'),
       item('Diagnóstico IA', 'i-lucide-brain', '/diagnosticos-ia', 'diagnosticos-ia.index')
-    )
-  } else if (role.value === 'cliente') {
-    items.push(
-      item('Mis vehículos', 'i-lucide-car', '/portal/mis-vehiculos', 'portal.mis-vehiculos'),
-      item('Mis órdenes', 'i-lucide-clipboard-list', '/portal/mis-ordenes', 'portal.mis-ordenes'),
-      item('Historial', 'i-lucide-history', '/portal/historial', 'portal.historial'),
-      item('Mis datos', 'i-lucide-user-round', '/portal/mis-datos', 'portal.mis-datos')
     )
   }
 

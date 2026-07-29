@@ -68,12 +68,30 @@ const handleSubmit = () => {
 
         <form @submit.prevent="handleSubmit" class="space-y-4">
           <UAlert
-            v-if="Object.keys(localErrors).length"
+            v-if="errors.email && String(errors.email).toLowerCase().includes('vinculado')"
+            color="warning"
+            variant="subtle"
+            icon="i-lucide-info"
+            title="Cuenta ya registrada"
+            :description="errors.email"
+          >
+            <template #actions>
+              <UButton
+                :to="route('login')"
+                size="sm"
+                color="primary"
+                variant="soft"
+                label="Ir a iniciar sesión"
+              />
+            </template>
+          </UAlert>
+          <UAlert
+            v-else-if="Object.keys(errors).length"
             color="error"
             variant="subtle"
             icon="i-lucide-circle-alert"
             title="Revisa los datos del formulario"
-            description="Corrige los campos marcados antes de continuar."
+            :description="String(Object.values(errors)[0] || 'Corrige los campos marcados antes de continuar.')"
           />
           <FormField label="Nombre completo" name="name" required :error="errors.name" hint="Solo letras">
             <UInput

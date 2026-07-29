@@ -3,21 +3,17 @@ import { computed } from 'vue'
 import { usePage } from '@inertiajs/vue3'
 import { route } from 'ziggy-js'
 
-interface Detalle {
-  id: string
-  descripcion: string
-  tipo: string
-  cantidad: number
-  precioUnitario: number
-  subtotal: number
-}
-
 interface Factura {
   id: string
   numero: string
   serie: string
   ordenNumero: string | null
   clienteNombre: string | null
+  clienteTipoDocumento?: string | null
+  clienteNumeroDocumento?: string | null
+  clienteDireccion?: string | null
+  clienteTelefono?: string | null
+  clienteEmail?: string | null
   vehiculoPlaca: string | null
   fechaEmision: string | null
   subtotal: number
@@ -28,7 +24,19 @@ interface Factura {
   estadoLabel: string
   observaciones: string | null
   tienePago: boolean
+  totalServicios?: number
+  totalPiezas?: number
   detalles?: Detalle[]
+}
+
+interface Detalle {
+  id: string
+  descripcion: string
+  tipo: string
+  tipoLabel?: string
+  cantidad: number
+  precioUnitario: number
+  subtotal: number
 }
 
 const page = usePage()
@@ -85,10 +93,22 @@ const estadoColor = (estado: string) => {
           </UBadge>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm mb-6">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm mb-6">
           <div>
             <p class="text-muted">Cliente</p>
             <p class="font-medium">{{ factura.clienteNombre || '—' }}</p>
+            <p v-if="factura.clienteTipoDocumento || factura.clienteNumeroDocumento" class="text-muted">
+              {{ factura.clienteTipoDocumento }} {{ factura.clienteNumeroDocumento }}
+            </p>
+          </div>
+          <div>
+            <p class="text-muted">Contacto</p>
+            <p class="font-medium">{{ factura.clienteTelefono || '—' }}</p>
+            <p class="text-muted">{{ factura.clienteEmail || '—' }}</p>
+          </div>
+          <div class="md:col-span-2">
+            <p class="text-muted">Dirección</p>
+            <p class="font-medium">{{ factura.clienteDireccion || '—' }}</p>
           </div>
           <div>
             <p class="text-muted">Orden de trabajo</p>
@@ -97,6 +117,17 @@ const estadoColor = (estado: string) => {
           <div>
             <p class="text-muted">Vehículo</p>
             <p class="font-medium">{{ factura.vehiculoPlaca || '—' }}</p>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+          <div class="rounded-lg border border-default/60 p-3 text-sm">
+            <p class="text-muted">Servicios / reparaciones</p>
+            <p class="text-lg font-semibold">{{ formatMoney(factura.totalServicios ?? 0) }}</p>
+          </div>
+          <div class="rounded-lg border border-default/60 p-3 text-sm">
+            <p class="text-muted">Piezas</p>
+            <p class="text-lg font-semibold">{{ formatMoney(factura.totalPiezas ?? 0) }}</p>
           </div>
         </div>
 
@@ -118,7 +149,7 @@ const estadoColor = (estado: string) => {
                 class="border-b border-default/50"
               >
                 <td class="py-2 pr-2">{{ d.descripcion }}</td>
-                <td class="py-2 pr-2 capitalize">{{ d.tipo }}</td>
+                <td class="py-2 pr-2">{{ d.tipoLabel || d.tipo }}</td>
                 <td class="py-2 pr-2">{{ d.cantidad }}</td>
                 <td class="py-2 pr-2">{{ formatMoney(d.precioUnitario) }}</td>
                 <td class="py-2">{{ formatMoney(d.subtotal) }}</td>
@@ -138,9 +169,10 @@ const estadoColor = (estado: string) => {
           <span class="text-right font-semibold">{{ formatMoney(factura.total) }}</span>
         </div>
 
-        <p v-if="factura.observaciones" class="text-sm text-muted border-t border-default pt-4">
-          {{ factura.observaciones }}
-        </p>
+        <div v-if="factura.observaciones" class="border-t border-default pt-4">
+          <p class="text-xs uppercase tracking-wide text-muted mb-1">Observaciones</p>
+          <p class="text-sm whitespace-pre-wrap">{{ factura.observaciones }}</p>
+        </div>
       </UCard>
     </template>
   </AppDashboardPanel>

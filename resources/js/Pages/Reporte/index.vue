@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { usePage } from '@inertiajs/vue3'
+import { route } from 'ziggy-js'
 
 interface Stats {
   totalOrdenes: number
@@ -9,16 +10,34 @@ interface Stats {
   ingresosPorFecha: { fecha: string, total: number }[]
   serviciosTop: { nombre: string, total: number, ingresos: number }[]
   repuestosTop: { nombre: string, cantidad: number, ordenes: number, ingresos: number }[]
+  inventarioResumen: {
+    totalItems: number
+    activos: number
+    stockBajo: number
+    sinStock: number
+    valorStock: number
+  }
+  stockBajo: {
+    codigo: string
+    nombre: string
+    categoria: string | null
+    stock: number
+    stockMinimo: number
+    precio: number
+  }[]
   vehiculosPorCliente: { cliente: string, vehiculos: number, ordenes: number }[]
   sugerenciasIa: { estado: string, label: string, total: number }[]
   sugerenciasIaResumen: { simulados: number, reales: number, total: number }
+  generadoEn?: string
 }
 
 const page = usePage()
 const stats = computed(() => (page.props as any).stats as Stats)
+const role = computed(() => String((page.props as any).auth?.user?.role || ''))
+const puedeExportar = computed(() => role.value === 'administrador' || role.value === 'recepcionista')
 
 const formatMoney = (value: number) =>
-  new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(value)
+  new Intl.NumberFormat('es-EC', { style: 'currency', currency: 'USD' }).format(value)
 </script>
 
 <template>
@@ -27,6 +46,32 @@ const formatMoney = (value: number) =>
       <UDashboardNavbar title="Reportes">
         <template #leading>
           <UDashboardSidebarCollapse />
+        </template>
+        <template #right>
+          <div v-if="puedeExportar" class="flex gap-2">
+            <UButton
+              icon="i-lucide-package"
+              label="Inventario"
+              variant="soft"
+              :to="route('inventario.index')"
+            />
+            <a :href="route('reportes.export.excel')">
+              <UButton
+                icon="i-lucide-file-spreadsheet"
+                label="Excel"
+                variant="soft"
+                color="success"
+              />
+            </a>
+            <a :href="route('reportes.export.pdf')">
+              <UButton
+                icon="i-lucide-file-text"
+                label="PDF"
+                variant="soft"
+                color="error"
+              />
+            </a>
+          </div>
         </template>
       </UDashboardNavbar>
     </template>
@@ -43,16 +88,67 @@ const formatMoney = (value: number) =>
             <p class="text-2xl font-semibold">{{ formatMoney(stats?.totalIngresos ?? 0) }}</p>
           </UCard>
           <UCard>
-            <p class="text-sm text-muted">Diagnósticos IA</p>
-            <p class="text-2xl font-semibold">{{ stats?.sugerenciasIaResumen?.total ?? 0 }}</p>
+            <p class="text-sm text-muted">Ítems inventario</p>
+            <p class="text-2xl font-semibold">{{ stats?.inventarioResumen?.activos ?? 0 }}</p>
+            <p class="text-xs text-muted mt-1">
+              Valor stock: {{ formatMoney(stats?.inventarioResumen?.valorStock ?? 0) }}
+            </p>
           </UCard>
           <UCard>
-            <p class="text-sm text-muted">IA simulados / reales</p>
+            <p class="text-sm text-muted">Stock bajo / sin stock</p>
             <p class="text-2xl font-semibold">
-              {{ stats?.sugerenciasIaResumen?.simulados ?? 0 }} / {{ stats?.sugerenciasIaResumen?.reales ?? 0 }}
+              {{ stats?.inventarioResumen?.stockBajo ?? 0 }}
+              <span class="text-base text-muted font-normal">
+                / {{ stats?.inventarioResumen?.sinStock ?? 0 }}
+              </span>
             </p>
           </UCard>
         </div>
+
+        <UCard>
+          <div class="flex items-center justify-between gap-3 mb-4">
+            <h3 class="font-semibold flex items-center gap-2">
+              <UIcon name="i-lucide-package-x" class="size-4" />
+              Inventario con stock bajo
+            </h3>
+            <UButton
+              size="xs"
+              variant="soft"
+              icon="i-lucide-package"
+              label="Gestionar inventario"
+              :to="route('inventario.index', { stock_bajo: '1' })"
+            />
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="text-left border-b border-default">
+                  <th class="py-2 pr-3">Código</th>
+                  <th class="py-2 pr-3">Ítem</th>
+                  <th class="py-2 pr-3">Categoría</th>
+                  <th class="py-2 pr-3">Stock</th>
+                  <th class="py-2">Mínimo</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr
+                  v-for="row in stats?.stockBajo || []"
+                  :key="row.codigo"
+                  class="border-b border-default/60"
+                >
+                  <td class="py-2 pr-3 font-medium">{{ row.codigo }}</td>
+                  <td class="py-2 pr-3">{{ row.nombre }}</td>
+                  <td class="py-2 pr-3">{{ row.categoria || '—' }}</td>
+                  <td class="py-2 pr-3 text-error font-medium">{{ row.stock }}</td>
+                  <td class="py-2">{{ row.stockMinimo }}</td>
+                </tr>
+                <tr v-if="!(stats?.stockBajo?.length)">
+                  <td colspan="5" class="py-4 text-muted text-center">Sin alertas de stock</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </UCard>
 
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <UCard>
@@ -182,13 +278,13 @@ const formatMoney = (value: number) =>
           <UCard>
             <h3 class="font-semibold mb-4 flex items-center gap-2">
               <UIcon name="i-lucide-package" class="size-4" />
-              Repuestos más usados
+              Inventario más usado en órdenes
             </h3>
             <div class="overflow-x-auto">
               <table class="w-full text-sm">
                 <thead>
                   <tr class="text-left border-b border-default">
-                    <th class="py-2 pr-3">Repuesto</th>
+                    <th class="py-2 pr-3">Ítem</th>
                     <th class="py-2 pr-3">Cantidad</th>
                     <th class="py-2 pr-3">Órdenes</th>
                     <th class="py-2">Ingresos</th>

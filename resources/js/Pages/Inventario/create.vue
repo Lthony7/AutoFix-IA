@@ -5,7 +5,6 @@ import { route } from 'ziggy-js'
 import FormField from '../../components/FormField.vue'
 
 const page = usePage()
-const repuesto = (page.props as any).repuesto
 const categorias = computed(() => ((page.props as any).categorias || []) as string[])
 
 const backendErrors = computed(() => page.props.errors || {})
@@ -18,40 +17,36 @@ const errors = computed(() => {
   return result
 })
 
-const categoriaItems = computed(() => {
-  const list = [...categorias.value]
-  if (repuesto.categoria && !list.includes(repuesto.categoria)) {
-    list.unshift(repuesto.categoria)
-  }
-  return list.map(c => ({ label: c, value: c }))
-})
+const categoriaItems = computed(() =>
+  categorias.value.map(c => ({ label: c, value: c }))
+)
 
 const isLoading = ref(false)
 const state = reactive({
-  codigo: repuesto.codigo,
-  nombre: repuesto.nombre,
-  descripcion: repuesto.descripcion || '',
-  precio: repuesto.precio,
-  stock: repuesto.stock,
-  stockMinimo: repuesto.stockMinimo ?? 0,
-  categoria: repuesto.categoria || '',
-  proveedor: repuesto.proveedor || '',
+  codigo: '',
+  nombre: '',
+  descripcion: '',
+  precio: 0,
+  stock: 0,
+  stockMinimo: 5,
+  categoria: 'Lubricantes',
+  proveedor: '',
   tipoProducto: 'repuesto',
-  activo: !!repuesto.activo
+  activo: true
 })
 
 const handleSubmit = () => {
   isLoading.value = true
-  router.put(route('repuestos.update', repuesto.id), state, {
+  router.post(route('inventario.store'), state, {
     onFinish: () => { isLoading.value = false }
   })
 }
 </script>
 
 <template>
-  <AppDashboardPanel id="repuesto-edit">
+  <AppDashboardPanel id="inventario-create">
     <template #header>
-      <UDashboardNavbar title="Editar repuesto">
+      <UDashboardNavbar title="Nuevo ítem de inventario">
         <template #leading>
           <UDashboardSidebarCollapse />
         </template>
@@ -59,9 +54,12 @@ const handleSubmit = () => {
     </template>
     <template #body>
       <UCard class="max-w-3xl">
+        <p class="text-sm text-muted mb-4">
+          Tip: crea un ítem por variante (ej. Aceite 5W-30 y Aceite 10W-30 por separado) para controlar stock real.
+        </p>
         <form class="grid grid-cols-1 md:grid-cols-2 gap-4" @submit.prevent="handleSubmit">
           <FormField label="Código" name="codigo" required :error="errors.codigo">
-            <UInput v-model="state.codigo" class="w-full" />
+            <UInput v-model="state.codigo" class="w-full" placeholder="ACEI-5W30" />
           </FormField>
           <FormField label="Categoría" name="categoria" :error="errors.categoria">
             <USelect
@@ -72,7 +70,7 @@ const handleSubmit = () => {
             />
           </FormField>
           <FormField label="Nombre" name="nombre" required :error="errors.nombre" class="md:col-span-2">
-            <UInput v-model="state.nombre" class="w-full" />
+            <UInput v-model="state.nombre" class="w-full" placeholder="Aceite 5W-30 sintético 4L" />
           </FormField>
           <FormField label="Descripción" name="descripcion" required :error="errors.descripcion" class="md:col-span-2">
             <UTextarea v-model="state.descripcion" class="w-full" />
@@ -83,18 +81,18 @@ const handleSubmit = () => {
           <FormField label="Proveedor" name="proveedor" :error="errors.proveedor">
             <UInput v-model="state.proveedor" class="w-full" />
           </FormField>
-          <FormField label="Stock" name="stock" required :error="errors.stock">
+          <FormField label="Stock inicial" name="stock" required :error="errors.stock">
             <UInput v-model.number="state.stock" type="number" min="0" class="w-full" />
           </FormField>
           <FormField label="Stock mínimo (alerta)" name="stockMinimo" :error="errors.stockMinimo">
             <UInput v-model.number="state.stockMinimo" type="number" min="0" class="w-full" />
           </FormField>
           <div class="md:col-span-2">
-            <UCheckbox v-model="state.activo" label="Repuesto activo (disponible en órdenes)" />
+            <UCheckbox v-model="state.activo" label="Activo (disponible en órdenes)" />
           </div>
           <div class="md:col-span-2 flex gap-3">
-            <UButton type="submit" label="Actualizar" :loading="isLoading" />
-            <UButton variant="ghost" color="neutral" label="Cancelar" :to="route('repuestos.index')" />
+            <UButton type="submit" label="Guardar" :loading="isLoading" />
+            <UButton variant="ghost" color="neutral" label="Cancelar" :to="route('inventario.index')" />
           </div>
         </form>
       </UCard>

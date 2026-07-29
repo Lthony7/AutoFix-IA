@@ -4,6 +4,7 @@ namespace Src\Auth\Application\Controllers;
 
 use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
+use App\Services\ClienteCuentaService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -14,6 +15,11 @@ use Src\Auth\Infrastructure\Resources\UserResource;
 
 class AuthController extends Controller
 {
+    public function __construct(
+        private readonly ClienteCuentaService $clienteCuenta,
+    ) {
+    }
+
     public function register(RegisterRequest $request): JsonResponse
     {
         $data = $request->validated();
@@ -25,6 +31,8 @@ class AuthController extends Controller
             'role' => UserRole::Cliente,
             'activo' => true,
         ]);
+
+        $this->clienteCuenta->ensureForUser($user);
 
         $token = $user->createToken('auth_token')->plainTextToken;
 

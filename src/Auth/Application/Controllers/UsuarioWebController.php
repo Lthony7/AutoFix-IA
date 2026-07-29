@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Support\InertiaTablePaginator;
 use Exception;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
 use Src\Auth\Infrastructure\Models\UserEloquentModel;
@@ -15,11 +16,26 @@ use Src\Auth\Infrastructure\Requests\UpdateUserRequest;
 
 class UsuarioWebController extends Controller
 {
-    public function index(): Response
+    public function index(Request $request): Response
     {
-        $paginator = UserEloquentModel::query()
-            ->orderBy('name')
-            ->paginate(InertiaTablePaginator::PER_PAGE)
+        $roleFilter = $request->query('role');
+        $search = trim((string) $request->query('q', ''));
+
+        $query = UserEloquentModel::query()->orderBy('name');
+
+        if (is_string($roleFilter) && in_array($roleFilter, UserRole::values(), true)) {
+            $query->where('role', $roleFilter);
+        }
+
+        if ($search !== '') {
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'ilike', "%{$search}%")
+                    ->orWhere('email', 'ilike', "%{$search}%");
+            });
+        }
+
+        $paginator = $query
+            ->paginate(50)
             ->withQueryString()
             ->through(fn (UserEloquentModel $user) => [
                 'id' => $user->id,
@@ -31,22 +47,35 @@ class UsuarioWebController extends Controller
                 'createdAt' => $user->created_at?->format('Y-m-d H:i:s'),
             ]);
 
+        $counts = UserEloquentModel::query()
+            ->selectRaw('role, COUNT(*) as total')
+            ->groupBy('role')
+            ->pluck('total', 'role');
+
         return Inertia::render('Usuario/index', [
             'users' => InertiaTablePaginator::make($paginator),
+            'filters' => [
+                'role' => $roleFilter,
+                'q' => $search,
+            ],
+            'stats' => [
+                'total' => (int) UserEloquentModel::count(),
+                'administrador' => (int) ($counts[UserRole::Administrador->value] ?? 0),
+                'recepcionista' => (int) ($counts[UserRole::Recepcionista->value] ?? 0),
+                'mecanico' => (int) ($counts[UserRole::Mecanico->value] ?? 0),
+                'cliente' => (int) ($counts[UserRole::Cliente->value] ?? 0),
+            ],
             'roles' => collect(UserRole::cases())->map(fn (UserRole $role) => [
                 'value' => $role->value,
                 'label' => $role->label(),
-            ]),
+            ])->values()->all(),
         ]);
     }
 
     public function create(): Response
     {
         return Inertia::render('Usuario/create', [
-            'roles' => collect(UserRole::cases())->map(fn (UserRole $role) => [
-                'value' => $role->value,
-                'label' => $role->label(),
-            ]),
+            'roles' => $this->rolesPayload(),
         ]);
     }
 
@@ -86,10 +115,7 @@ class UsuarioWebController extends Controller
                 'role' => $user->role?->value,
                 'activo' => (bool) $user->activo,
             ],
-            'roles' => collect(UserRole::cases())->map(fn (UserRole $role) => [
-                'value' => $role->value,
-                'label' => $role->label(),
-            ]),
+            'roles' => $this->rolesPayload(),
         ]);
     }
 
@@ -133,5 +159,16 @@ class UsuarioWebController extends Controller
         return redirect()
             ->route('usuarios.index')
             ->with('success', 'Usuario eliminado exitosamente');
+    }
+
+    /**
+     * @return list<array{value: string, label: string}>
+     */
+    private function rolesPayload(): array
+    {
+        return collect(UserRole::cases())->map(fn (UserRole $role) => [
+            'value' => $role->value,
+            'label' => $role->label(),
+        ])->values()->all();
     }
 }

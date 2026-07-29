@@ -6,7 +6,7 @@ import FormField from '../../components/FormField.vue'
 
 const page = usePage()
 const usuario = (page.props as any).usuario
-const roles = computed(() => ((page.props as any).roles || []) as { value: string, label: string }[])
+const roles = computed(() => ((page.props as any).roles || []) as { value: string, label: string, description?: string }[])
 const backendErrors = computed(() => page.props.errors || {})
 const errors = computed(() => {
   const result: Record<string, string> = {}

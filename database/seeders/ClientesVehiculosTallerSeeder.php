@@ -2,7 +2,9 @@
 
 namespace Database\Seeders;
 
+use App\Enums\UserRole;
 use Illuminate\Database\Seeder;
+use Src\Auth\Infrastructure\Models\UserEloquentModel;
 use Src\Cliente\Infrastructure\Models\ClienteEloquentModel;
 use Src\Vehiculo\Infrastructure\Models\VehiculoEloquentModel;
 
@@ -261,6 +263,17 @@ class ClientesVehiculosTallerSeeder extends Seeder
             unset($data['vehiculos']);
 
             $razon = trim($data['nombres'].' '.$data['apellidos']);
+            $email = $data['email'] ?: ('cliente'.$data['documento'].'@autofix.test');
+
+            $user = UserEloquentModel::updateOrCreate(
+                ['email' => $email],
+                [
+                    'name' => $razon,
+                    'password' => 'password',
+                    'role' => UserRole::Cliente,
+                    'activo' => true,
+                ]
+            );
 
             $cliente = ClienteEloquentModel::updateOrCreate(
                 ['numero_documento' => $data['documento']],
@@ -271,9 +284,9 @@ class ClientesVehiculosTallerSeeder extends Seeder
                     'apellidos' => $data['apellidos'],
                     'direccion' => $data['direccion'],
                     'telefono' => $data['telefono'],
-                    'email' => $data['email'],
+                    'email' => $email,
                     'estado' => true,
-                    'user_id' => null,
+                    'user_id' => $user->id,
                 ]
             );
 
@@ -296,6 +309,27 @@ class ClientesVehiculosTallerSeeder extends Seeder
             }
         }
 
-        $this->command?->info('Clientes: '.count($clientes).' | Vehículos: '.$totalVehiculos);
+        // Clientes existentes sin cuenta de acceso
+        ClienteEloquentModel::query()
+            ->whereNull('user_id')
+            ->each(function (ClienteEloquentModel $cliente) {
+                $email = $cliente->email ?: ('cliente'.$cliente->numero_documento.'@autofix.test');
+                $nombre = trim(($cliente->nombres ?? '').' '.($cliente->apellidos ?? ''))
+                    ?: ($cliente->razon_social ?: 'Cliente');
+
+                $user = UserEloquentModel::updateOrCreate(
+                    ['email' => $email],
+                    [
+                        'name' => $nombre,
+                        'password' => 'password',
+                        'role' => UserRole::Cliente,
+                        'activo' => true,
+                    ]
+                );
+
+                $cliente->update(['user_id' => $user->id, 'email' => $email]);
+            });
+
+        $this->command?->info('Clientes: '.count($clientes).' | Vehículos: '.$totalVehiculos.' | Usuarios cliente sincronizados.');
     }
 }

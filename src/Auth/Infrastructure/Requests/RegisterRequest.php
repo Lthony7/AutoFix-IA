@@ -44,6 +44,7 @@ class RegisterRequest extends FormRequest
     public function messages(): array
     {
         return array_merge(FieldValidation::messages(), [
+            'email.unique' => 'Este correo ya está vinculado a una cuenta existente. Inicia sesión.',
             'password.required' => 'La contraseña es obligatoria',
             'password.min' => 'La contraseña debe tener al menos 8 caracteres',
             'password.confirmed' => 'Las contraseñas no coinciden',

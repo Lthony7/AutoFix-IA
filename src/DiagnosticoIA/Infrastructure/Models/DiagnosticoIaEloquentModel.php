@@ -31,6 +31,7 @@ class DiagnosticoIaEloquentModel extends Model
         'estado',
         'es_simulado',
         'observaciones_revision',
+        'coincide_analisis',
     ];
 
     protected $casts = [
@@ -40,6 +41,7 @@ class DiagnosticoIaEloquentModel extends Model
         'mecanicos_sugeridos' => 'array',
         'estado' => SugerenciaIaEstado::class,
         'es_simulado' => 'boolean',
+        'coincide_analisis' => 'boolean',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
     ];

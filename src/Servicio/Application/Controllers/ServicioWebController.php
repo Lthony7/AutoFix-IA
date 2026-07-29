@@ -18,6 +18,7 @@ class ServicioWebController extends Controller
     public function index(): Response
     {
         $paginator = ServicioEloquentModel::query()
+            ->orderByRaw("CASE WHEN LOWER(nombre) LIKE '%diagnóstico computarizado%' OR LOWER(nombre) LIKE '%diagnostico computarizado%' THEN 0 ELSE 1 END")
             ->orderBy('nombre')
             ->paginate(InertiaTablePaginator::PER_PAGE)
             ->withQueryString()
@@ -65,7 +66,7 @@ class ServicioWebController extends Controller
             $servicio->update($request->validated());
 
             return redirect()
-                ->route('servicios.index')
+                ->back()
                 ->with('success', 'Servicio actualizado exitosamente');
         } catch (Exception $e) {
             return redirect()
@@ -86,7 +87,7 @@ class ServicioWebController extends Controller
         $servicio->delete();
 
         return redirect()
-            ->route('servicios.index')
+            ->back()
             ->with('success', 'Servicio eliminado exitosamente');
     }
 }

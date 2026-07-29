@@ -4,6 +4,7 @@ namespace Src\DiagnosticoIA\Application\Controllers;
 
 use App\Enums\OrdenEstado;
 use App\Enums\SugerenciaIaEstado;
+use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
 use App\Services\AplicarSugerenciaIaAOrdenService;
 use App\Services\GroqDiagnosticService;
@@ -19,6 +20,8 @@ use Src\DiagnosticoIA\Infrastructure\Models\DiagnosticoIaEloquentModel;
 use Src\DiagnosticoIA\Infrastructure\Requests\RevisarDiagnosticoIaRequest;
 use Src\DiagnosticoIA\Infrastructure\Requests\StoreDiagnosticoIaRequest;
 use Src\OrdenTrabajo\Infrastructure\Models\OrdenTrabajoEloquentModel;
+use Src\Producto\Infrastructure\Models\ProductoEloquentModel;
+use Src\Servicio\Infrastructure\Models\ServicioEloquentModel;
 
 class DiagnosticoIaWebController extends Controller
 {
@@ -29,10 +32,17 @@ class DiagnosticoIaWebController extends Controller
     ) {
     }
 
-    public function index(): Response
+    public function index(Request $request): Response
     {
-        $paginator = DiagnosticoIaEloquentModel::with(['ordenTrabajo.cliente', 'ordenTrabajo.vehiculo'])
-            ->orderByDesc('created_at')
+        $query = DiagnosticoIaEloquentModel::with(['ordenTrabajo.cliente', 'ordenTrabajo.vehiculo'])
+            ->orderByDesc('created_at');
+
+        if ($request->user()->hasRole(UserRole::Mecanico)) {
+            $mecanicoId = $request->user()->mecanico?->id;
+            $query->whereHas('ordenTrabajo', fn ($q) => $q->where('mecanico_id', $mecanicoId));
+        }
+
+        $paginator = $query
             ->paginate(InertiaTablePaginator::PER_PAGE)
             ->withQueryString()
             ->through(fn (DiagnosticoIaEloquentModel $d) => [
@@ -91,6 +101,26 @@ class DiagnosticoIaWebController extends Controller
             $vehiculo = $orden->vehiculo;
             $kilometraje = $orden->kilometraje_ingreso ?? $vehiculo?->kilometraje;
 
+            $catalogoServicios = ServicioEloquentModel::query()
+                ->where('activo', true)
+                ->orderBy('nombre')
+                ->limit(80)
+                ->pluck('nombre')
+                ->values()
+                ->all();
+
+            $catalogoRepuestos = ProductoEloquentModel::query()
+                ->where('activo', true)
+                ->where(function ($q) {
+                    $q->where('tipo_producto', 'repuesto')
+                        ->orWhereNull('tipo_producto');
+                })
+                ->orderBy('nombre')
+                ->limit(120)
+                ->pluck('nombre')
+                ->values()
+                ->all();
+
             $inputData = [
                 'orden_trabajo_id' => $orden->id,
                 'orden_numero' => $orden->numero,
@@ -99,16 +129,19 @@ class DiagnosticoIaWebController extends Controller
                 'vehiculo_marca' => $vehiculo?->marca,
                 'vehiculo_modelo' => $vehiculo?->modelo,
                 'vehiculo_anio' => $vehiculo?->anio,
+                'vehiculo_combustible' => $vehiculo?->tipo_combustible,
                 'kilometraje' => $kilometraje,
                 'tipo_falla' => $validated['tipo_falla'],
                 'descripcion' => $validated['descripcion'],
-                'momento' => $validated['momento'],
+                'momento' => $validated['momento'] ?? 'No especificado',
                 'luces_tablero' => $validated['luces_tablero'] ?? null,
                 'ruidos' => $validated['ruidos'] ?? null,
-                'puede_circular' => $validated['puede_circular'],
+                'puede_circular' => $validated['puede_circular'] ?? true,
                 'urgencia' => $validated['urgencia'],
                 'observaciones' => $validated['observaciones'] ?? null,
-                'falla_reportada' => $orden->falla_reportada,
+                'falla_reportada' => $validated['descripcion'],
+                'catalogo_servicios' => $catalogoServicios,
+                'catalogo_repuestos' => $catalogoRepuestos,
             ];
 
             $resultado = $this->groqService->analyze($inputData);
@@ -137,36 +170,40 @@ class DiagnosticoIaWebController extends Controller
                 $orden->update([
                     'estado' => OrdenEstado::EnDiagnostico,
                     'tipo_falla' => $validated['tipo_falla'],
-                    'prioridad' => $resultado['prioridad'],
+                    'falla_reportada' => $validated['descripcion'],
+                    'prioridad' => $resultado['prioridad'] ?? $validated['urgencia'],
+                    'observaciones' => $validated['observaciones'] ?? $orden->observaciones,
                 ]);
 
                 $this->aplicarSugerencia->aplicar($orden->fresh(), $resultado, $this->stockService);
             });
 
-            return redirect()
-                ->route('ordenes.edit', $orden->id)
-                ->with('success', 'Diagnóstico IA generado. Se asignaron mecánico, servicios y repuestos sugeridos: revísalos y corrige si hace falta antes de facturar.');
+            return $this->redirectTrasGenerar($request, $orden);
         } catch (Exception $e) {
             return redirect()->back()->withInput()->with('error', 'Error al generar diagnóstico: ' . $e->getMessage());
         }
     }
 
-    public function show(string $ordenTrabajoId): Response
+    public function show(Request $request, string $ordenTrabajoId): Response
     {
         $diagnostico = DiagnosticoIaEloquentModel::with(['ordenTrabajo.cliente', 'ordenTrabajo.vehiculo'])
             ->where('orden_trabajo_id', $ordenTrabajoId)
             ->firstOrFail();
+
+        $this->authorizeDiagnosticoMecanico($request, $diagnostico->ordenTrabajo);
 
         return Inertia::render('DiagnosticoIA/show', [
             'diagnostico' => $this->mapDiagnostico($diagnostico),
         ]);
     }
 
-    public function review(string $ordenTrabajoId): Response
+    public function review(Request $request, string $ordenTrabajoId): Response
     {
         $diagnostico = DiagnosticoIaEloquentModel::with(['ordenTrabajo.cliente', 'ordenTrabajo.vehiculo'])
             ->where('orden_trabajo_id', $ordenTrabajoId)
             ->firstOrFail();
+
+        $this->authorizeDiagnosticoMecanico($request, $diagnostico->ordenTrabajo);
 
         return Inertia::render('DiagnosticoIA/review', [
             'diagnostico' => $this->mapDiagnostico($diagnostico),
@@ -175,7 +212,12 @@ class DiagnosticoIaWebController extends Controller
 
     public function revisar(RevisarDiagnosticoIaRequest $request, string $ordenTrabajoId): RedirectResponse
     {
-        $diagnostico = DiagnosticoIaEloquentModel::where('orden_trabajo_id', $ordenTrabajoId)->firstOrFail();
+        $diagnostico = DiagnosticoIaEloquentModel::with('ordenTrabajo')
+            ->where('orden_trabajo_id', $ordenTrabajoId)
+            ->firstOrFail();
+
+        $this->authorizeDiagnosticoMecanico($request, $diagnostico->ordenTrabajo);
+
         $accion = $request->validated('accion');
 
         $estado = match ($accion) {
@@ -187,6 +229,7 @@ class DiagnosticoIaWebController extends Controller
         $update = [
             'estado' => $estado,
             'observaciones_revision' => $request->validated('observaciones_revision'),
+            'coincide_analisis' => $request->boolean('coincide_analisis'),
         ];
 
         if ($accion === 'modificar') {
@@ -201,7 +244,7 @@ class DiagnosticoIaWebController extends Controller
 
             return redirect()
                 ->route('ordenes.edit', $ordenTrabajoId)
-                ->with('success', 'Sugerencia IA revisada. Corrige la orden si hace falta y continúa a facturación.');
+                ->with('success', 'Diagnóstico confirmado. Continúa la reparación y registra avances para el cliente.');
         }
 
         return redirect()
@@ -209,12 +252,52 @@ class DiagnosticoIaWebController extends Controller
             ->with('success', 'Revisión registrada exitosamente');
     }
 
+    private function redirectTrasGenerar(Request $request, OrdenTrabajoEloquentModel $orden): RedirectResponse
+    {
+        $mensaje = 'Diagnóstico IA generado. El mecánico asignado debe revisarlo, contrastarlo con su análisis y añadir observaciones.';
+
+        if ($request->user()->hasRole(UserRole::Mecanico, UserRole::Administrador)) {
+            return redirect()
+                ->route('diagnosticos-ia.show', $orden->id)
+                ->with('success', $mensaje);
+        }
+
+        return redirect()
+            ->route('ordenes.edit', $orden->id)
+            ->with('success', $mensaje);
+    }
+
+    private function authorizeDiagnosticoMecanico(Request $request, ?OrdenTrabajoEloquentModel $orden): void
+    {
+        if (!$orden) {
+            abort(404);
+        }
+
+        if ($request->user()->hasRole(UserRole::Administrador)) {
+            return;
+        }
+
+        if (!$request->user()->hasRole(UserRole::Mecanico)) {
+            abort(403, 'Solo el mecánico puede ver y confirmar el diagnóstico IA.');
+        }
+
+        $mecanicoId = $request->user()->mecanico?->id;
+        if (!$mecanicoId || $orden->mecanico_id !== $mecanicoId) {
+            abort(403, 'Solo el mecánico asignado a esta orden puede ver y ejecutar este diagnóstico.');
+        }
+    }
+
     private function mapDiagnostico(DiagnosticoIaEloquentModel $diagnostico): array
     {
+        $input = is_array($diagnostico->input_data) ? $diagnostico->input_data : [];
+
         return [
             'id' => $diagnostico->id,
             'ordenTrabajoId' => $diagnostico->orden_trabajo_id,
-            'inputData' => $diagnostico->input_data,
+            'inputData' => $input,
+            'tipoFalla' => $input['tipo_falla'] ?? null,
+            'reporteCliente' => $input['descripcion'] ?? $input['falla_reportada'] ?? null,
+            'urgenciaSolicitada' => $input['urgencia'] ?? null,
             'respuestaCompleta' => $diagnostico->respuesta_completa,
             'diagnosticoDetalle' => $diagnostico->diagnostico_detalle,
             'posiblesCausas' => $diagnostico->posibles_causas,
@@ -222,6 +305,8 @@ class DiagnosticoIaWebController extends Controller
             'especialidadRecomendada' => $diagnostico->especialidad_recomendada,
             'mecanicosSugeridos' => $diagnostico->mecanicos_sugeridos ?? [],
             'servicioRecomendado' => $diagnostico->servicio_recomendado,
+            'serviciosSugeridos' => $input['servicios_sugeridos'] ?? [],
+            'repuestosSugeridos' => $input['repuestos_sugeridos'] ?? [],
             'prioridad' => $diagnostico->prioridad,
             'observacionMecanico' => $diagnostico->observacion_mecanico,
             'advertencia' => $diagnostico->advertencia,
@@ -229,6 +314,7 @@ class DiagnosticoIaWebController extends Controller
             'estadoLabel' => $diagnostico->estado->label(),
             'esSimulado' => $diagnostico->es_simulado,
             'observacionesRevision' => $diagnostico->observaciones_revision,
+            'coincideAnalisis' => $diagnostico->coincide_analisis,
             'orden' => [
                 'numero' => $diagnostico->ordenTrabajo?->numero,
                 'clienteNombre' => $diagnostico->ordenTrabajo?->cliente?->razon_social,

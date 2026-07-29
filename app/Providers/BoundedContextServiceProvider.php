@@ -32,6 +32,8 @@ class BoundedContextServiceProvider extends ServiceProvider
             'Factura',
             'Pago',
             'Reporte',
+            'Cita',
+            'Presupuesto',
         ];
 
         foreach ($boundedContexts as $context) {
@@ -64,6 +66,8 @@ class BoundedContextServiceProvider extends ServiceProvider
             'Factura',
             'Pago',
             'Reporte',
+            'Cita',
+            'Presupuesto',
         ];
 
         foreach ($boundedContexts as $context) {

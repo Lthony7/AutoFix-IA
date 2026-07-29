@@ -3,119 +3,151 @@
 namespace Src\Reporte\Application\Controllers;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Support\Facades\DB;
+use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Http\Response as HttpResponse;
 use Inertia\Inertia;
 use Inertia\Response;
-use Src\DiagnosticoIA\Infrastructure\Models\DiagnosticoIaEloquentModel;
-use Src\OrdenTrabajo\Infrastructure\Models\OrdenRepuestoEloquentModel;
-use Src\OrdenTrabajo\Infrastructure\Models\OrdenServicioEloquentModel;
-use Src\OrdenTrabajo\Infrastructure\Models\OrdenTrabajoEloquentModel;
-use Src\Pago\Infrastructure\Models\PagoEloquentModel;
+use Src\Reporte\Application\Services\ReporteDatosService;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ReporteWebController extends Controller
 {
+    public function __construct(
+        private readonly ReporteDatosService $datos
+    ) {
+    }
+
     public function index(): Response
     {
-        $ordenesPorEstado = OrdenTrabajoEloquentModel::query()
-            ->select('estado', DB::raw('count(*) as total'))
-            ->groupBy('estado')
-            ->get()
-            ->map(fn ($row) => [
-                'estado' => $row->estado instanceof \BackedEnum ? $row->estado->value : $row->estado,
-                'label' => $row->estado instanceof \BackedEnum ? $row->estado->label() : $row->estado,
-                'total' => (int) $row->total,
-            ])->toArray();
-
-        $ingresosPorFecha = PagoEloquentModel::query()
-            ->where('estado', 'pagado')
-            ->select(DB::raw('DATE(created_at) as fecha'), DB::raw('SUM(total) as total'))
-            ->groupBy(DB::raw('DATE(created_at)'))
-            ->orderByDesc('fecha')
-            ->limit(30)
-            ->get()
-            ->map(fn ($row) => [
-                'fecha' => $row->fecha,
-                'total' => (float) $row->total,
-            ])->toArray();
-
-        $serviciosTop = OrdenServicioEloquentModel::query()
-            ->join('servicios', 'orden_servicio.servicio_id', '=', 'servicios.id')
-            ->select('servicios.nombre', DB::raw('count(*) as total'), DB::raw('SUM(orden_servicio.precio) as ingresos'))
-            ->groupBy('servicios.id', 'servicios.nombre')
-            ->orderByDesc('total')
-            ->limit(10)
-            ->get()
-            ->map(fn ($row) => [
-                'nombre' => $row->nombre,
-                'total' => (int) $row->total,
-                'ingresos' => (float) $row->ingresos,
-            ])->toArray();
-
-        $repuestosTop = OrdenRepuestoEloquentModel::query()
-            ->join('productos', 'orden_repuesto.producto_id', '=', 'productos.id')
-            ->select(
-                'productos.nombre',
-                DB::raw('SUM(orden_repuesto.cantidad) as cantidad'),
-                DB::raw('COUNT(DISTINCT orden_repuesto.orden_trabajo_id) as ordenes'),
-                DB::raw('SUM(orden_repuesto.cantidad * orden_repuesto.precio_unitario) as ingresos')
-            )
-            ->groupBy('productos.id', 'productos.nombre')
-            ->orderByDesc('cantidad')
-            ->limit(10)
-            ->get()
-            ->map(fn ($row) => [
-                'nombre' => $row->nombre,
-                'cantidad' => (int) $row->cantidad,
-                'ordenes' => (int) $row->ordenes,
-                'ingresos' => (float) $row->ingresos,
-            ])->toArray();
-
-        $vehiculosPorCliente = OrdenTrabajoEloquentModel::query()
-            ->join('clientes', 'ordenes_trabajo.cliente_id', '=', 'clientes.id')
-            ->select(
-                'clientes.razon_social as cliente',
-                DB::raw('COUNT(DISTINCT ordenes_trabajo.vehiculo_id) as vehiculos'),
-                DB::raw('COUNT(ordenes_trabajo.id) as ordenes')
-            )
-            ->groupBy('clientes.id', 'clientes.razon_social')
-            ->orderByDesc('ordenes')
-            ->limit(10)
-            ->get()
-            ->map(fn ($row) => [
-                'cliente' => $row->cliente,
-                'vehiculos' => (int) $row->vehiculos,
-                'ordenes' => (int) $row->ordenes,
-            ])->toArray();
-
-        $sugerenciasIa = DiagnosticoIaEloquentModel::query()
-            ->select('estado', DB::raw('count(*) as total'))
-            ->groupBy('estado')
-            ->get()
-            ->map(fn ($row) => [
-                'estado' => $row->estado instanceof \BackedEnum ? $row->estado->value : $row->estado,
-                'label' => $row->estado instanceof \BackedEnum ? $row->estado->label() : $row->estado,
-                'total' => (int) $row->total,
-            ])->toArray();
-
-        $simulados = DiagnosticoIaEloquentModel::where('es_simulado', true)->count();
-        $reales = DiagnosticoIaEloquentModel::where('es_simulado', false)->count();
-
         return Inertia::render('Reporte/index', [
-            'stats' => [
-                'ordenesPorEstado' => $ordenesPorEstado,
-                'ingresosPorFecha' => $ingresosPorFecha,
-                'serviciosTop' => $serviciosTop,
-                'repuestosTop' => $repuestosTop,
-                'vehiculosPorCliente' => $vehiculosPorCliente,
-                'sugerenciasIa' => $sugerenciasIa,
-                'sugerenciasIaResumen' => [
-                    'simulados' => $simulados,
-                    'reales' => $reales,
-                    'total' => $simulados + $reales,
-                ],
-                'totalOrdenes' => OrdenTrabajoEloquentModel::count(),
-                'totalIngresos' => (float) PagoEloquentModel::where('estado', 'pagado')->sum('total'),
-            ],
+            'stats' => $this->datos->recopilar(),
         ]);
+    }
+
+    public function exportExcel(): StreamedResponse
+    {
+        $stats = $this->datos->recopilar();
+        $filename = 'reporte-taller-' . now()->format('Y-m-d-His') . '.xls';
+
+        return response()->streamDownload(function () use ($stats) {
+            echo $this->buildExcelXml($stats);
+        }, $filename, [
+            'Content-Type' => 'application/vnd.ms-excel; charset=UTF-8',
+        ]);
+    }
+
+    public function exportPdf(): HttpResponse
+    {
+        $stats = $this->datos->recopilar();
+        $filename = 'reporte-taller-' . now()->format('Y-m-d-His') . '.pdf';
+
+        $pdf = Pdf::loadView('reportes.taller', ['stats' => $stats])
+            ->setPaper('a4', 'portrait');
+
+        return $pdf->download($filename);
+    }
+
+    /**
+     * @param  array<string, mixed>  $stats
+     */
+    private function buildExcelXml(array $stats): string
+    {
+        $xml = '<?xml version="1.0" encoding="UTF-8"?>' . "\n";
+        $xml .= '<?mso-application progid="Excel.Sheet"?>' . "\n";
+        $xml .= '<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"'
+            . ' xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">' . "\n";
+
+        $xml .= $this->excelSheet('Resumen', [
+            ['Métrica', 'Valor'],
+            ['Total órdenes', $stats['totalOrdenes'] ?? 0],
+            ['Ingresos pagados', $stats['totalIngresos'] ?? 0],
+            ['Diagnósticos IA', $stats['sugerenciasIaResumen']['total'] ?? 0],
+            ['IA simulados', $stats['sugerenciasIaResumen']['simulados'] ?? 0],
+            ['IA reales', $stats['sugerenciasIaResumen']['reales'] ?? 0],
+            ['Inventario ítems', $stats['inventarioResumen']['totalItems'] ?? 0],
+            ['Inventario activos', $stats['inventarioResumen']['activos'] ?? 0],
+            ['Stock bajo', $stats['inventarioResumen']['stockBajo'] ?? 0],
+            ['Sin stock', $stats['inventarioResumen']['sinStock'] ?? 0],
+            ['Valor stock', $stats['inventarioResumen']['valorStock'] ?? 0],
+            ['Generado en', $stats['generadoEn'] ?? ''],
+        ]);
+
+        $ordenesRows = [['Estado', 'Total']];
+        foreach ($stats['ordenesPorEstado'] ?? [] as $row) {
+            $ordenesRows[] = [$row['label'], $row['total']];
+        }
+        $xml .= $this->excelSheet('Ordenes por estado', $ordenesRows);
+
+        $iaRows = [['Estado', 'Total']];
+        foreach ($stats['sugerenciasIa'] ?? [] as $row) {
+            $iaRows[] = [$row['label'], $row['total']];
+        }
+        $xml .= $this->excelSheet('Sugerencias IA', $iaRows);
+
+        $ingresosRows = [['Fecha', 'Total']];
+        foreach ($stats['ingresosPorFecha'] ?? [] as $row) {
+            $ingresosRows[] = [$row['fecha'], $row['total']];
+        }
+        $xml .= $this->excelSheet('Ingresos por fecha', $ingresosRows);
+
+        $serviciosRows = [['Servicio', 'Cantidad', 'Ingresos']];
+        foreach ($stats['serviciosTop'] ?? [] as $row) {
+            $serviciosRows[] = [$row['nombre'], $row['total'], $row['ingresos']];
+        }
+        $xml .= $this->excelSheet('Servicios top', $serviciosRows);
+
+        $repuestosRows = [['Item inventario', 'Cantidad', 'Ordenes', 'Ingresos']];
+        foreach ($stats['repuestosTop'] ?? [] as $row) {
+            $repuestosRows[] = [$row['nombre'], $row['cantidad'], $row['ordenes'], $row['ingresos']];
+        }
+        $xml .= $this->excelSheet('Inventario mas usado', $repuestosRows);
+
+        $stockBajoRows = [['Codigo', 'Nombre', 'Categoria', 'Stock', 'Minimo', 'Precio']];
+        foreach ($stats['stockBajo'] ?? [] as $row) {
+            $stockBajoRows[] = [
+                $row['codigo'],
+                $row['nombre'],
+                $row['categoria'] ?? '',
+                $row['stock'],
+                $row['stockMinimo'],
+                $row['precio'],
+            ];
+        }
+        $xml .= $this->excelSheet('Stock bajo', $stockBajoRows);
+
+        $clientesRows = [['Cliente', 'Vehiculos', 'Ordenes']];
+        foreach ($stats['vehiculosPorCliente'] ?? [] as $row) {
+            $clientesRows[] = [$row['cliente'], $row['vehiculos'], $row['ordenes']];
+        }
+        $xml .= $this->excelSheet('Clientes', $clientesRows);
+
+        $xml .= '</Workbook>';
+
+        return $xml;
+    }
+
+    /**
+     * @param  list<list<mixed>>  $rows
+     */
+    private function excelSheet(string $name, array $rows): string
+    {
+        $safeName = htmlspecialchars(mb_substr(preg_replace('/[\\\\\/\?\*\[\]]/', '', $name) ?: 'Hoja', 0, 31), ENT_XML1);
+        $xml = '<Worksheet ss:Name="' . $safeName . '"><Table>' . "\n";
+
+        foreach ($rows as $row) {
+            $xml .= '<Row>';
+            foreach ($row as $cell) {
+                if (is_int($cell) || is_float($cell)) {
+                    $xml .= '<Cell><Data ss:Type="Number">' . $cell . '</Data></Cell>';
+                } else {
+                    $xml .= '<Cell><Data ss:Type="String">' . htmlspecialchars((string) $cell, ENT_XML1) . '</Data></Cell>';
+                }
+            }
+            $xml .= '</Row>' . "\n";
+        }
+
+        $xml .= '</Table></Worksheet>' . "\n";
+
+        return $xml;
     }
 }

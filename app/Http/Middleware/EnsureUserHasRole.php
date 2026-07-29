@@ -23,7 +23,14 @@ class EnsureUserHasRole
             abort(403, 'Usuario inactivo.');
         }
 
-        if ($roles !== [] && !in_array($user->role?->value ?? $user->role, $roles, true)) {
+        if ($roles !== [] && !in_array($user->role?->value ?? (string) $user->role, $roles, true)) {
+            // Cliente u otro rol fuera de su ámbito: volver a su inicio
+            if (($user->role?->value ?? (string) $user->role) === 'cliente') {
+                return redirect()
+                    ->route('portal.mis-ordenes')
+                    ->with('error', 'No tienes permiso para acceder a ese módulo.');
+            }
+
             abort(403, 'No tienes permiso para acceder a este recurso.');
         }
 

@@ -25,6 +25,10 @@ class AplicarSugerenciaIaAOrdenService
             $primerId = $mecanicos[0]['id'] ?? null;
             if (is_string($primerId) && $primerId !== '') {
                 $orden->update(['mecanico_id' => $primerId]);
+                $orden->load('cita');
+                if ($orden->cita) {
+                    $orden->cita->update(['mecanico_id' => $primerId]);
+                }
                 $applied['mecanico'] = true;
             }
         }
@@ -37,6 +41,25 @@ class AplicarSugerenciaIaAOrdenService
                 $resultado['servicio_recomendado'] ?? null
             );
 
+            // En cada sesión, el diagnóstico computarizado va primero
+            $diagnostico = ServicioEloquentModel::query()
+                ->where('activo', true)
+                ->where(function ($q) {
+                    $q->whereRaw('LOWER(nombre) LIKE ?', ['%diagnóstico computarizado%'])
+                        ->orWhereRaw('LOWER(nombre) LIKE ?', ['%diagnostico computarizado%']);
+                })
+                ->first();
+
+            if ($diagnostico) {
+                $servicios = collect($servicios)
+                    ->reject(fn ($s) => $s->id === $diagnostico->id)
+                    ->prepend($diagnostico)
+                    ->unique('id')
+                    ->take(4)
+                    ->values()
+                    ->all();
+            }
+
             foreach ($servicios as $servicio) {
                 OrdenServicioEloquentModel::create([
                     'orden_trabajo_id' => $orden->id,
@@ -48,7 +71,10 @@ class AplicarSugerenciaIaAOrdenService
         }
 
         if ($orden->ordenRepuestos->isEmpty()) {
-            $repuestos = $this->resolverRepuestos($resultado['repuestos_sugeridos'] ?? []);
+            $sugeridos = is_array($resultado['repuestos_sugeridos'] ?? null)
+                ? $resultado['repuestos_sugeridos']
+                : [];
+            $repuestos = $this->resolverRepuestos($sugeridos);
             $payload = $repuestos->map(fn (ProductoEloquentModel $p) => [
                 'producto_id' => $p->id,
                 'cantidad' => 1,
@@ -58,6 +84,32 @@ class AplicarSugerenciaIaAOrdenService
             if ($payload !== []) {
                 $stockService->aplicarNuevos($orden->fresh(), $payload);
                 $applied['repuestos'] = count($payload);
+            }
+
+            // Si la IA sugiere algo que no está en inventario → observación: cliente aporta
+            $encontradosNombres = $repuestos->map(fn ($p) => mb_strtolower($p->nombre))->all();
+            $faltantes = [];
+            foreach ($sugeridos as $nombre) {
+                if (!is_string($nombre) || trim($nombre) === '') {
+                    continue;
+                }
+                $needle = mb_strtolower(trim($nombre));
+                $yaEsta = collect($encontradosNombres)->contains(
+                    fn ($n) => $n === $needle || str_contains($n, $needle) || str_contains($needle, $n)
+                );
+                if (!$yaEsta) {
+                    $faltantes[] = trim($nombre);
+                }
+            }
+
+            if ($faltantes !== []) {
+                $bloque = 'Repuestos que aporta el cliente: ' . implode('; ', array_unique($faltantes)) . '.';
+                $obs = trim((string) ($orden->observaciones ?? ''));
+                $obs = preg_replace('/\n?Repuestos que aporta el cliente:.*$/su', '', $obs) ?? $obs;
+                $obs = trim($obs);
+                $orden->update([
+                    'observaciones' => $obs !== '' ? $obs . "\n" . $bloque : $bloque,
+                ]);
             }
         }
 
@@ -91,7 +143,7 @@ class AplicarSugerenciaIaAOrdenService
                 $ids[$match->id] = true;
                 $encontrados[] = $match;
             }
-            if (count($encontrados) >= 2) {
+            if (count($encontrados) >= 4) {
                 break;
             }
         }

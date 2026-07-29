@@ -4,6 +4,7 @@ namespace Src\Factura\Application\Controllers;
 
 use App\Enums\FacturaEstado;
 use App\Http\Controllers\Controller;
+use App\Services\FacturaClienteNotifier;
 use App\Support\InertiaTablePaginator;
 use Exception;
 use Illuminate\Http\RedirectResponse;
@@ -19,6 +20,11 @@ use Src\OrdenTrabajo\Infrastructure\Models\OrdenTrabajoEloquentModel;
 
 class FacturaWebController extends Controller
 {
+    public function __construct(
+        private readonly FacturaClienteNotifier $facturaNotifier,
+    ) {
+    }
+
     public function index(): Response
     {
         $paginator = FacturaEloquentModel::with(['cliente', 'ordenTrabajo'])
@@ -47,6 +53,7 @@ class FacturaWebController extends Controller
         try {
             $data = $request->validated();
             $orden = OrdenTrabajoEloquentModel::with([
+                'cliente',
                 'ordenServicios.servicio',
                 'ordenRepuestos.producto',
             ])->findOrFail($data['orden_trabajo_id']);
@@ -62,11 +69,21 @@ class FacturaWebController extends Controller
             }
 
             $factura = DB::transaction(function () use ($request, $data, $orden, $calculado) {
+                $razonSocial = trim(($data['cliente_nombres'] ?? '') . ' ' . ($data['cliente_apellidos'] ?? ''));
+
                 $factura = FacturaEloquentModel::create([
                     'numero' => FacturaEloquentModel::generarNumero(),
                     'serie' => $data['serie'] ?? config('autofix.serie_default', 'F001'),
                     'orden_trabajo_id' => $orden->id,
                     'cliente_id' => $orden->cliente_id,
+                    'cliente_tipo_documento' => $data['cliente_tipo_documento'],
+                    'cliente_numero_documento' => $data['cliente_numero_documento'],
+                    'cliente_nombres' => $data['cliente_nombres'],
+                    'cliente_apellidos' => $data['cliente_apellidos'],
+                    'cliente_razon_social' => $razonSocial,
+                    'cliente_direccion' => $data['cliente_direccion'],
+                    'cliente_telefono' => $data['cliente_telefono'],
+                    'cliente_email' => $data['cliente_email'],
                     'usuario_id' => $request->user()?->id,
                     'fecha_emision' => $data['fecha_emision'],
                     'subtotal' => $calculado['subtotal'],
@@ -84,8 +101,29 @@ class FacturaWebController extends Controller
                     ]);
                 }
 
+                if (!empty($data['actualizar_cliente']) && $orden->cliente) {
+                    $orden->cliente->update([
+                        'tipo_documento' => $data['cliente_tipo_documento'],
+                        'numero_documento' => $data['cliente_numero_documento'],
+                        'nombres' => $data['cliente_nombres'],
+                        'apellidos' => $data['cliente_apellidos'],
+                        'razon_social' => $razonSocial,
+                        'direccion' => $data['cliente_direccion'],
+                        'telefono' => $data['cliente_telefono'],
+                        'email' => $data['cliente_email'],
+                    ]);
+                }
+
                 return $factura;
             });
+
+            $estadoFactura = $factura->estado instanceof \BackedEnum
+                ? $factura->estado->value
+                : (string) $factura->estado;
+
+            if (in_array($estadoFactura, [FacturaEstado::Emitida->value, FacturaEstado::Pagada->value], true)) {
+                $this->facturaNotifier->notifyEmitida($factura->fresh(['cliente.user', 'ordenTrabajo.vehiculo']));
+            }
 
             return redirect()
                 ->route('facturas.show', $factura->id)
@@ -137,6 +175,9 @@ class FacturaWebController extends Controller
             }
 
             $data = $request->validated();
+            $estadoAnteriorValue = $factura->estado instanceof \BackedEnum
+                ? $factura->estado->value
+                : (string) $factura->estado;
 
             if (array_key_exists('descuento', $data) && $factura->ordenTrabajo) {
                 $calculado = FacturaEloquentModel::calcularDesdeOrden(
@@ -150,6 +191,17 @@ class FacturaWebController extends Controller
             }
 
             $factura->update($data);
+
+            $estadoNuevo = $factura->fresh()->estado instanceof \BackedEnum
+                ? $factura->fresh()->estado->value
+                : (string) $factura->fresh()->estado;
+
+            if (
+                $estadoAnteriorValue !== FacturaEstado::Emitida->value
+                && $estadoNuevo === FacturaEstado::Emitida->value
+            ) {
+                $this->facturaNotifier->notifyEmitida($factura->fresh(['cliente.user', 'ordenTrabajo.vehiculo']));
+            }
 
             return redirect()
                 ->route('facturas.show', $factura->id)
@@ -180,11 +232,16 @@ class FacturaWebController extends Controller
     private function mapFactura(FacturaEloquentModel $factura, bool $detailed = false): array
     {
         $cliente = $factura->cliente;
-        $nombreCliente = null;
-        if ($cliente) {
-            $completo = trim(($cliente->nombres ?? '') . ' ' . ($cliente->apellidos ?? ''));
-            $nombreCliente = $completo !== '' ? $completo : $cliente->razon_social;
+        $nombreSnapshot = trim(($factura->cliente_nombres ?? '') . ' ' . ($factura->cliente_apellidos ?? ''));
+        if ($nombreSnapshot === '' && $factura->cliente_razon_social) {
+            $nombreSnapshot = $factura->cliente_razon_social;
         }
+
+        $nombreCliente = $nombreSnapshot !== ''
+            ? $nombreSnapshot
+            : ($cliente
+                ? (trim(($cliente->nombres ?? '') . ' ' . ($cliente->apellidos ?? '')) ?: $cliente->razon_social)
+                : null);
 
         $data = [
             'id' => $factura->id,
@@ -194,6 +251,13 @@ class FacturaWebController extends Controller
             'ordenNumero' => $factura->ordenTrabajo?->numero,
             'clienteId' => $factura->cliente_id,
             'clienteNombre' => $nombreCliente,
+            'clienteTipoDocumento' => $factura->cliente_tipo_documento ?? $cliente?->tipo_documento,
+            'clienteNumeroDocumento' => $factura->cliente_numero_documento ?? $cliente?->numero_documento,
+            'clienteNombres' => $factura->cliente_nombres ?? $cliente?->nombres,
+            'clienteApellidos' => $factura->cliente_apellidos ?? $cliente?->apellidos,
+            'clienteDireccion' => $factura->cliente_direccion ?? $cliente?->direccion,
+            'clienteTelefono' => $factura->cliente_telefono ?? $cliente?->telefono,
+            'clienteEmail' => $factura->cliente_email ?? $cliente?->email,
             'vehiculoPlaca' => $factura->ordenTrabajo?->vehiculo?->placa,
             'fechaEmision' => $factura->fecha_emision?->format('Y-m-d'),
             'subtotal' => (float) $factura->subtotal,
@@ -214,11 +278,23 @@ class FacturaWebController extends Controller
                 'id' => $d->id,
                 'descripcion' => $d->descripcion,
                 'tipo' => $d->tipo,
+                'tipoLabel' => match ($d->tipo) {
+                    'servicio' => 'Servicio / reparación',
+                    'repuesto' => 'Pieza',
+                    default => ucfirst((string) $d->tipo),
+                },
                 'referenciaId' => $d->referencia_id,
                 'cantidad' => $d->cantidad,
                 'precioUnitario' => (float) $d->precio_unitario,
                 'subtotal' => (float) $d->subtotal,
             ])->toArray();
+
+            $data['totalServicios'] = (float) $factura->detalles
+                ->where('tipo', 'servicio')
+                ->sum('subtotal');
+            $data['totalPiezas'] = (float) $factura->detalles
+                ->where('tipo', 'repuesto')
+                ->sum('subtotal');
         }
 
         return $data;
@@ -233,14 +309,24 @@ class FacturaWebController extends Controller
             ->filter(fn ($o) => $o->ordenServicios->isNotEmpty() || $o->ordenRepuestos->isNotEmpty())
             ->map(function ($o) {
                 $calculado = FacturaEloquentModel::calcularDesdeOrden($o);
+                $c = $o->cliente;
 
                 return [
                     'id' => $o->id,
-                    'label' => $o->numero . ' — ' . ($o->vehiculo?->placa ?? '') . ' (' . ($o->cliente?->razon_social ?? '') . ')',
+                    'label' => $o->numero . ' — ' . ($o->vehiculo?->placa ?? '') . ' (' . ($c?->razon_social ?? '') . ')',
                     'subtotal' => $calculado['subtotal'],
                     'iva' => $calculado['iva'],
                     'total' => $calculado['total'],
                     'detalles' => $calculado['detalles'],
+                    'cliente' => $c ? [
+                        'tipoDocumento' => $c->tipo_documento,
+                        'numeroDocumento' => $c->numero_documento,
+                        'nombres' => $c->nombres ?? '',
+                        'apellidos' => $c->apellidos ?? '',
+                        'direccion' => $c->direccion ?? '',
+                        'telefono' => $c->telefono ?? '',
+                        'email' => $c->email ?? '',
+                    ] : null,
                 ];
             })
             ->values()

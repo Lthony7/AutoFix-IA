@@ -4,7 +4,7 @@ import { router, usePage } from '@inertiajs/vue3'
 import { route } from 'ziggy-js'
 import FormField from '../../components/FormField.vue'
 
-interface Repuesto {
+interface ItemInventario {
   id: string
   codigo: string
   nombre: string
@@ -19,7 +19,7 @@ interface Repuesto {
 }
 
 const page = usePage()
-const repuestos = computed(() => (page.props as any).repuestos)
+const inventario = computed(() => (page.props as any).inventario || (page.props as any).repuestos)
 const categorias = computed(() => ((page.props as any).categorias || []) as string[])
 const filtersProp = computed(() => (page.props as any).filters || {})
 
@@ -56,7 +56,7 @@ const paginationQuery = computed(() => ({
 }))
 
 const applyFilters = () => {
-  router.get(route('repuestos.index'), {
+  router.get(route('inventario.index'), {
     ...paginationQuery.value
   }, {
     preserveState: false,
@@ -68,16 +68,16 @@ const formatMoney = (value: number) =>
   new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(value)
 
 const destroy = (id: string) => {
-  if (!confirm('¿Eliminar este repuesto? Si ya se usó en órdenes, se desactivará en lugar de borrarse.')) return
-  router.delete(route('repuestos.destroy', id))
+  if (!confirm('¿Eliminar este ítem del inventario? Si ya se usó en órdenes, se desactivará en lugar de borrarse.')) return
+  router.delete(route('inventario.destroy', id))
 }
 
 const stockOpen = ref(false)
 const stockSaving = ref(false)
-const stockTarget = ref<Repuesto | null>(null)
+const stockTarget = ref<ItemInventario | null>(null)
 const stockValue = ref(0)
 
-const openStock = (item: Repuesto) => {
+const openStock = (item: ItemInventario) => {
   stockTarget.value = item
   stockValue.value = item.stock
   stockOpen.value = true
@@ -86,7 +86,7 @@ const openStock = (item: Repuesto) => {
 const saveStock = () => {
   if (!stockTarget.value) return
   stockSaving.value = true
-  router.patch(route('repuestos.stock', stockTarget.value.id), {
+  router.patch(route('inventario.stock', stockTarget.value.id), {
     stock: stockValue.value
   }, {
     preserveScroll: true,
@@ -99,14 +99,22 @@ const saveStock = () => {
 </script>
 
 <template>
-  <AppDashboardPanel id="repuestos">
+  <AppDashboardPanel id="inventario">
     <template #header>
-      <UDashboardNavbar title="Repuestos">
+      <UDashboardNavbar title="Inventario">
         <template #leading>
           <UDashboardSidebarCollapse />
         </template>
         <template #right>
-          <UButton icon="i-lucide-plus" label="Nuevo repuesto" :to="route('repuestos.create')" />
+          <div class="flex gap-2">
+            <UButton
+              icon="i-lucide-bar-chart-3"
+              label="Ver reportes"
+              variant="soft"
+              :to="route('reportes.index')"
+            />
+            <UButton icon="i-lucide-plus" label="Nuevo ítem" :to="route('inventario.create')" />
+          </div>
         </template>
       </UDashboardNavbar>
     </template>
@@ -152,31 +160,31 @@ const saveStock = () => {
               </thead>
               <tbody>
                 <tr
-                  v-for="repuesto in (repuestos?.data || []) as Repuesto[]"
-                  :key="repuesto.id"
+                  v-for="item in (inventario?.data || []) as ItemInventario[]"
+                  :key="item.id"
                   class="border-b border-default/60"
                 >
-                  <td class="py-3 pr-3 font-medium">{{ repuesto.codigo }}</td>
+                  <td class="py-3 pr-3 font-medium">{{ item.codigo }}</td>
                   <td class="py-3 pr-3">
-                    <p>{{ repuesto.nombre }}</p>
-                    <p v-if="repuesto.proveedor" class="text-xs text-muted">{{ repuesto.proveedor }}</p>
+                    <p>{{ item.nombre }}</p>
+                    <p v-if="item.proveedor" class="text-xs text-muted">{{ item.proveedor }}</p>
                   </td>
-                  <td class="py-3 pr-3">{{ repuesto.categoria || '—' }}</td>
-                  <td class="py-3 pr-3">{{ formatMoney(repuesto.precio) }}</td>
+                  <td class="py-3 pr-3">{{ item.categoria || '—' }}</td>
+                  <td class="py-3 pr-3">{{ formatMoney(item.precio) }}</td>
                   <td class="py-3 pr-3">
                     <button
                       type="button"
                       class="inline-flex items-center gap-1 hover:underline"
-                      :class="repuesto.stock <= repuesto.stockMinimo ? 'text-error font-medium' : ''"
-                      @click="openStock(repuesto)"
+                      :class="item.stock <= item.stockMinimo ? 'text-error font-medium' : ''"
+                      @click="openStock(item)"
                     >
-                      {{ repuesto.stock }}
-                      <span class="text-xs text-muted font-normal">/ min {{ repuesto.stockMinimo }}</span>
+                      {{ item.stock }}
+                      <span class="text-xs text-muted font-normal">/ min {{ item.stockMinimo }}</span>
                     </button>
                   </td>
                   <td class="py-3 pr-3">
-                    <UBadge :color="repuesto.activo ? 'success' : 'neutral'" variant="subtle">
-                      {{ repuesto.activo ? 'Activo' : 'Inactivo' }}
+                    <UBadge :color="item.activo ? 'success' : 'neutral'" variant="subtle">
+                      {{ item.activo ? 'Activo' : 'Inactivo' }}
                     </UBadge>
                   </td>
                   <td class="py-3 flex gap-1">
@@ -185,30 +193,30 @@ const saveStock = () => {
                       variant="ghost"
                       icon="i-lucide-package-plus"
                       title="Ajustar stock"
-                      @click="openStock(repuesto)"
+                      @click="openStock(item)"
                     />
                     <UButton
                       size="xs"
                       variant="ghost"
                       icon="i-lucide-pencil"
-                      :to="route('repuestos.edit', repuesto.id)"
+                      :to="route('inventario.edit', item.id)"
                     />
                     <UButton
                       size="xs"
                       color="error"
                       variant="ghost"
                       icon="i-lucide-trash"
-                      @click="destroy(repuesto.id)"
+                      @click="destroy(item.id)"
                     />
                   </td>
                 </tr>
-                <tr v-if="!(repuestos?.data || []).length">
-                  <td colspan="7" class="py-8 text-center text-muted">No hay repuestos con esos filtros.</td>
+                <tr v-if="!(inventario?.data || []).length">
+                  <td colspan="7" class="py-8 text-center text-muted">No hay ítems con esos filtros.</td>
                 </tr>
               </tbody>
             </table>
           </div>
-          <AppPagination :meta="repuestos?.meta" :query="paginationQuery" />
+          <AppPagination :meta="inventario?.meta" :query="paginationQuery" />
         </UCard>
       </div>
 

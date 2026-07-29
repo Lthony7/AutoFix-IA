@@ -2,7 +2,9 @@
 
 namespace Database\Seeders;
 
+use App\Enums\UserRole;
 use Illuminate\Database\Seeder;
+use Src\Auth\Infrastructure\Models\UserEloquentModel;
 use Src\Mecanico\Infrastructure\Models\MecanicoEloquentModel;
 
 class MecanicosTallerSeeder extends Seeder
@@ -121,15 +123,48 @@ class MecanicosTallerSeeder extends Seeder
         ];
 
         foreach ($mecanicos as $mecanico) {
+            $email = $mecanico['email'] ?: ('mecanico'.$mecanico['documento'].'@autofix.test');
+            $nombre = trim($mecanico['nombres'].' '.$mecanico['apellidos']);
+
+            $user = UserEloquentModel::updateOrCreate(
+                ['email' => $email],
+                [
+                    'name' => $nombre,
+                    'password' => 'password',
+                    'role' => UserRole::Mecanico,
+                    'activo' => true,
+                ]
+            );
+
             MecanicoEloquentModel::updateOrCreate(
                 ['documento' => $mecanico['documento']],
                 array_merge($mecanico, [
-                    'user_id' => null,
+                    'email' => $email,
+                    'user_id' => $user->id,
                     'activo' => true,
                 ])
             );
         }
 
-        $this->command?->info('Se insertaron/actualizaron '.count($mecanicos).' mecánicos especialistas del taller.');
+        MecanicoEloquentModel::query()
+            ->whereNull('user_id')
+            ->each(function (MecanicoEloquentModel $mecanico) {
+                $email = $mecanico->email ?: ('mecanico'.$mecanico->documento.'@autofix.test');
+                $nombre = trim(($mecanico->nombres ?? '').' '.($mecanico->apellidos ?? '')) ?: 'Mecánico';
+
+                $user = UserEloquentModel::updateOrCreate(
+                    ['email' => $email],
+                    [
+                        'name' => $nombre,
+                        'password' => 'password',
+                        'role' => UserRole::Mecanico,
+                        'activo' => true,
+                    ]
+                );
+
+                $mecanico->update(['user_id' => $user->id, 'email' => $email]);
+            });
+
+        $this->command?->info('Se insertaron/actualizaron '.count($mecanicos).' mecánicos con usuario de acceso.');
     }
 }
