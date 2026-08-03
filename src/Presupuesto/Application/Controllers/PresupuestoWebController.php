@@ -39,11 +39,23 @@ class PresupuestoWebController extends Controller
             ->withQueryString()
             ->through(fn (PresupuestoEloquentModel $p) => $this->lineas->mapPresupuesto($p, false));
 
+        $counts = PresupuestoEloquentModel::query()
+            ->selectRaw('estado, COUNT(*) as total')
+            ->groupBy('estado')
+            ->pluck('total', 'estado');
+
         return Inertia::render('Presupuesto/index', [
             'presupuestos' => InertiaTablePaginator::make($paginator),
             'filters' => [
                 'q' => $request->query('q', ''),
                 'estado' => $request->query('estado', ''),
+            ],
+            'stats' => [
+                'total' => (int) PresupuestoEloquentModel::count(),
+                'guardado' => (int) ($counts['guardado'] ?? 0) + (int) ($counts['borrador'] ?? 0),
+                'vinculado' => (int) ($counts['vinculado_cita'] ?? 0),
+                'vencido' => (int) ($counts['vencido'] ?? 0),
+                'cancelado' => (int) ($counts['cancelado'] ?? 0),
             ],
         ]);
     }

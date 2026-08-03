@@ -60,8 +60,27 @@ class DiagnosticoIaWebController extends Controller
                 'createdAt' => $d->created_at?->format('Y-m-d H:i:s'),
             ]);
 
+        $countsQuery = DiagnosticoIaEloquentModel::query();
+        if ($request->user()->hasRole(UserRole::Mecanico)) {
+            $mecanicoId = $request->user()->mecanico?->id;
+            $countsQuery->whereHas('ordenTrabajo', fn ($q) => $q->where('mecanico_id', $mecanicoId));
+        }
+
+        $counts = (clone $countsQuery)
+            ->selectRaw('estado, COUNT(*) as total')
+            ->groupBy('estado')
+            ->pluck('total', 'estado');
+
         return Inertia::render('DiagnosticoIA/index', [
             'diagnosticos' => InertiaTablePaginator::make($paginator),
+            'stats' => [
+                'total' => (int) (clone $countsQuery)->count(),
+                'pendientes' => (int) ($counts[SugerenciaIaEstado::Generada->value] ?? 0)
+                    + (int) ($counts[SugerenciaIaEstado::EnRevision->value] ?? 0),
+                'confirmada' => (int) ($counts[SugerenciaIaEstado::Confirmada->value] ?? 0)
+                    + (int) ($counts[SugerenciaIaEstado::Modificada->value] ?? 0),
+                'descartada' => (int) ($counts[SugerenciaIaEstado::Descartada->value] ?? 0),
+            ],
         ]);
     }
 

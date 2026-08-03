@@ -25,16 +25,36 @@ class FacturaWebController extends Controller
     ) {
     }
 
-    public function index(): Response
+    public function index(Request $request): Response
     {
-        $paginator = FacturaEloquentModel::with(['cliente', 'ordenTrabajo'])
-            ->orderByDesc('created_at')
+        $estado = trim((string) $request->query('estado', ''));
+        $query = FacturaEloquentModel::with(['cliente', 'ordenTrabajo'])
+            ->orderByDesc('created_at');
+
+        if ($estado !== '' && in_array($estado, FacturaEstado::values(), true)) {
+            $query->where('estado', $estado);
+        }
+
+        $paginator = $query
             ->paginate(InertiaTablePaginator::PER_PAGE)
             ->withQueryString()
             ->through(fn (FacturaEloquentModel $f) => $this->mapFactura($f));
 
+        $counts = FacturaEloquentModel::query()
+            ->selectRaw('estado, COUNT(*) as total')
+            ->groupBy('estado')
+            ->pluck('total', 'estado');
+
         return Inertia::render('Factura/index', [
             'facturas' => InertiaTablePaginator::make($paginator),
+            'filters' => ['estado' => $estado],
+            'stats' => [
+                'total' => (int) FacturaEloquentModel::count(),
+                'borrador' => (int) ($counts[FacturaEstado::Borrador->value] ?? 0),
+                'emitida' => (int) ($counts[FacturaEstado::Emitida->value] ?? 0),
+                'pagada' => (int) ($counts[FacturaEstado::Pagada->value] ?? 0),
+                'anulada' => (int) ($counts[FacturaEstado::Anulada->value] ?? 0),
+            ],
         ]);
     }
 

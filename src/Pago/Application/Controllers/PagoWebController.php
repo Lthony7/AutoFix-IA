@@ -19,16 +19,40 @@ use Src\Pago\Infrastructure\Requests\UpdatePagoRequest;
 
 class PagoWebController extends Controller
 {
-    public function index(): Response
+    public function index(Request $request): Response
     {
-        $paginator = PagoEloquentModel::with(['ordenTrabajo.cliente', 'ordenTrabajo.vehiculo'])
-            ->orderByDesc('created_at')
+        $estado = trim((string) $request->query('estado', ''));
+        $query = PagoEloquentModel::with(['ordenTrabajo.cliente', 'ordenTrabajo.vehiculo'])
+            ->orderByDesc('created_at');
+
+        if ($estado !== '' && in_array($estado, PagoEstado::values(), true)) {
+            $query->where('estado', $estado);
+        }
+
+        $paginator = $query
             ->paginate(InertiaTablePaginator::PER_PAGE)
             ->withQueryString()
             ->through(fn (PagoEloquentModel $p) => $this->mapPago($p));
 
+        $counts = PagoEloquentModel::query()
+            ->selectRaw('estado, COUNT(*) as total')
+            ->groupBy('estado')
+            ->pluck('total', 'estado');
+
+        $ingresosMes = (float) PagoEloquentModel::query()
+            ->where('estado', PagoEstado::Pagado->value)
+            ->where('created_at', '>=', now()->copy()->startOfMonth())
+            ->sum('total');
+
         return Inertia::render('Pago/index', [
             'pagos' => InertiaTablePaginator::make($paginator),
+            'filters' => ['estado' => $estado],
+            'stats' => [
+                'pagado' => (int) ($counts[PagoEstado::Pagado->value] ?? 0),
+                'pendiente' => (int) ($counts[PagoEstado::Pendiente->value] ?? 0),
+                'anulado' => (int) ($counts[PagoEstado::Anulado->value] ?? 0),
+                'ingresosMes' => $ingresosMes,
+            ],
         ]);
     }
 

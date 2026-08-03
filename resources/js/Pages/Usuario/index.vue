@@ -3,6 +3,8 @@ import { computed, ref, watch } from 'vue'
 import { router, usePage } from '@inertiajs/vue3'
 import { route } from 'ziggy-js'
 import FormField from '../../components/FormField.vue'
+import MetricStatCards, { type MetricCard } from '../../components/MetricStatCards.vue'
+import ModulePanel from '../../components/ModulePanel.vue'
 
 interface Usuario {
   id: string
@@ -35,15 +37,58 @@ watch(
   }
 )
 
-const roleColor = (role?: string) => {
+const badgeClass = (role?: string) => {
   const map: Record<string, string> = {
-    administrador: 'primary',
-    recepcionista: 'info',
-    mecanico: 'warning',
-    cliente: 'success'
+    administrador: 'autofix-badge-solid--warn',
+    recepcionista: 'autofix-badge-solid--ok',
+    mecanico: 'autofix-badge-solid--neutral',
+    cliente: 'autofix-badge-solid--ok'
   }
-  return map[role || ''] || 'neutral'
+  return map[role || ''] || 'autofix-badge-solid--neutral'
 }
+
+const roleUrl = (role: string) => {
+  const params = new URLSearchParams()
+  if (q.value) params.set('q', q.value)
+  if (role) params.set('role', role)
+  const qs = params.toString()
+  return route('usuarios.index') + (qs ? `?${qs}` : '')
+}
+
+const metricCards = computed((): MetricCard[] => [
+  {
+    key: 'total',
+    title: 'Total',
+    value: stats.value.total ?? 0,
+    icon: 'i-lucide-users',
+    tone: 'green',
+    to: roleUrl('')
+  },
+  {
+    key: 'administrador',
+    title: 'Administradores',
+    value: stats.value.administrador ?? 0,
+    icon: 'i-lucide-shield',
+    tone: 'purple',
+    to: roleUrl('administrador')
+  },
+  {
+    key: 'recepcionista',
+    title: 'Recepcionistas',
+    value: stats.value.recepcionista ?? 0,
+    icon: 'i-lucide-headset',
+    tone: 'blue',
+    to: roleUrl('recepcionista')
+  },
+  {
+    key: 'mecanico',
+    title: 'Mecánicos',
+    value: stats.value.mecanico ?? 0,
+    icon: 'i-lucide-wrench',
+    tone: 'lime',
+    to: roleUrl('mecanico')
+  }
+])
 
 const aplicarFiltros = () => {
   router.get(route('usuarios.index'), {
@@ -53,11 +98,6 @@ const aplicarFiltros = () => {
     preserveState: true,
     replace: true
   })
-}
-
-const filtrarPorRol = (role: string) => {
-  roleFilter.value = roleFilter.value === role ? '' : role
-  aplicarFiltros()
 }
 
 const destroy = (id: string) => {
@@ -73,38 +113,27 @@ const destroy = (id: string) => {
         <template #leading>
           <UDashboardSidebarCollapse />
         </template>
-        <template #right>
-          <UButton icon="i-lucide-plus" label="Nuevo usuario" :to="route('usuarios.create')" />
-        </template>
       </UDashboardNavbar>
     </template>
 
     <template #body>
       <div class="space-y-4">
-        <div class="grid grid-cols-2 lg:grid-cols-5 gap-3">
-          <button
-            type="button"
-            class="rounded-lg border border-default p-3 text-left transition-colors hover:bg-elevated/50"
-            :class="!roleFilter ? 'ring-1 ring-primary/40 bg-primary/5' : ''"
-            @click="roleFilter = ''; aplicarFiltros()"
-          >
-            <p class="text-xs uppercase tracking-wide text-muted">Total</p>
-            <p class="mt-1 text-2xl font-semibold">{{ stats.total ?? 0 }}</p>
-          </button>
-          <button
-            v-for="rol in roles"
-            :key="rol.value"
-            type="button"
-            class="rounded-lg border border-default p-3 text-left transition-colors hover:bg-elevated/50"
-            :class="roleFilter === rol.value ? 'ring-1 ring-primary/40 bg-primary/5' : ''"
-            @click="filtrarPorRol(rol.value)"
-          >
-            <p class="text-xs uppercase tracking-wide text-muted">{{ rol.label }}</p>
-            <p class="mt-1 text-2xl font-semibold">{{ stats[rol.value] ?? 0 }}</p>
-          </button>
-        </div>
+        <MetricStatCards
+          :cards="metricCards"
+          :columns="4"
+          :model-value="roleFilter || 'total'"
+        />
 
-        <UCard>
+        <ModulePanel title="Usuarios">
+          <template #actions>
+            <UButton
+              icon="i-lucide-plus"
+              label="Nuevo usuario"
+              color="success"
+              :to="route('usuarios.create')"
+            />
+          </template>
+
           <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
             <FormField label="Buscar" name="q" class="md:col-span-2">
               <UInput
@@ -148,14 +177,17 @@ const destroy = (id: string) => {
                   <td class="py-3 pr-3 font-medium">{{ user.name }}</td>
                   <td class="py-3 pr-3">{{ user.email }}</td>
                   <td class="py-3 pr-3">
-                    <UBadge :color="roleColor(user.role) as any" variant="subtle">
+                    <span class="autofix-badge-solid" :class="badgeClass(user.role)">
                       {{ user.roleLabel }}
-                    </UBadge>
+                    </span>
                   </td>
                   <td class="py-3 pr-3">
-                    <UBadge :color="user.activo ? 'success' : 'neutral'" variant="subtle">
+                    <span
+                      class="autofix-badge-solid"
+                      :class="user.activo ? 'autofix-badge-solid--ok' : 'autofix-badge-solid--neutral'"
+                    >
                       {{ user.activo ? 'Activo' : 'Inactivo' }}
-                    </UBadge>
+                    </span>
                   </td>
                   <td class="py-3 flex gap-2">
                     <UButton size="xs" variant="ghost" icon="i-lucide-pencil" :to="route('usuarios.edit', user.id)" />
@@ -169,7 +201,7 @@ const destroy = (id: string) => {
             </p>
           </div>
           <AppPagination :meta="users?.meta" />
-        </UCard>
+        </ModulePanel>
       </div>
     </template>
   </AppDashboardPanel>

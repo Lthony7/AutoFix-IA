@@ -27,6 +27,12 @@ class VehiculoWebController extends Controller
         return Inertia::render('Vehiculo/index', [
             'vehiculos' => InertiaTablePaginator::make($paginator),
             'clientes' => $this->clientesOptions(),
+            'stats' => [
+                'total' => VehiculoEloquentModel::count(),
+                'active' => VehiculoEloquentModel::where('activo', true)->count(),
+                'inactive' => VehiculoEloquentModel::where('activo', false)->count(),
+                'month' => VehiculoEloquentModel::where('created_at', '>=', now()->copy()->startOfMonth())->count(),
+            ],
         ]);
     }
 

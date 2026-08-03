@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import { usePage } from '@inertiajs/vue3'
 import { route } from 'ziggy-js'
+import MetricStatCards, { type MetricCard } from '../../components/MetricStatCards.vue'
 
 interface Stats {
   totalOrdenes: number
@@ -38,6 +39,38 @@ const puedeExportar = computed(() => role.value === 'administrador' || role.valu
 
 const formatMoney = (value: number) =>
   new Intl.NumberFormat('es-EC', { style: 'currency', currency: 'USD' }).format(value)
+
+const metricCards = computed((): MetricCard[] => [
+  {
+    key: 'ordenes',
+    title: 'Total órdenes',
+    value: stats.value?.totalOrdenes ?? 0,
+    icon: 'i-lucide-clipboard-list',
+    tone: 'green'
+  },
+  {
+    key: 'ingresos',
+    title: 'Ingresos (pagados)',
+    value: formatMoney(stats.value?.totalIngresos ?? 0),
+    icon: 'i-lucide-wallet',
+    tone: 'ok'
+  },
+  {
+    key: 'inventario',
+    title: 'Ítems activos',
+    value: stats.value?.inventarioResumen?.activos ?? 0,
+    icon: 'i-lucide-package',
+    tone: 'blue'
+  },
+  {
+    key: 'stock',
+    title: 'Stock bajo / sin stock',
+    value: `${stats.value?.inventarioResumen?.stockBajo ?? 0} / ${stats.value?.inventarioResumen?.sinStock ?? 0}`,
+    icon: 'i-lucide-package-x',
+    tone: 'danger',
+    to: route('inventario.index', { stock_estado: 'bajo' })
+  }
+])
 </script>
 
 <template>
@@ -78,32 +111,7 @@ const formatMoney = (value: number) =>
 
     <template #body>
       <div class="space-y-6">
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <UCard>
-            <p class="text-sm text-muted">Total órdenes</p>
-            <p class="text-2xl font-semibold">{{ stats?.totalOrdenes ?? 0 }}</p>
-          </UCard>
-          <UCard>
-            <p class="text-sm text-muted">Ingresos (pagados)</p>
-            <p class="text-2xl font-semibold">{{ formatMoney(stats?.totalIngresos ?? 0) }}</p>
-          </UCard>
-          <UCard>
-            <p class="text-sm text-muted">Ítems inventario</p>
-            <p class="text-2xl font-semibold">{{ stats?.inventarioResumen?.activos ?? 0 }}</p>
-            <p class="text-xs text-muted mt-1">
-              Valor stock: {{ formatMoney(stats?.inventarioResumen?.valorStock ?? 0) }}
-            </p>
-          </UCard>
-          <UCard>
-            <p class="text-sm text-muted">Stock bajo / sin stock</p>
-            <p class="text-2xl font-semibold">
-              {{ stats?.inventarioResumen?.stockBajo ?? 0 }}
-              <span class="text-base text-muted font-normal">
-                / {{ stats?.inventarioResumen?.sinStock ?? 0 }}
-              </span>
-            </p>
-          </UCard>
-        </div>
+        <MetricStatCards :cards="metricCards" :columns="4" />
 
         <UCard>
           <div class="flex items-center justify-between gap-3 mb-4">

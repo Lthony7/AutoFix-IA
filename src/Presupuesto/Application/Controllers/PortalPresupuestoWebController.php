@@ -36,6 +36,8 @@ class PortalPresupuestoWebController extends Controller
             return $redirect;
         }
 
+        $base = PresupuestoEloquentModel::query()->where('cliente_id', $cliente->id);
+
         $paginator = PresupuestoEloquentModel::with(['vehiculo'])
             ->where('cliente_id', $cliente->id)
             ->orderByDesc('created_at')
@@ -43,8 +45,21 @@ class PortalPresupuestoWebController extends Controller
             ->withQueryString()
             ->through(fn (PresupuestoEloquentModel $p) => $this->lineas->mapPresupuesto($p, false));
 
+        $counts = (clone $base)
+            ->selectRaw('estado, COUNT(*) as total')
+            ->groupBy('estado')
+            ->pluck('total', 'estado');
+
         return Inertia::render('Portal/Presupuestos/index', [
             'presupuestos' => InertiaTablePaginator::make($paginator),
+            'stats' => [
+                'total' => (int) (clone $base)->count(),
+                'guardado' => (int) ($counts[PresupuestoEstado::Guardado->value] ?? 0)
+                    + (int) ($counts[PresupuestoEstado::Borrador->value] ?? 0),
+                'vinculado' => (int) ($counts[PresupuestoEstado::VinculadoCita->value] ?? 0),
+                'vencido' => (int) ($counts[PresupuestoEstado::Vencido->value] ?? 0),
+                'cancelado' => (int) ($counts[PresupuestoEstado::Cancelado->value] ?? 0),
+            ],
         ]);
     }
 

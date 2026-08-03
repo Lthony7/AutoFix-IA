@@ -2,6 +2,8 @@
 import { computed } from 'vue'
 import { usePage } from '@inertiajs/vue3'
 import { route } from 'ziggy-js'
+import MetricStatCards, { type MetricCard } from '../components/MetricStatCards.vue'
+import ModulePanel from '../components/ModulePanel.vue'
 
 interface Metrics {
   ordenesAbiertas: number
@@ -27,51 +29,59 @@ const vista = computed(() => ((page.props as any).vista as string) || 'taller')
 const formatMoney = (value: number) =>
   new Intl.NumberFormat('es-EC', { style: 'currency', currency: 'USD' }).format(value || 0)
 
-const cards = computed(() => {
-  const base = [
+const metricCards = computed((): MetricCard[] => {
+  const base: MetricCard[] = [
     {
+      key: 'ordenes',
       title: vista.value === 'cliente' ? 'Mis órdenes abiertas' : 'Órdenes abiertas',
       value: metrics.value.ordenesAbiertas ?? 0,
       icon: 'i-lucide-clipboard-list',
-      to: vista.value === 'cliente' ? route('portal.mis-ordenes') : route('ordenes.index'),
-      show: true
+      tone: 'warn',
+      to: vista.value === 'cliente' ? route('portal.mis-ordenes') : route('ordenes.index')
     },
     {
+      key: 'facturas',
       title: 'Facturas pendientes',
       value: metrics.value.facturasPendientes ?? 0,
       icon: 'i-lucide-file-text',
-      to: route('facturas.index'),
-      show: vista.value === 'taller'
+      tone: 'blue',
+      to: route('facturas.index')
     },
     {
+      key: 'ingresos',
       title: 'Ingresos del mes',
       value: formatMoney(metrics.value.ingresosMes ?? 0),
       icon: 'i-lucide-wallet',
-      to: route('pagos.index'),
-      show: vista.value === 'taller'
+      tone: 'ok',
+      to: route('pagos.index')
     },
     {
+      key: 'clientes',
       title: 'Clientes activos',
       value: metrics.value.clientesActivos ?? 0,
       icon: 'i-lucide-users',
-      to: route('clientes.index'),
-      show: vista.value === 'taller'
+      tone: 'green',
+      to: route('clientes.index')
     }
   ]
 
-  return base.filter(c => c.show)
+  if (vista.value === 'cliente') {
+    return [base[0]]
+  }
+
+  return base
 })
 
-const estadoColor = (estado: string) => {
+const badgeClass = (estado: string) => {
   const map: Record<string, string> = {
-    pendiente: 'warning',
-    en_diagnostico: 'info',
-    en_reparacion: 'primary',
-    finalizada: 'success',
-    entregada: 'success',
-    cancelada: 'error'
+    pendiente: 'autofix-badge-solid--warn',
+    en_diagnostico: 'autofix-badge-solid--warn',
+    en_reparacion: 'autofix-badge-solid--ok',
+    finalizada: 'autofix-badge-solid--ok',
+    entregada: 'autofix-badge-solid--ok',
+    cancelada: 'autofix-badge-solid--danger'
   }
-  return map[estado] || 'neutral'
+  return map[estado] || 'autofix-badge-solid--neutral'
 }
 </script>
 
@@ -86,55 +96,43 @@ const estadoColor = (estado: string) => {
     </template>
 
     <template #body>
-      <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
-        <UPageCard
-          v-for="card in cards"
-          :key="card.title"
-          :icon="card.icon"
-          :title="card.title"
-          :to="card.to"
-          variant="subtle"
-        >
-          <span class="text-2xl font-semibold">{{ card.value }}</span>
-        </UPageCard>
-      </div>
+      <div class="space-y-4">
+        <MetricStatCards :cards="metricCards" :columns="vista === 'cliente' ? 3 : 4" />
 
-      <UCard>
-        <template #header>
-          <h3 class="font-medium">Órdenes recientes</h3>
-        </template>
-        <div class="overflow-x-auto">
-          <table class="w-full text-sm">
-            <thead>
-              <tr class="text-left border-b border-default">
-                <th class="py-2 pr-2">Número</th>
-                <th class="py-2 pr-2">Cliente</th>
-                <th class="py-2 pr-2">Placa</th>
-                <th class="py-2">Estado</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr
-                v-for="orden in ordenesRecientes"
-                :key="orden.id"
-                class="border-b border-default/50"
-              >
-                <td class="py-2 pr-2 font-medium">{{ orden.numero }}</td>
-                <td class="py-2 pr-2">{{ orden.clienteNombre || '—' }}</td>
-                <td class="py-2 pr-2">{{ orden.vehiculoPlaca || '—' }}</td>
-                <td class="py-2">
-                  <UBadge :color="estadoColor(orden.estado) as any" variant="subtle">
-                    {{ orden.estadoLabel }}
-                  </UBadge>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-          <p v-if="!ordenesRecientes.length" class="py-6 text-center text-muted text-sm">
-            Aún no hay órdenes registradas.
-          </p>
-        </div>
-      </UCard>
+        <ModulePanel title="Órdenes recientes">
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="text-left border-b border-default">
+                  <th class="py-2 pr-2">Número</th>
+                  <th class="py-2 pr-2">Cliente</th>
+                  <th class="py-2 pr-2">Placa</th>
+                  <th class="py-2">Estado</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr
+                  v-for="orden in ordenesRecientes"
+                  :key="orden.id"
+                  class="border-b border-default/50"
+                >
+                  <td class="py-2 pr-2 font-medium">{{ orden.numero }}</td>
+                  <td class="py-2 pr-2">{{ orden.clienteNombre || '—' }}</td>
+                  <td class="py-2 pr-2">{{ orden.vehiculoPlaca || '—' }}</td>
+                  <td class="py-2">
+                    <span class="autofix-badge-solid" :class="badgeClass(orden.estado)">
+                      {{ orden.estadoLabel }}
+                    </span>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+            <p v-if="!ordenesRecientes.length" class="py-6 text-center text-muted text-sm">
+              Aún no hay órdenes registradas.
+            </p>
+          </div>
+        </ModulePanel>
+      </div>
     </template>
   </AppDashboardPanel>
 </template>

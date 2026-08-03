@@ -27,6 +27,14 @@ class MecanicoWebController extends Controller
 
         return Inertia::render('Mecanico/index', [
             'mecanicos' => InertiaTablePaginator::make($paginator),
+            'stats' => [
+                'total' => MecanicoEloquentModel::count(),
+                'active' => MecanicoEloquentModel::where('activo', true)->count(),
+                'inactive' => MecanicoEloquentModel::where('activo', false)->count(),
+                'withSchedule' => MecanicoEloquentModel::whereNotNull('horario_disponible')
+                    ->where('horario_disponible', '!=', '')
+                    ->count(),
+            ],
         ]);
     }
 

@@ -26,6 +26,12 @@ class ServicioWebController extends Controller
 
         return Inertia::render('Servicio/index', [
             'servicios' => InertiaTablePaginator::make($paginator),
+            'stats' => [
+                'total' => ServicioEloquentModel::count(),
+                'active' => ServicioEloquentModel::where('activo', true)->count(),
+                'inactive' => ServicioEloquentModel::where('activo', false)->count(),
+                'avgPrice' => round((float) ServicioEloquentModel::avg('precio'), 2),
+            ],
         ]);
     }
 
