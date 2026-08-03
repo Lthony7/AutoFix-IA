@@ -81,11 +81,13 @@ const metricCards = computed((): MetricCard[] => [
           <UDashboardSidebarCollapse />
         </template>
         <template #right>
-          <div v-if="puedeExportar" class="flex gap-2">
+          <div v-if="puedeExportar" class="flex max-w-[55vw] flex-wrap justify-end gap-1 sm:max-w-none sm:gap-2">
             <UButton
               icon="i-lucide-package"
               label="Inventario"
               variant="soft"
+              size="xs"
+              class="hidden sm:inline-flex"
               :to="route('inventario.index')"
             />
             <a :href="route('reportes.export.excel')">
@@ -94,6 +96,7 @@ const metricCards = computed((): MetricCard[] => [
                 label="Excel"
                 variant="soft"
                 color="success"
+                size="xs"
               />
             </a>
             <a :href="route('reportes.export.pdf')">
@@ -102,6 +105,7 @@ const metricCards = computed((): MetricCard[] => [
                 label="PDF"
                 variant="soft"
                 color="error"
+                size="xs"
               />
             </a>
           </div>

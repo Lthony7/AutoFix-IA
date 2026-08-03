@@ -71,7 +71,7 @@ const metricCards = computed((): MetricCard[] => [
 <template>
   <AppDashboardPanel id="diagnosticos-ia">
     <template #header>
-      <UDashboardNavbar title="Diagnósticos IA">
+      <UDashboardNavbar title="Diagnóstico IA">
         <template #leading>
           <UDashboardSidebarCollapse />
         </template>

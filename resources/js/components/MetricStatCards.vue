@@ -45,7 +45,7 @@ defineProps<{
       :data-clickable="card.to ? 'true' : 'false'"
     >
       <div class="autofix-metric-icon" aria-hidden="true">
-        <UIcon :name="card.icon || 'i-lucide-circle'" class="size-6" />
+        <UIcon :name="card.icon || 'i-lucide-circle'" class="size-5 sm:size-6" />
       </div>
       <div class="autofix-metric-body">
         <p class="autofix-metric-title">{{ card.title }}</p>

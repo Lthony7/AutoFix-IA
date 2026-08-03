@@ -75,7 +75,7 @@ const cancelar = (p: Presupuesto) => {
 <template>
   <AppDashboardPanel id="portal-presupuestos">
     <template #header>
-      <UDashboardNavbar title="Mis presupuestos">
+      <UDashboardNavbar title="Presupuestos">
         <template #leading>
           <UDashboardSidebarCollapse />
         </template>

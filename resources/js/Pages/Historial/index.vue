@@ -29,7 +29,7 @@ const buscar = () => {
 <template>
   <AppDashboardPanel id="historial-index">
     <template #header>
-      <UDashboardNavbar title="Historial de vehículos">
+      <UDashboardNavbar title="Historial">
         <template #leading>
           <UDashboardSidebarCollapse />
         </template>

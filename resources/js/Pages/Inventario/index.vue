@@ -199,12 +199,14 @@ const saveStock = () => {
               label="Reportes"
               variant="soft"
               color="neutral"
+              size="sm"
               :to="route('reportes.index')"
             />
             <UButton
               icon="i-lucide-plus"
-              label="Nuevo ítem"
+              label="Nuevo"
               color="success"
+              size="sm"
               :to="route('inventario.create')"
             />
           </template>

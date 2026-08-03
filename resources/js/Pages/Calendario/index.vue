@@ -501,17 +501,33 @@ const enlaceOrden = (evento: Evento) => {
           <UDashboardSidebarCollapse />
         </template>
         <template #right>
-          <div class="flex flex-wrap items-center gap-2">
+          <div class="flex max-w-[58vw] flex-wrap items-center justify-end gap-1.5 sm:max-w-none sm:gap-2">
+            <UButton
+              :variant="vista === 'dia' ? 'solid' : 'soft'"
+              label="Día"
+              size="xs"
+              class="sm:hidden"
+              @click="navigate({ vista: 'dia' })"
+            />
+            <UButton
+              :variant="vista === 'semana' ? 'solid' : 'soft'"
+              label="Sem."
+              size="xs"
+              class="sm:hidden"
+              @click="navigate({ vista: 'semana' })"
+            />
             <UButton
               :variant="vista === 'dia' ? 'solid' : 'soft'"
               label="Día"
               size="sm"
+              class="hidden sm:inline-flex"
               @click="navigate({ vista: 'dia' })"
             />
             <UButton
               :variant="vista === 'semana' ? 'solid' : 'soft'"
               label="Semana"
               size="sm"
+              class="hidden sm:inline-flex"
               @click="navigate({ vista: 'semana' })"
             />
 

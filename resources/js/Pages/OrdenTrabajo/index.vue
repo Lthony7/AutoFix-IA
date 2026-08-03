@@ -99,7 +99,7 @@ const semaforoCards = computed((): SemaforoCard[] => [
 <template>
   <AppDashboardPanel id="ordenes">
     <template #header>
-      <UDashboardNavbar title="Órdenes de trabajo">
+      <UDashboardNavbar title="Órdenes">
         <template #leading>
           <UDashboardSidebarCollapse />
         </template>
@@ -113,13 +113,14 @@ const semaforoCards = computed((): SemaforoCard[] => [
           :model-value="semaforo || null"
         />
 
-        <ModulePanel title="Órdenes de trabajo">
+        <ModulePanel title="Órdenes">
           <template #actions>
             <UButton
               v-if="role !== 'mecanico'"
               icon="i-lucide-plus"
               label="Nueva orden"
               color="success"
+              size="sm"
               :to="route('ordenes.create')"
             />
           </template>

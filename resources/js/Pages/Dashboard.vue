@@ -88,7 +88,7 @@ const badgeClass = (estado: string) => {
 <template>
   <AppDashboardPanel id="home">
     <template #header>
-      <UDashboardNavbar title="Dashboard AUTOFIX IA">
+      <UDashboardNavbar title="Dashboard">
         <template #leading>
           <UDashboardSidebarCollapse />
         </template>
