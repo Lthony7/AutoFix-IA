@@ -1,18 +1,15 @@
 # AUTOFIX IA — build multi-etapa para Render
-# 1) Frontend (Node)  2) Runtime (PHP 8.4 + Composer)
+# 1) Frontend (Node/npm)  2) Runtime (PHP 8.4 + Composer)
 
 # ---------- Frontend ----------
 FROM node:22-bookworm AS frontend
 WORKDIR /app
 
-RUN corepack enable && corepack prepare pnpm@latest --activate
+COPY package.json package-lock.json ./
+RUN npm ci
 
-COPY package.json pnpm-lock.yaml ./
-RUN pnpm install --frozen-lockfile
-
-# Código necesario para Vite (vendor/node_modules ya van en .dockerignore)
 COPY . .
-RUN pnpm run build
+RUN npm run build
 
 # ---------- PHP runtime ----------
 FROM php:8.4-cli-bookworm
