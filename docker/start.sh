@@ -16,12 +16,22 @@ fi
 
 PORT="${PORT:-10000}"
 
+if [ -z "${APP_KEY:-}" ]; then
+  echo "ERROR: Falta APP_KEY."
+  echo "En Render → Environment agrega APP_KEY (php artisan key:generate --show)"
+  exit 1
+fi
+
 if [ -z "${DB_URL:-}" ] && { [ -z "${DB_HOST:-}" ] || [ "${DB_HOST}" = "127.0.0.1" ] || [ "${DB_HOST}" = "localhost" ]; }; then
   echo "ERROR: No hay Postgres configurado."
   echo "En Render → Environment agrega DATABASE_URL (Internal Database URL de tu Postgres)"
   echo "o DB_HOST / DB_PORT / DB_DATABASE / DB_USERNAME / DB_PASSWORD."
   exit 1
 fi
+
+# URL pública HTTPS en Render
+export APP_URL="${APP_URL:-https://${RENDER_EXTERNAL_HOSTNAME:-localhost}}"
+
 
 echo "==> Optimizando Laravel..."
 php artisan config:clear || true
