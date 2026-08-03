@@ -1,9 +1,24 @@
-# AUTOFIX IA — imagen para Render (PHP + Composer + Node)
+# AUTOFIX IA — build multi-etapa para Render
+# 1) Frontend (Node)  2) Runtime (PHP 8.4 + Composer)
+
+# ---------- Frontend ----------
+FROM node:22-bookworm AS frontend
+WORKDIR /app
+
+RUN corepack enable && corepack prepare pnpm@latest --activate
+
+COPY package.json pnpm-lock.yaml ./
+RUN pnpm install --frozen-lockfile
+
+# Código necesario para Vite (vendor/node_modules ya van en .dockerignore)
+COPY . .
+RUN pnpm run build
+
+# ---------- PHP runtime ----------
 FROM php:8.4-cli-bookworm
 
 ENV COMPOSER_ALLOW_SUPERUSER=1 \
-    COMPOSER_HOME=/tmp/composer \
-    NODE_VERSION=22
+    COMPOSER_HOME=/tmp/composer
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
         git unzip curl ca-certificates \
@@ -14,14 +29,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         pdo_pgsql pgsql zip bcmath intl pcntl \
     && rm -rf /var/lib/apt/lists/*
 
-# Composer
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
-
-# Node.js (para Vite)
-RUN curl -fsSL https://deb.nodesource.com/setup_${NODE_VERSION}.x | bash - \
-    && apt-get install -y --no-install-recommends nodejs \
-    && npm install -g pnpm@latest \
-    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /var/www/html
 
@@ -33,14 +41,11 @@ RUN composer install \
     --prefer-dist \
     --optimize-autoloader
 
-COPY package.json pnpm-lock.yaml ./
-RUN pnpm install --frozen-lockfile
-
 COPY . .
+COPY --from=frontend /app/public/build ./public/build
 
-RUN pnpm run build \
-    && composer dump-autoload --optimize \
-    && mkdir -p storage/framework/{cache,sessions,views} storage/logs bootstrap/cache \
+RUN composer dump-autoload --optimize \
+    && mkdir -p storage/framework/cache storage/framework/sessions storage/framework/views storage/logs bootstrap/cache \
     && chmod -R ug+rwx storage bootstrap/cache \
     && sed -i 's/\r$//' docker/start.sh \
     && chmod +x docker/start.sh
