@@ -34,7 +34,17 @@ class ProductoWebController extends Controller
             $query->where('categoria', $categoria);
         }
 
-        if ($request->query('stock_bajo') === '1') {
+        $stockEstado = trim((string) $request->query('stock_estado', ''));
+        // 'ok' = ver todo el inventario (sin filtro de stock)
+        if (! in_array($stockEstado, ['bajo', 'agotado'], true)) {
+            $stockEstado = '';
+        }
+
+        if ($stockEstado === 'bajo') {
+            $query->where('stock', '>', 0)->whereColumn('stock', '<=', 'stock_minimo');
+        } elseif ($stockEstado === 'agotado') {
+            $query->where('stock', '<=', 0);
+        } elseif ($request->query('stock_bajo') === '1') {
             $query->whereColumn('stock', '<=', 'stock_minimo');
         }
 
@@ -75,14 +85,31 @@ class ProductoWebController extends Controller
             ->values()
             ->all();
 
+        $countsBase = ProductoEloquentModel::query()
+            ->where('tipo_producto', 'repuesto')
+            ->where('activo', true);
+
+        $ok = (clone $countsBase)->whereColumn('stock', '>', 'stock_minimo')->count();
+        $bajo = (clone $countsBase)->where('stock', '>', 0)->whereColumn('stock', '<=', 'stock_minimo')->count();
+        $agotado = (clone $countsBase)->where('stock', '<=', 0)->count();
+
+        $resumenStock = [
+            'ok' => $ok,
+            'bajo' => $bajo,
+            'agotado' => $agotado,
+            'total' => $ok + $bajo + $agotado,
+        ];
+
         return Inertia::render('Inventario/index', [
             'repuestos' => InertiaTablePaginator::make($paginator),
             'inventario' => InertiaTablePaginator::make($paginator),
             'categorias' => $categorias,
+            'resumenStock' => $resumenStock,
             'filters' => [
                 'q' => $request->query('q', ''),
                 'categoria' => $request->query('categoria', ''),
                 'stock_bajo' => $request->query('stock_bajo', ''),
+                'stock_estado' => $stockEstado,
                 'activo' => $request->query('activo', '1'),
             ],
         ]);

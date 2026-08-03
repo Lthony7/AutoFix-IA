@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue'
-import { router, usePage } from '@inertiajs/vue3'
+import { Link, router, usePage } from '@inertiajs/vue3'
 import { route } from 'ziggy-js'
 import FormField from '../../components/FormField.vue'
+import ModulePanel from '../../components/ModulePanel.vue'
+import SemaforoFilterCards, { type SemaforoCard } from '../../components/SemaforoFilterCards.vue'
 
 interface ItemInventario {
   id: string
@@ -22,18 +24,29 @@ const page = usePage()
 const inventario = computed(() => (page.props as any).inventario || (page.props as any).repuestos)
 const categorias = computed(() => ((page.props as any).categorias || []) as string[])
 const filtersProp = computed(() => (page.props as any).filters || {})
+const resumenStock = computed(() => ((page.props as any).resumenStock || {
+  ok: 0,
+  bajo: 0,
+  agotado: 0,
+  total: 0
+}) as {
+  ok: number
+  bajo: number
+  agotado: number
+  total: number
+})
 
 const filters = reactive({
   q: filtersProp.value.q || '',
   categoria: filtersProp.value.categoria || '',
-  stock_bajo: filtersProp.value.stock_bajo === '1',
+  stock_estado: (filtersProp.value.stock_estado || '') as string,
   activo: filtersProp.value.activo || '1'
 })
 
 watch(filtersProp, (v) => {
   filters.q = v.q || ''
   filters.categoria = v.categoria || ''
-  filters.stock_bajo = v.stock_bajo === '1'
+  filters.stock_estado = v.stock_estado || ''
   filters.activo = v.activo || '1'
 })
 
@@ -51,17 +64,81 @@ const activoItems = [
 const paginationQuery = computed(() => ({
   q: filters.q || undefined,
   categoria: filters.categoria || undefined,
-  stock_bajo: filters.stock_bajo ? '1' : undefined,
+  stock_estado: filters.stock_estado || undefined,
   activo: filters.activo !== '1' ? filters.activo : undefined
 }))
 
 const applyFilters = () => {
-  router.get(route('inventario.index'), {
-    ...paginationQuery.value
-  }, {
+  router.get(route('inventario.index'), paginationQuery.value, {
     preserveState: false,
     replace: true
   })
+}
+
+const inventarioFilterUrl = (stockEstado: 'ok' | 'bajo' | 'agotado') => {
+  const params = new URLSearchParams()
+  if (filters.q) params.set('q', filters.q)
+  if (filters.categoria) params.set('categoria', filters.categoria)
+  if (filters.activo !== '1') params.set('activo', filters.activo)
+  if (stockEstado === 'bajo' || stockEstado === 'agotado') {
+    params.set('stock_estado', stockEstado)
+  }
+  const qs = params.toString()
+  return route('inventario.index') + (qs ? `?${qs}` : '')
+}
+
+const semaforoActivo = computed(() => filters.stock_estado || 'ok')
+
+const semaforoCards = computed((): SemaforoCard[] => [
+  {
+    key: 'ok',
+    title: 'Stock OK',
+    value: resumenStock.value.total || (resumenStock.value.ok + resumenStock.value.bajo + resumenStock.value.agotado),
+    icon: 'i-lucide-package-check',
+    tone: 'ok',
+    to: inventarioFilterUrl('ok')
+  },
+  {
+    key: 'bajo',
+    title: 'Stock bajo',
+    value: resumenStock.value.bajo,
+    icon: 'i-lucide-triangle-alert',
+    tone: 'warn',
+    to: inventarioFilterUrl('bajo')
+  },
+  {
+    key: 'agotado',
+    title: 'Agotado',
+    value: resumenStock.value.agotado,
+    icon: 'i-lucide-package-x',
+    tone: 'danger',
+    to: inventarioFilterUrl('agotado')
+  }
+])
+
+const clearSemaforo = () => {
+  filters.stock_estado = ''
+  applyFilters()
+}
+
+const stockTone = (item: ItemInventario): 'ok' | 'warn' | 'danger' => {
+  if (item.stock <= 0) return 'danger'
+  if (item.stock <= item.stockMinimo) return 'warn'
+  return 'ok'
+}
+
+const stockBadgeClass = (item: ItemInventario) => {
+  const tone = stockTone(item)
+  if (tone === 'danger') return 'autofix-badge-solid--danger'
+  if (tone === 'warn') return 'autofix-badge-solid--warn'
+  return 'autofix-badge-solid--ok'
+}
+
+const stockBadgeLabel = (item: ItemInventario) => {
+  const tone = stockTone(item)
+  if (tone === 'danger') return 'Agotado'
+  if (tone === 'warn') return 'Bajo'
+  return 'OK'
 }
 
 const formatMoney = (value: number) =>
@@ -105,24 +182,34 @@ const saveStock = () => {
         <template #leading>
           <UDashboardSidebarCollapse />
         </template>
-        <template #right>
-          <div class="flex gap-2">
-            <UButton
-              icon="i-lucide-bar-chart-3"
-              label="Ver reportes"
-              variant="soft"
-              :to="route('reportes.index')"
-            />
-            <UButton icon="i-lucide-plus" label="Nuevo ítem" :to="route('inventario.create')" />
-          </div>
-        </template>
       </UDashboardNavbar>
     </template>
 
     <template #body>
       <div class="space-y-4">
-        <UCard>
-          <form class="grid grid-cols-1 md:grid-cols-4 gap-3 items-end" @submit.prevent="applyFilters">
+        <SemaforoFilterCards
+          :cards="semaforoCards"
+          :model-value="semaforoActivo"
+        />
+
+        <ModulePanel title="Inventario">
+          <template #actions>
+            <UButton
+              icon="i-lucide-bar-chart-3"
+              label="Reportes"
+              variant="soft"
+              color="neutral"
+              :to="route('reportes.index')"
+            />
+            <UButton
+              icon="i-lucide-plus"
+              label="Nuevo ítem"
+              color="success"
+              :to="route('inventario.create')"
+            />
+          </template>
+
+          <form class="grid grid-cols-1 md:grid-cols-4 gap-3 items-end mb-4" @submit.prevent="applyFilters">
             <FormField label="Buscar" name="q" class="md:col-span-2">
               <UInput
                 v-model="filters.q"
@@ -138,13 +225,18 @@ const saveStock = () => {
               <USelect v-model="filters.activo" :items="activoItems" class="w-full" />
             </FormField>
             <div class="md:col-span-4 flex flex-wrap items-center gap-3">
-              <UCheckbox v-model="filters.stock_bajo" label="Solo stock bajo / agotado" />
-              <UButton type="submit" label="Filtrar" icon="i-lucide-filter" />
+              <UButton type="submit" label="Filtrar" icon="i-lucide-filter" color="success" />
+              <UButton
+                v-if="filters.stock_estado"
+                type="button"
+                variant="ghost"
+                color="neutral"
+                label="Quitar filtro semáforo"
+                @click="clearSemaforo"
+              />
             </div>
           </form>
-        </UCard>
 
-        <UCard>
           <div class="overflow-x-auto">
             <table class="w-full text-sm">
               <thead>
@@ -154,6 +246,7 @@ const saveStock = () => {
                   <th class="py-3 pr-3">Categoría</th>
                   <th class="py-3 pr-3">Precio</th>
                   <th class="py-3 pr-3">Stock</th>
+                  <th class="py-3 pr-3">Nivel</th>
                   <th class="py-3 pr-3">Estado</th>
                   <th class="py-3">Acciones</th>
                 </tr>
@@ -174,8 +267,7 @@ const saveStock = () => {
                   <td class="py-3 pr-3">
                     <button
                       type="button"
-                      class="inline-flex items-center gap-1 hover:underline"
-                      :class="item.stock <= item.stockMinimo ? 'text-error font-medium' : ''"
+                      class="inline-flex items-center gap-1 hover:underline font-medium"
                       @click="openStock(item)"
                     >
                       {{ item.stock }}
@@ -183,41 +275,57 @@ const saveStock = () => {
                     </button>
                   </td>
                   <td class="py-3 pr-3">
-                    <UBadge :color="item.activo ? 'success' : 'neutral'" variant="subtle">
-                      {{ item.activo ? 'Activo' : 'Inactivo' }}
-                    </UBadge>
+                    <span class="autofix-badge-solid" :class="stockBadgeClass(item)">
+                      {{ stockBadgeLabel(item) }}
+                    </span>
                   </td>
-                  <td class="py-3 flex gap-1">
-                    <UButton
-                      size="xs"
-                      variant="ghost"
-                      icon="i-lucide-package-plus"
-                      title="Ajustar stock"
-                      @click="openStock(item)"
-                    />
-                    <UButton
-                      size="xs"
-                      variant="ghost"
-                      icon="i-lucide-pencil"
-                      :to="route('inventario.edit', item.id)"
-                    />
-                    <UButton
-                      size="xs"
-                      color="error"
-                      variant="ghost"
-                      icon="i-lucide-trash"
-                      @click="destroy(item.id)"
-                    />
+                  <td class="py-3 pr-3">
+                    <span
+                      class="autofix-badge-solid"
+                      :class="item.activo ? 'autofix-badge-solid--ok' : 'autofix-badge-solid--neutral'"
+                    >
+                      {{ item.activo ? 'Activo' : 'Inactivo' }}
+                    </span>
+                  </td>
+                  <td class="py-3">
+                    <div class="flex gap-1.5">
+                      <button
+                        type="button"
+                        class="autofix-action-btn"
+                        title="Ajustar stock"
+                        @click="openStock(item)"
+                      >
+                        <UIcon name="i-lucide-package-plus" class="size-4" />
+                      </button>
+                      <Link
+                        :href="route('inventario.edit', item.id)"
+                        class="autofix-action-btn"
+                        title="Editar"
+                      >
+                        <UIcon name="i-lucide-pencil" class="size-4" />
+                      </Link>
+                      <button
+                        type="button"
+                        class="autofix-action-btn autofix-action-btn--danger"
+                        title="Eliminar"
+                        @click="destroy(item.id)"
+                      >
+                        <UIcon name="i-lucide-trash" class="size-4" />
+                      </button>
+                    </div>
                   </td>
                 </tr>
                 <tr v-if="!(inventario?.data || []).length">
-                  <td colspan="7" class="py-8 text-center text-muted">No hay ítems con esos filtros.</td>
+                  <td colspan="8" class="py-8 text-center text-muted">No hay ítems con esos filtros.</td>
                 </tr>
               </tbody>
             </table>
           </div>
-          <AppPagination :meta="inventario?.meta" :query="paginationQuery" />
-        </UCard>
+
+          <template #footer>
+            <AppPagination :meta="inventario?.meta" :query="paginationQuery" />
+          </template>
+        </ModulePanel>
       </div>
 
       <UModal v-model:open="stockOpen" title="Ajustar stock">
@@ -238,7 +346,7 @@ const saveStock = () => {
         <template #footer>
           <div class="flex justify-end gap-2">
             <UButton variant="ghost" color="neutral" label="Cancelar" @click="stockOpen = false" />
-            <UButton label="Guardar stock" :loading="stockSaving" @click="saveStock" />
+            <UButton color="success" label="Guardar stock" :loading="stockSaving" @click="saveStock" />
           </div>
         </template>
       </UModal>

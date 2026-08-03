@@ -3,6 +3,12 @@
 
 @theme {
   --spacing: 0.25rem;
+  /* AUTOFIX brand (alineado al sidebar) */
+  --color-autofix-navy: #0b1f3a;
+  --color-autofix-teal: #0f3d4d;
+  --color-autofix-sea: #0a5c52;
+  --color-autofix-page: #f0f5f7;
+  --color-autofix-card: #ffffff;
 }
 
 /* Ensure full height for the app */
@@ -57,3 +63,301 @@ body,
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
 }
+
+/*
+ * ============================================================
+ * AUTOFIX UI kit (estilo captura Clientes)
+ * Cards métricas coloridas + panel de módulo + fondo suave
+ * ============================================================
+ */
+
+/* Fondo de área de trabajo: gris claro + patrón sutil taller */
+#app .dashboard-main {
+  background-color: #eef1f4;
+  background-image:
+    radial-gradient(circle at 12% 18%, rgb(11 31 58 / 0.035) 0 1px, transparent 1.5px),
+    radial-gradient(circle at 72% 42%, rgb(10 92 82 / 0.03) 0 1px, transparent 1.5px),
+    linear-gradient(180deg, rgb(11 31 58 / 0.03) 0%, transparent 220px);
+  background-size: 48px 48px, 64px 64px, auto;
+}
+
+#app .dashboard-main > [data-slot='root'] > [data-slot='header'],
+#app .dashboard-main .autofix-panel-header {
+  background: rgb(255 255 255 / 0.94);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid rgb(15 61 77 / 0.08);
+}
+
+#app .autofix-surface {
+  --ui-border: rgb(15 61 77 / 0.12);
+}
+
+#app .autofix-surface > .space-y-4 > [class*='ring'],
+#app .autofix-surface > .space-y-3 > [class*='ring'],
+#app .autofix-surface > [class*='ring'][class*='rounded'],
+#app .autofix-surface .max-w-2xl[class*='ring'],
+#app .autofix-surface .max-w-3xl[class*='ring'],
+#app .autofix-surface .max-w-4xl[class*='ring'],
+#app .autofix-surface [class*='xl:col-span'] > [class*='ring'],
+#app .autofix-surface [class*='grid'] > [class*='ring'] {
+  background-color: var(--color-autofix-card) !important;
+  border-radius: 0.875rem !important;
+  box-shadow:
+    0 1px 2px rgb(11 31 58 / 0.05),
+    0 10px 28px rgb(11 31 58 / 0.05);
+}
+
+#app .autofix-surface table thead tr {
+  border-bottom-color: rgb(15 61 77 / 0.12);
+}
+
+#app .autofix-surface table tbody tr {
+  border-bottom-color: rgb(15 61 77 / 0.06);
+}
+
+#app .autofix-surface table tbody tr:hover {
+  background-color: rgb(10 92 82 / 0.04);
+}
+
+/* --- Metric / stat cards (captura) --- */
+.autofix-metric-grid {
+  display: grid;
+  gap: 1rem;
+}
+
+.autofix-metric-grid--3 {
+  grid-template-columns: repeat(1, minmax(0, 1fr));
+}
+
+.autofix-metric-grid--4 {
+  grid-template-columns: repeat(1, minmax(0, 1fr));
+}
+
+@media (min-width: 640px) {
+  .autofix-metric-grid--3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .autofix-metric-grid--4 {
+    grid-template: none;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1024px) {
+  .autofix-metric-grid--4 {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+.autofix-metric-card {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.95rem;
+  min-height: 5.25rem;
+  padding: 1rem 1.15rem;
+  border-radius: 1rem;
+  color: #fff;
+  text-decoration: none;
+  overflow: hidden;
+  isolation: isolate;
+  box-shadow:
+    0 8px 18px rgb(11 31 58 / 0.12),
+    0 2px 4px rgb(11 31 58 / 0.08);
+  transition: transform 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease;
+}
+
+.autofix-metric-card[data-clickable='true'] {
+  cursor: pointer;
+}
+
+.autofix-metric-card[data-clickable='true']:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    0 12px 24px rgb(11 31 58 / 0.16),
+    0 3px 6px rgb(11 31 58 / 0.1);
+  filter: brightness(1.03);
+}
+
+.autofix-metric-card[data-active='true'] {
+  outline: 3px solid rgb(255 255 255 / 0.85);
+  outline-offset: 2px;
+  filter: brightness(1.05);
+}
+
+/* Brillo / glass en la mitad superior */
+.autofix-metric-card::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 45% 0;
+  background: linear-gradient(180deg, rgb(255 255 255 / 0.22), rgb(255 255 255 / 0));
+  pointer-events: none;
+  z-index: 0;
+}
+
+.autofix-metric-icon,
+.autofix-metric-body {
+  position: relative;
+  z-index: 1;
+}
+
+.autofix-metric-icon {
+  display: grid;
+  place-items: center;
+  width: 3rem;
+  height: 3rem;
+  border-radius: 9999px;
+  background: rgb(255 255 255 / 0.22);
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.25);
+  flex-shrink: 0;
+}
+
+.autofix-metric-title {
+  margin: 0;
+  font-size: 0.92rem;
+  font-weight: 600;
+  line-height: 1.2;
+  color: rgb(255 255 255 / 0.95);
+}
+
+.autofix-metric-value {
+  margin: 0.2rem 0 0;
+  font-size: 1.85rem;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  color: #fff;
+}
+
+.autofix-metric-card[data-tone='green'],
+.autofix-metric-card[data-tone='ok'] {
+  background: linear-gradient(135deg, #1f9d55 0%, #15803d 100%);
+}
+
+.autofix-metric-card[data-tone='blue'] {
+  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+}
+
+.autofix-metric-card[data-tone='purple'] {
+  background: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%);
+}
+
+.autofix-metric-card[data-tone='lime'] {
+  background: linear-gradient(135deg, #84cc16 0%, #65a30d 100%);
+}
+
+.autofix-metric-card[data-tone='warn'] {
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+}
+
+.autofix-metric-card[data-tone='danger'] {
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+}
+
+.autofix-metric-card[data-tone='neutral'] {
+  background: linear-gradient(135deg, #64748b 0%, #475569 100%);
+}
+
+/* --- Panel de módulo (tabla) --- */
+.autofix-module-panel {
+  background: #fff;
+  border-radius: 1rem;
+  box-shadow:
+    0 1px 2px rgb(11 31 58 / 0.05),
+    0 12px 28px rgb(11 31 58 / 0.06);
+  overflow: hidden;
+}
+
+.autofix-module-panel__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 1.15rem;
+  border-bottom: 1px solid rgb(15 61 77 / 0.08);
+}
+
+.autofix-module-panel__title {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.autofix-module-panel__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.autofix-module-panel__body {
+  padding: 0.85rem 1.15rem 1rem;
+}
+
+.autofix-module-panel__footer {
+  padding: 0.65rem 1.15rem 1rem;
+  border-top: 1px solid rgb(15 61 77 / 0.06);
+}
+
+/* Badges sólidos estilo captura */
+.autofix-badge-solid {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 1.55rem;
+  padding: 0.15rem 0.7rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1;
+  color: #fff;
+}
+
+.autofix-badge-solid--ok {
+  background: #16a34a;
+}
+
+.autofix-badge-solid--warn {
+  background: #d97706;
+}
+
+.autofix-badge-solid--danger {
+  background: #dc2626;
+}
+
+.autofix-badge-solid--neutral {
+  background: #64748b;
+}
+
+/* Botones de acción cuadrados */
+.autofix-action-btn {
+  display: inline-grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 0.45rem;
+  border: 1px solid rgb(148 163 184 / 0.55);
+  background: #fff;
+  color: #475569;
+  transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease;
+}
+
+.autofix-action-btn:hover {
+  background: #f8fafc;
+  border-color: #94a3b8;
+  color: #0f172a;
+}
+
+.autofix-action-btn--danger:hover {
+  border-color: #fca5a5;
+  color: #dc2626;
+  background: #fef2f2;
+}
+
+/* CTA principal verde (captura) */
+.autofix-cta-primary {
+  --ui-primary: #16a34a;
+}
+

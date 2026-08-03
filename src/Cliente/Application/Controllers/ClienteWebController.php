@@ -42,6 +42,7 @@ class ClienteWebController extends Controller
                 'total' => ClienteEloquentModel::count(),
                 'active' => ClienteEloquentModel::where('estado', true)->count(),
                 'inactive' => ClienteEloquentModel::where('estado', false)->count(),
+                'month' => ClienteEloquentModel::where('created_at', '>=', now()->copy()->startOfMonth())->count(),
             ],
         ]);
     }

@@ -2,6 +2,7 @@
 
 namespace Src\OrdenTrabajo\Application\Controllers;
 
+use App\Enums\OrdenEstado;
 use App\Enums\UserRole;
 use App\Enums\CitaEstado;
 use App\Enums\CitaTipo;
@@ -56,6 +57,42 @@ class OrdenTrabajoWebController extends Controller
             $query->where('mecanico_id', $mecanicoId);
         }
 
+        $semaforo = trim((string) $request->query('semaforo', ''));
+        if (! in_array($semaforo, ['ok', 'atencion', 'critico'], true)) {
+            $semaforo = '';
+        }
+
+        if ($semaforo === 'ok') {
+            $query->whereIn('estado', [
+                OrdenEstado::Finalizada->value,
+                OrdenEstado::Entregada->value,
+            ]);
+        } elseif ($semaforo === 'atencion') {
+            $query->whereIn('estado', [
+                OrdenEstado::EnDiagnostico->value,
+                OrdenEstado::EnReparacion->value,
+            ]);
+        } elseif ($semaforo === 'critico') {
+            $query->where('estado', OrdenEstado::Pendiente->value);
+        }
+
+        $countsQuery = OrdenTrabajoEloquentModel::query();
+        if ($user->hasRole(UserRole::Mecanico)) {
+            $countsQuery->where('mecanico_id', $user->mecanico?->id);
+        }
+
+        $resumenSemaforo = [
+            'ok' => (clone $countsQuery)->whereIn('estado', [
+                OrdenEstado::Finalizada->value,
+                OrdenEstado::Entregada->value,
+            ])->count(),
+            'atencion' => (clone $countsQuery)->whereIn('estado', [
+                OrdenEstado::EnDiagnostico->value,
+                OrdenEstado::EnReparacion->value,
+            ])->count(),
+            'critico' => (clone $countsQuery)->where('estado', OrdenEstado::Pendiente->value)->count(),
+        ];
+
         $paginator = $query
             ->paginate(InertiaTablePaginator::PER_PAGE)
             ->withQueryString()
@@ -64,6 +101,10 @@ class OrdenTrabajoWebController extends Controller
         return Inertia::render('OrdenTrabajo/index', [
             'ordenes' => InertiaTablePaginator::make($paginator),
             'mecanicos' => $this->mecanicosOptions(),
+            'resumenSemaforo' => $resumenSemaforo,
+            'filters' => [
+                'semaforo' => $semaforo,
+            ],
         ]);
     }
 

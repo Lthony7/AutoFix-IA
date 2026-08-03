@@ -1,12 +1,14 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { usePage } from '@inertiajs/vue3'
+import { Link, usePage } from '@inertiajs/vue3'
 import { route } from 'ziggy-js'
 import ClienteFichaSlideover, { type ClienteFicha } from '../../components/ClienteFichaSlideover.vue'
+import MetricStatCards, { type MetricCard } from '../../components/MetricStatCards.vue'
+import ModulePanel from '../../components/ModulePanel.vue'
 
 const page = usePage()
 const customers = computed(() => (page.props as any).customers)
-const stats = computed(() => (page.props as any).stats)
+const stats = computed(() => (page.props as any).stats || {})
 
 const fichaOpen = ref(false)
 const clienteSeleccionado = ref<ClienteFicha | null>(null)
@@ -25,6 +27,37 @@ watch(customers, (lista) => {
     clienteSeleccionado.value = null
   }
 })
+
+const metricCards = computed((): MetricCard[] => [
+  {
+    key: 'total',
+    title: 'Total clientes',
+    value: stats.value.total ?? 0,
+    icon: 'i-lucide-users',
+    tone: 'green'
+  },
+  {
+    key: 'active',
+    title: 'Clientes activos',
+    value: stats.value.active ?? 0,
+    icon: 'i-lucide-user-check',
+    tone: 'blue'
+  },
+  {
+    key: 'inactive',
+    title: 'Clientes inactivos',
+    value: stats.value.inactive ?? 0,
+    icon: 'i-lucide-user-x',
+    tone: 'purple'
+  },
+  {
+    key: 'month',
+    title: 'Clientes del mes',
+    value: stats.value.month ?? 0,
+    icon: 'i-lucide-calendar-plus',
+    tone: 'lime'
+  }
+])
 </script>
 
 <template>
@@ -34,65 +67,88 @@ watch(customers, (lista) => {
         <template #leading>
           <UDashboardSidebarCollapse />
         </template>
-        <template #right>
-          <UButton icon="i-lucide-plus" label="Nuevo cliente" :to="route('clientes.create')" />
-        </template>
       </UDashboardNavbar>
     </template>
 
     <template #body>
-      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-        <UCard><p class="text-sm text-muted">Total</p><p class="text-2xl font-semibold">{{ stats?.total ?? 0 }}</p></UCard>
-        <UCard><p class="text-sm text-muted">Activos</p><p class="text-2xl font-semibold">{{ stats?.active ?? 0 }}</p></UCard>
-        <UCard><p class="text-sm text-muted">Inactivos</p><p class="text-2xl font-semibold">{{ stats?.inactive ?? 0 }}</p></UCard>
-      </div>
+      <div class="space-y-4">
+        <MetricStatCards :cards="metricCards" :columns="4" />
 
-      <UCard>
-        <div class="overflow-x-auto">
-          <table class="w-full text-sm">
-            <thead>
-              <tr class="text-left border-b border-default">
-                <th class="py-3 pr-3">Cliente</th>
-                <th class="py-3 pr-3">Documento</th>
-                <th class="py-3 pr-3">Teléfono</th>
-                <th class="py-3 pr-3">Email</th>
-                <th class="py-3 pr-3">Vehículos</th>
-                <th class="py-3 pr-3">Estado</th>
-                <th class="py-3">Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr
-                v-for="cliente in (customers?.data || []) as ClienteFicha[]"
-                :key="cliente.id"
-                class="border-b border-default/60 cursor-pointer hover:bg-elevated/40 transition-colors"
-                @click="abrirFicha(cliente)"
-              >
-                <td class="py-3 pr-3 font-medium">{{ cliente.nombreCompleto }}</td>
-                <td class="py-3 pr-3">{{ cliente.numeroDocumento }}</td>
-                <td class="py-3 pr-3">{{ cliente.telefono }}</td>
-                <td class="py-3 pr-3">{{ cliente.email }}</td>
-                <td class="py-3 pr-3">{{ cliente.vehiculos?.length ?? 0 }}</td>
-                <td class="py-3 pr-3">
-                  <UBadge :color="cliente.estado ? 'success' : 'neutral'" variant="subtle">
-                    {{ cliente.estado ? 'Activo' : 'Inactivo' }}
-                  </UBadge>
-                </td>
-                <td class="py-3 flex gap-2" @click.stop>
-                  <UButton
-                    size="xs"
-                    variant="ghost"
-                    icon="i-lucide-eye"
-                    title="Ver ficha"
-                    @click="abrirFicha(cliente)"
-                  />
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-        <AppPagination :meta="customers?.meta" />
-      </UCard>
+        <ModulePanel title="Clientes">
+          <template #actions>
+            <UButton
+              icon="i-lucide-plus"
+              label="Nuevo cliente"
+              color="success"
+              :to="route('clientes.create')"
+            />
+          </template>
+
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="text-left border-b border-default">
+                  <th class="py-3 pr-3">Cliente</th>
+                  <th class="py-3 pr-3">Documento</th>
+                  <th class="py-3 pr-3">Teléfono</th>
+                  <th class="py-3 pr-3">Email</th>
+                  <th class="py-3 pr-3">Vehículos</th>
+                  <th class="py-3 pr-3">Estado</th>
+                  <th class="py-3">Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr
+                  v-for="cliente in (customers?.data || []) as ClienteFicha[]"
+                  :key="cliente.id"
+                  class="border-b border-default/60 cursor-pointer hover:bg-elevated/40 transition-colors"
+                  @click="abrirFicha(cliente)"
+                >
+                  <td class="py-3 pr-3 font-medium">{{ cliente.nombreCompleto }}</td>
+                  <td class="py-3 pr-3">{{ cliente.numeroDocumento }}</td>
+                  <td class="py-3 pr-3">{{ cliente.telefono }}</td>
+                  <td class="py-3 pr-3">{{ cliente.email }}</td>
+                  <td class="py-3 pr-3">{{ cliente.vehiculos?.length ?? 0 }}</td>
+                  <td class="py-3 pr-3">
+                    <span
+                      class="autofix-badge-solid"
+                      :class="cliente.estado ? 'autofix-badge-solid--ok' : 'autofix-badge-solid--neutral'"
+                    >
+                      {{ cliente.estado ? 'Activo' : 'Inactivo' }}
+                    </span>
+                  </td>
+                  <td class="py-3" @click.stop>
+                    <div class="flex gap-1.5">
+                      <button
+                        type="button"
+                        class="autofix-action-btn"
+                        title="Ver ficha"
+                        @click="abrirFicha(cliente)"
+                      >
+                        <UIcon name="i-lucide-eye" class="size-4" />
+                      </button>
+                      <Link
+                        :href="route('clientes.edit', cliente.id)"
+                        class="autofix-action-btn"
+                        title="Editar"
+                      >
+                        <UIcon name="i-lucide-pencil" class="size-4" />
+                      </Link>
+                    </div>
+                  </td>
+                </tr>
+                <tr v-if="!(customers?.data || []).length">
+                  <td colspan="7" class="py-8 text-center text-muted">No hay clientes registrados.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <template #footer>
+            <AppPagination :meta="customers?.meta" />
+          </template>
+        </ModulePanel>
+      </div>
 
       <ClienteFichaSlideover v-model:open="fichaOpen" :cliente="clienteSeleccionado" />
     </template>
