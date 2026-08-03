@@ -1,5 +1,5 @@
 # AUTOFIX IA — imagen para Render (PHP + Composer + Node)
-FROM php:8.3-cli-bookworm
+FROM php:8.4-cli-bookworm
 
 ENV COMPOSER_ALLOW_SUPERUSER=1 \
     COMPOSER_HOME=/tmp/composer \
