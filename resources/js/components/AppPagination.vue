@@ -92,39 +92,43 @@ const goTo = (page: number) => {
       {{ summary }}
     </p>
 
-    <div v-if="meta && meta.lastPage > 1" class="flex flex-wrap items-center gap-1">
-      <UButton
+    <div v-if="meta && meta.lastPage > 1" class="flex flex-wrap items-center gap-1.5">
+      <button
         type="button"
-        size="xs"
-        color="neutral"
-        variant="outline"
-        icon="i-lucide-chevron-left"
+        aria-label="Anterior"
         :disabled="meta.currentPage <= 1"
+        class="inline-flex h-8 w-8 flex-none items-center justify-center rounded-md text-sm text-default transition-colors hover:bg-default-500/10 disabled:opacity-40 disabled:cursor-not-allowed"
         @click="goTo(meta.currentPage - 1)"
-      />
+      >
+        <span class="i-lucide-chevron-left" />
+      </button>
 
       <template v-for="(item, idx) in pageItems" :key="`${item}-${idx}`">
-        <span v-if="item === 'ellipsis'" class="px-2 text-muted">…</span>
-        <UButton
+        <span v-if="item === 'ellipsis'" class="px-2 text-sm text-muted">…</span>
+        <button
           v-else
           type="button"
-          size="xs"
-          :color="item === meta.currentPage ? 'primary' : 'neutral'"
-          :variant="item === meta.currentPage ? 'solid' : 'outline'"
-          :label="String(item)"
+          :class="[
+            'inline-flex h-8 w-8 flex-none items-center justify-center rounded-md text-sm whitespace-nowrap transition-colors',
+            item === meta.currentPage
+              ? 'bg-primary font-semibold text-white shadow-sm'
+              : 'text-default hover:bg-default-500/10',
+          ]"
           @click="goTo(item)"
-        />
+        >
+          {{ item }}
+        </button>
       </template>
 
-      <UButton
+      <button
         type="button"
-        size="xs"
-        color="neutral"
-        variant="outline"
-        icon="i-lucide-chevron-right"
+        aria-label="Siguiente"
         :disabled="meta.currentPage >= meta.lastPage"
+        class="inline-flex h-8 w-8 flex-none items-center justify-center rounded-md text-sm text-default transition-colors hover:bg-default-500/10 disabled:opacity-40 disabled:cursor-not-allowed"
         @click="goTo(meta.currentPage + 1)"
-      />
+      >
+        <span class="i-lucide-chevron-right" />
+      </button>
     </div>
   </div>
 </template>
