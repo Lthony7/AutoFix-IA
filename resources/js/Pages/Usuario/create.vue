@@ -61,7 +61,7 @@ const handleSubmit = () => {
       </UDashboardNavbar>
     </template>
     <template #body>
-      <UCard class="max-w-2xl">
+      <UCard class="w-full">
         <UAlert
           v-if="Object.keys(localErrors).length"
           class="mb-4"
@@ -71,7 +71,7 @@ const handleSubmit = () => {
           title="Revisa los datos del formulario"
           description="Corrige los campos marcados antes de continuar."
         />
-        <form class="space-y-4" @submit.prevent="handleSubmit">
+        <form class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 w-full" @submit.prevent="handleSubmit">
           <FormField label="Nombre" name="name" required :error="errors.name" hint="Solo letras">
             <UInput v-model="state.name" class="w-full" />
           </FormField>
@@ -87,8 +87,10 @@ const handleSubmit = () => {
           <FormField label="Confirmar contraseña" name="password_confirmation" required>
             <UInput v-model="state.password_confirmation" type="password" class="w-full" />
           </FormField>
-          <UCheckbox v-model="state.activo" label="Usuario activo" />
-          <div class="flex gap-3">
+          <div class="flex items-end pb-1">
+            <UCheckbox v-model="state.activo" label="Usuario activo" />
+          </div>
+          <div class="md:col-span-2 xl:col-span-3 flex gap-3">
             <UButton type="submit" label="Guardar" :loading="isLoading" />
             <UButton variant="ghost" color="neutral" label="Cancelar" :to="route('usuarios.index')" />
           </div>

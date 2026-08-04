@@ -114,7 +114,7 @@ const submitRevision = (accion: 'confirmar' | 'modificar' | 'descartar') => {
       </UDashboardNavbar>
     </template>
     <template #body>
-      <div class="max-w-4xl space-y-4">
+      <div class="w-full space-y-4">
         <UAlert
           color="primary"
           variant="subtle"

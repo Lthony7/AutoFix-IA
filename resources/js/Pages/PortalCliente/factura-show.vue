@@ -64,7 +64,7 @@ const piezas = computed(() => factura.value.detalles.filter(d => d.tipo === 'rep
     </template>
 
     <template #body>
-      <UCard class="max-w-4xl">
+      <UCard class="w-full">
         <div class="flex flex-wrap items-start justify-between gap-4 mb-6">
           <div>
             <p class="text-xs uppercase tracking-wide text-muted">AUTOFIX IA</p>

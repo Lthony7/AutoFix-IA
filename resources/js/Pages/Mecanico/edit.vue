@@ -87,7 +87,7 @@ const handleSubmit = () => {
       </UDashboardNavbar>
     </template>
     <template #body>
-      <UCard class="max-w-3xl">
+      <UCard class="w-full">
         <UAlert
           v-if="Object.keys(localErrors).length"
           class="mb-4"
@@ -97,8 +97,8 @@ const handleSubmit = () => {
           title="Revisa los datos del formulario"
           description="Corrige los campos marcados antes de continuar."
         />
-        <form class="grid grid-cols-1 md:grid-cols-2 gap-4" @submit.prevent="handleSubmit">
-          <FormField label="Usuario vinculado (opcional)" name="userId" :error="errors.userId" class="md:col-span-2">
+        <form class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 w-full" @submit.prevent="handleSubmit">
+          <FormField label="Usuario vinculado (opcional)" name="userId" :error="errors.userId" class="md:col-span-2 xl:col-span-3">
             <USelect
               v-model="state.userId"
               :items="[{ label: 'Sin usuario', value: '' }, ...usuarios.map(u => ({ label: u.label, value: u.id }))]"
@@ -117,7 +117,7 @@ const handleSubmit = () => {
           <FormField label="Teléfono" name="telefono" :error="errors.telefono" hint="10 dígitos si se ingresa">
             <UInput v-model="state.telefono" inputmode="numeric" maxlength="10" class="w-full" />
           </FormField>
-          <FormField label="Email" name="email" :error="errors.email" class="md:col-span-2">
+          <FormField label="Email" name="email" :error="errors.email" class="md:col-span-2 xl:col-span-1">
             <UInput v-model="state.email" type="email" class="w-full" />
           </FormField>
 
@@ -128,10 +128,10 @@ const handleSubmit = () => {
             :error-horario="errors.horarioDisponible"
           />
 
-          <div class="md:col-span-2">
+          <div class="md:col-span-2 xl:col-span-3">
             <UCheckbox v-model="state.activo" label="Mecánico activo" />
           </div>
-          <div class="md:col-span-2 flex gap-3">
+          <div class="md:col-span-2 xl:col-span-3 flex gap-3">
             <UButton type="submit" label="Actualizar" :loading="isLoading" />
             <UButton variant="ghost" color="neutral" label="Cancelar" :to="route('mecanicos.index')" />
           </div>

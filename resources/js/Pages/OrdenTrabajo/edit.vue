@@ -390,7 +390,7 @@ const registrarAvance = () => {
       </UDashboardNavbar>
     </template>
     <template #body>
-      <div class="space-y-4 max-w-4xl">
+      <div class="w-full space-y-4">
         <UAlert
           v-if="sugerenciaIa"
           color="info"
@@ -424,25 +424,25 @@ const registrarAvance = () => {
         />
 
         <UCard>
-        <form class="grid grid-cols-1 md:grid-cols-2 gap-4" @submit.prevent="handleSubmit">
+        <form class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 w-full" @submit.prevent="handleSubmit">
           <template v-if="soloDiagnostico">
-            <FormField label="Diagnóstico técnico" name="diagnosticoTecnico" :error="errors.diagnosticoTecnico" class="md:col-span-2">
+            <FormField label="Diagnóstico técnico" name="diagnosticoTecnico" :error="errors.diagnosticoTecnico" class="md:col-span-2 xl:col-span-3">
               <UTextarea v-model="state.diagnosticoTecnico" class="w-full" :rows="5" />
             </FormField>
-            <FormField label="Observaciones" name="observaciones" :error="errors.observaciones" class="md:col-span-2">
+            <FormField label="Observaciones" name="observaciones" :error="errors.observaciones" class="md:col-span-2 xl:col-span-3">
               <UTextarea v-model="state.observaciones" class="w-full" />
             </FormField>
           </template>
 
           <template v-else>
-            <FormField label="Cliente" name="clienteId" required :error="errors.clienteId" class="md:col-span-2">
+            <FormField label="Cliente" name="clienteId" required :error="errors.clienteId" class="md:col-span-2 xl:col-span-3">
               <USelect
                 v-model="state.clienteId"
                 :items="clientes.map(c => ({ label: c.label, value: c.id }))"
                 class="w-full"
               />
             </FormField>
-            <FormField label="Vehículo" name="vehiculoId" required :error="errors.vehiculoId" class="md:col-span-2">
+            <FormField label="Vehículo" name="vehiculoId" required :error="errors.vehiculoId" class="md:col-span-2 xl:col-span-3">
               <USelect
                 v-model="state.vehiculoId"
                 :items="vehiculosFiltrados.map(v => ({ label: v.label, value: v.id }))"
@@ -458,7 +458,7 @@ const registrarAvance = () => {
                 </span>
               </p>
             </FormField>
-            <FormField label="Mecánico" name="mecanicoId" :error="errors.mecanicoId" class="md:col-span-2">
+            <FormField label="Mecánico" name="mecanicoId" :error="errors.mecanicoId" class="md:col-span-2 xl:col-span-3">
               <div class="flex flex-col gap-2 sm:flex-row sm:items-start">
                 <USelect
                   v-model="state.mecanicoId"
@@ -505,7 +505,7 @@ const registrarAvance = () => {
                 </USelect>
               </div>
             </FormField>
-            <FormField label="Falla reportada" name="fallaReportada" :error="errors.fallaReportada" class="md:col-span-2">
+            <FormField label="Falla reportada" name="fallaReportada" :error="errors.fallaReportada" class="md:col-span-2 xl:col-span-3">
               <UTextarea v-model="state.fallaReportada" class="w-full" :rows="3" />
             </FormField>
             <FormField label="Kilometraje ingreso" name="kilometrajeIngreso" :error="errors.kilometrajeIngreso">
@@ -525,14 +525,14 @@ const registrarAvance = () => {
                 {{ state.diagnosticoTecnico || 'Solo mecánico o administrador puede editarlo.' }}
               </p>
             </div>
-            <FormField label="Observaciones" name="observaciones" :error="errors.observaciones" class="md:col-span-2">
+            <FormField label="Observaciones" name="observaciones" :error="errors.observaciones" class="md:col-span-2 xl:col-span-3">
               <UTextarea v-model="state.observaciones" class="w-full" />
               <p v-if="repuestosCliente.length" class="mt-1.5 text-xs text-warning">
                 Al guardar se añadirá automáticamente: {{ MARCADOR_CLIENTE }} {{ repuestosCliente.join('; ') }}.
               </p>
             </FormField>
 
-            <div class="md:col-span-2 border-t border-default pt-4 space-y-4">
+            <div class="md:col-span-2 xl:col-span-3 border-t border-default pt-4 space-y-4">
               <div class="flex flex-wrap items-start justify-between gap-2">
                 <div>
                   <h3 class="font-semibold text-sm">Servicios de la sesión</h3>
@@ -560,7 +560,7 @@ const registrarAvance = () => {
                   <FormField label="Precio" class="md:col-span-3">
                     <UInput v-model.number="linea.precio" type="number" min="0" step="0.01" class="w-full" />
                   </FormField>
-                  <div class="md:col-span-2">
+                  <div class="md:col-span-2 xl:col-span-3">
                     <UButton
                       type="button"
                       color="error"
@@ -622,7 +622,7 @@ const registrarAvance = () => {
               </div>
             </div>
 
-            <div class="md:col-span-2 border-t border-default pt-4 space-y-4">
+            <div class="md:col-span-2 xl:col-span-3 border-t border-default pt-4 space-y-4">
               <div>
                 <h3 class="font-semibold text-sm">Repuestos de la sesión</h3>
                 <p class="text-xs text-muted mt-0.5">
@@ -645,13 +645,13 @@ const registrarAvance = () => {
                       @update:model-value="(v: string) => onRepuestoChange(index, v)"
                     />
                   </FormField>
-                  <FormField label="Cant." class="md:col-span-2">
+                  <FormField label="Cant." class="md:col-span-2 xl:col-span-3">
                     <UInput v-model.number="linea.cantidad" type="number" min="1" class="w-full" />
                   </FormField>
                   <FormField label="P. unit." class="md:col-span-3">
                     <UInput v-model.number="linea.precioUnitario" type="number" min="0" step="0.01" class="w-full" />
                   </FormField>
-                  <div class="md:col-span-2">
+                  <div class="md:col-span-2 xl:col-span-3">
                     <UButton
                       type="button"
                       color="error"
@@ -765,7 +765,7 @@ const registrarAvance = () => {
               </div>
             </div>
 
-            <div class="md:col-span-2 border-t border-default pt-4">
+            <div class="md:col-span-2 xl:col-span-3 border-t border-default pt-4">
               <div class="flex flex-wrap items-end gap-3">
                 <FormField label="Cambiar estado" name="estado" class="flex-1 min-w-[200px]">
                   <USelect v-model="nuevoEstado" :items="estadoItems" class="w-full" />
@@ -783,7 +783,7 @@ const registrarAvance = () => {
             </div>
           </template>
 
-          <div class="md:col-span-2 flex gap-3">
+          <div class="md:col-span-2 xl:col-span-3 flex gap-3">
             <UButton type="submit" label="Actualizar" :loading="isLoading" />
             <UButton variant="ghost" color="neutral" label="Cancelar" :to="route('ordenes.index')" />
           </div>

@@ -71,7 +71,7 @@ const handleSubmit = () => {
     </template>
 
     <template #body>
-      <UCard class="max-w-3xl">
+      <UCard class="w-full">
         <UAlert
           class="mb-4"
           color="info"
@@ -89,7 +89,7 @@ const handleSubmit = () => {
           title="Revisa los datos"
           :description="String(Object.values(errors)[0] || '')"
         />
-        <form class="grid grid-cols-1 md:grid-cols-2 gap-4" @submit.prevent="handleSubmit">
+        <form class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 w-full" @submit.prevent="handleSubmit">
           <FormField label="Placa" name="placa" required :error="errors.placa" hint="Ej: ABC123 o ABC-123">
             <UInput v-model="state.placa" class="w-full" maxlength="8" />
           </FormField>
@@ -121,10 +121,10 @@ const handleSubmit = () => {
               class="w-full"
             />
           </FormField>
-          <FormField label="Observaciones" name="observaciones" class="md:col-span-2" :error="errors.observaciones">
+          <FormField label="Observaciones" name="observaciones" class="md:col-span-2 xl:col-span-3" :error="errors.observaciones">
             <UTextarea v-model="state.observaciones" class="w-full" :rows="3" />
           </FormField>
-          <div class="md:col-span-2 flex flex-wrap gap-2">
+          <div class="md:col-span-2 xl:col-span-3 flex flex-wrap gap-2">
             <UButton type="submit" label="Guardar vehículo" icon="i-lucide-check" :loading="isLoading" />
             <UButton
               variant="ghost"

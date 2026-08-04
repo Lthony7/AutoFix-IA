@@ -16,8 +16,8 @@ defineProps<{
   <UDashboardPanel
     :id="id"
     :ui="{
-      root: 'relative flex h-full max-h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden',
-      body: 'flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto overscroll-contain p-3 sm:gap-6 sm:p-6 bg-transparent pb-[max(2.5rem,env(safe-area-inset-bottom))]'
+      root: 'relative flex h-full max-h-full min-h-0 min-w-0 w-full flex-1 flex-col overflow-hidden',
+      body: 'flex min-h-0 w-full flex-1 flex-col gap-3 overflow-y-auto overscroll-contain p-3 sm:gap-6 sm:p-6 lg:p-8 bg-transparent pb-[max(2.5rem,env(safe-area-inset-bottom))]'
     }"
   >
     <template v-if="$slots.header" #header>
@@ -40,7 +40,7 @@ defineProps<{
       </div>
     </template>
     <template v-if="$slots.body" #body>
-      <div class="autofix-surface w-full min-w-0 max-w-full pb-6 sm:pb-10">
+      <div class="autofix-surface flex w-full min-w-0 max-w-full flex-1 flex-col pb-6 sm:pb-10">
         <slot name="body" />
       </div>
     </template>

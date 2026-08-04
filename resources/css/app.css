@@ -90,18 +90,39 @@ body,
 
 #app .autofix-surface {
   --ui-border: rgb(15 61 77 / 0.12);
+  width: 100%;
+  max-width: 100%;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* Contenido fluido: sin cajas angostas en el área de trabajo */
+#app .autofix-surface > .w-full,
+#app .autofix-surface > .space-y-4,
+#app .autofix-surface > .space-y-6,
+#app .autofix-surface > form,
+#app .autofix-surface > .grid {
+  width: 100%;
+  max-width: 100%;
+}
+
+#app .autofix-surface .max-w-2xl,
+#app .autofix-surface .max-w-3xl,
+#app .autofix-surface .max-w-4xl {
+  max-width: 100% !important;
+  width: 100%;
 }
 
 #app .autofix-surface > .space-y-4 > [class*='ring'],
 #app .autofix-surface > .space-y-3 > [class*='ring'],
 #app .autofix-surface > [class*='ring'][class*='rounded'],
-#app .autofix-surface .max-w-2xl[class*='ring'],
-#app .autofix-surface .max-w-3xl[class*='ring'],
-#app .autofix-surface .max-w-4xl[class*='ring'],
+#app .autofix-surface .w-full[class*='ring'],
 #app .autofix-surface [class*='xl:col-span'] > [class*='ring'],
 #app .autofix-surface [class*='grid'] > [class*='ring'] {
   background-color: var(--color-autofix-card) !important;
   border-radius: 0.875rem !important;
+  width: 100%;
+  max-width: 100%;
   box-shadow:
     0 1px 2px rgb(11 31 58 / 0.05),
     0 10px 28px rgb(11 31 58 / 0.05);
@@ -578,5 +599,27 @@ a.autofix-metric-card:active {
 #app .autofix-surface > .space-y-6 {
   max-width: 100%;
   min-width: 0;
+  width: 100%;
+}
+
+/* Formularios y paneles: ocupar el ancho útil según viewport */
+#app .autofix-surface form.grid {
+  width: 100%;
+}
+
+#app .autofix-module-panel {
+  width: 100%;
+}
+
+@media (min-width: 1280px) {
+  #app .autofix-surface form.grid.grid-cols-1 {
+    /* más aire útil en pantallas grandes sin romper col-spans */
+    column-gap: 1.25rem;
+  }
+}
+
+/* Inputs/selects siempre al 100% del grid */
+#app .autofix-surface :is(input, textarea, select, [data-slot='control'], .w-full) {
+  max-width: 100%;
 }
 

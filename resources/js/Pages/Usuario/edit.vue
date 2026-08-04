@@ -45,8 +45,8 @@ const handleSubmit = () => {
       </UDashboardNavbar>
     </template>
     <template #body>
-      <UCard class="max-w-2xl">
-        <form class="space-y-4" @submit.prevent="handleSubmit">
+      <UCard class="w-full">
+        <form class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 w-full" @submit.prevent="handleSubmit">
           <FormField label="Nombre" name="name" required :error="errors.name">
             <UInput v-model="state.name" class="w-full" />
           </FormField>
@@ -62,8 +62,10 @@ const handleSubmit = () => {
           <FormField label="Confirmar contraseña" name="password_confirmation">
             <UInput v-model="state.password_confirmation" type="password" class="w-full" />
           </FormField>
-          <UCheckbox v-model="state.activo" label="Usuario activo" />
-          <div class="flex gap-3">
+          <div class="flex items-end pb-1">
+            <UCheckbox v-model="state.activo" label="Usuario activo" />
+          </div>
+          <div class="md:col-span-2 xl:col-span-3 flex gap-3">
             <UButton type="submit" label="Actualizar" :loading="isLoading" />
             <UButton variant="ghost" color="neutral" label="Cancelar" :to="route('usuarios.index')" />
           </div>

@@ -70,7 +70,7 @@ const previewHorario = computed(() => encodeHorarioSemanal(dias) || 'Sin franjas
 </script>
 
 <template>
-  <div class="space-y-5 md:col-span-2">
+  <div class="space-y-5 w-full md:col-span-2 xl:col-span-3">
     <section class="space-y-3">
       <div>
         <h3 class="text-sm font-semibold text-highlighted">Especialidades</h3>

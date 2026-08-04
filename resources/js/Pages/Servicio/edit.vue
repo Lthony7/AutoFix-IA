@@ -43,12 +43,12 @@ const handleSubmit = () => {
       </UDashboardNavbar>
     </template>
     <template #body>
-      <UCard class="max-w-3xl">
-        <form class="grid grid-cols-1 md:grid-cols-2 gap-4" @submit.prevent="handleSubmit">
-          <FormField label="Nombre" name="nombre" required :error="errors.nombre" class="md:col-span-2">
+      <UCard class="w-full">
+        <form class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 w-full" @submit.prevent="handleSubmit">
+          <FormField label="Nombre" name="nombre" required :error="errors.nombre" class="md:col-span-2 xl:col-span-3">
             <UInput v-model="state.nombre" class="w-full" />
           </FormField>
-          <FormField label="Descripción" name="descripcion" :error="errors.descripcion" class="md:col-span-2">
+          <FormField label="Descripción" name="descripcion" :error="errors.descripcion" class="md:col-span-2 xl:col-span-3">
             <UTextarea v-model="state.descripcion" class="w-full" />
           </FormField>
           <FormField label="Precio base" name="precioBase" required :error="errors.precioBase">
@@ -57,7 +57,7 @@ const handleSubmit = () => {
           <div class="flex items-center">
             <UCheckbox v-model="state.activo" label="Servicio activo" />
           </div>
-          <div class="md:col-span-2 flex gap-3">
+          <div class="md:col-span-2 xl:col-span-3 flex gap-3">
             <UButton type="submit" label="Actualizar" :loading="isLoading" />
             <UButton variant="ghost" color="neutral" label="Cancelar" :to="route('servicios.index')" />
           </div>

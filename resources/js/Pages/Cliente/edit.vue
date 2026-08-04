@@ -81,7 +81,7 @@ const handleSubmit = () => {
       </UDashboardNavbar>
     </template>
     <template #body>
-      <UCard class="max-w-3xl">
+      <UCard class="w-full">
         <UAlert
           v-if="Object.keys(localErrors).length"
           class="mb-4"
@@ -91,7 +91,7 @@ const handleSubmit = () => {
           title="Revisa los datos del formulario"
           description="Corrige los campos marcados antes de continuar."
         />
-        <form class="grid grid-cols-1 md:grid-cols-2 gap-4" @submit.prevent="handleSubmit">
+        <form class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 w-full" @submit.prevent="handleSubmit">
           <FormField label="Tipo documento" name="tipoDocumento" required :error="errors.tipoDocumento">
             <USelect
               v-model="state.tipoDocumento"
@@ -120,10 +120,10 @@ const handleSubmit = () => {
           <FormField label="Apellidos" name="apellidos" :error="errors.apellidos" hint="Solo letras">
             <UInput v-model="state.apellidos" class="w-full" />
           </FormField>
-          <FormField label="Razón social / Nombre" name="razonSocial" required :error="errors.razonSocial || errors.razon_social" class="md:col-span-2">
+          <FormField label="Razón social / Nombre" name="razonSocial" required :error="errors.razonSocial || errors.razon_social" class="md:col-span-2 xl:col-span-3">
             <UInput v-model="state.razonSocial" class="w-full" />
           </FormField>
-          <FormField label="Dirección" name="direccion" required :error="errors.direccion" class="md:col-span-2">
+          <FormField label="Dirección" name="direccion" required :error="errors.direccion" class="md:col-span-2 xl:col-span-3">
             <UInput v-model="state.direccion" class="w-full" />
           </FormField>
           <FormField label="Teléfono" name="telefono" required :error="errors.telefono" hint="Exactamente 10 dígitos">
@@ -132,10 +132,10 @@ const handleSubmit = () => {
           <FormField label="Email" name="email" required :error="errors.email">
             <UInput v-model="state.email" type="email" class="w-full" />
           </FormField>
-          <div class="md:col-span-2 flex items-center gap-2">
+          <div class="md:col-span-2 xl:col-span-3 flex items-center gap-2">
             <UCheckbox v-model="state.estado" label="Cliente activo" />
           </div>
-          <div class="md:col-span-2 flex gap-3">
+          <div class="md:col-span-2 xl:col-span-3 flex gap-3">
             <UButton type="submit" label="Actualizar" :loading="isLoading" />
             <UButton variant="ghost" color="neutral" label="Cancelar" :to="route('clientes.index')" />
           </div>

@@ -120,7 +120,7 @@ const handleSubmit = () => {
       </UDashboardNavbar>
     </template>
     <template #body>
-      <UCard class="max-w-4xl">
+      <UCard class="w-full">
         <UAlert
           class="mb-4"
           color="info"
@@ -130,8 +130,8 @@ const handleSubmit = () => {
           description="Guarda la orden con la falla reportada. En el siguiente paso la IA generará el diagnóstico, asignará especialista, servicios y repuestos para que el mecánico los revise."
         />
 
-        <form class="grid grid-cols-1 md:grid-cols-2 gap-4" @submit.prevent="handleSubmit">
-          <FormField label="Cliente" name="clienteId" required :error="errors.clienteId" class="md:col-span-2">
+        <form class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 w-full" @submit.prevent="handleSubmit">
+          <FormField label="Cliente" name="clienteId" required :error="errors.clienteId" class="md:col-span-2 xl:col-span-3">
             <USelect
               v-model="state.clienteId"
               :items="clientes.map(c => ({ label: c.label, value: c.id }))"
@@ -139,7 +139,7 @@ const handleSubmit = () => {
               class="w-full"
             />
           </FormField>
-          <FormField label="Vehículo" name="vehiculoId" required :error="errors.vehiculoId" class="md:col-span-2">
+          <FormField label="Vehículo" name="vehiculoId" required :error="errors.vehiculoId" class="md:col-span-2 xl:col-span-3">
             <USelect
               v-model="state.vehiculoId"
               :items="vehiculosFiltrados.map(v => ({ label: v.label, value: v.id }))"
@@ -182,7 +182,7 @@ const handleSubmit = () => {
               </USelect>
             </div>
           </FormField>
-          <FormField label="Falla reportada" name="fallaReportada" required :error="errors.fallaReportada" class="md:col-span-2">
+          <FormField label="Falla reportada" name="fallaReportada" required :error="errors.fallaReportada" class="md:col-span-2 xl:col-span-3">
             <UTextarea
               v-model="state.fallaReportada"
               class="w-full"
@@ -208,7 +208,7 @@ const handleSubmit = () => {
             />
           </FormField>
 
-          <div class="md:col-span-2 flex gap-3">
+          <div class="md:col-span-2 xl:col-span-3 flex gap-3">
             <UButton type="submit" label="Guardar y diagnosticar con IA" icon="i-lucide-brain" :loading="isLoading" />
             <UButton variant="ghost" color="neutral" label="Cancelar" :to="route('ordenes.index')" />
           </div>

@@ -75,7 +75,7 @@ const estadoColor = (estado: string) => {
     </template>
 
     <template #body>
-      <div class="max-w-4xl space-y-4">
+      <div class="w-full space-y-4">
         <div class="flex flex-wrap gap-2 items-center">
           <UBadge :color="estadoColor(orden.estado) as any" variant="subtle" size="lg">
             {{ orden.estadoLabel }}

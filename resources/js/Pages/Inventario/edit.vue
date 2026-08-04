@@ -58,8 +58,8 @@ const handleSubmit = () => {
       </UDashboardNavbar>
     </template>
     <template #body>
-      <UCard class="max-w-3xl">
-        <form class="grid grid-cols-1 md:grid-cols-2 gap-4" @submit.prevent="handleSubmit">
+      <UCard class="w-full">
+        <form class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 w-full" @submit.prevent="handleSubmit">
           <FormField label="Código" name="codigo" required :error="errors.codigo">
             <UInput v-model="state.codigo" class="w-full" />
           </FormField>
@@ -71,10 +71,10 @@ const handleSubmit = () => {
               class="w-full"
             />
           </FormField>
-          <FormField label="Nombre" name="nombre" required :error="errors.nombre" class="md:col-span-2">
+          <FormField label="Nombre" name="nombre" required :error="errors.nombre" class="md:col-span-2 xl:col-span-3">
             <UInput v-model="state.nombre" class="w-full" />
           </FormField>
-          <FormField label="Descripción" name="descripcion" required :error="errors.descripcion" class="md:col-span-2">
+          <FormField label="Descripción" name="descripcion" required :error="errors.descripcion" class="md:col-span-2 xl:col-span-3">
             <UTextarea v-model="state.descripcion" class="w-full" />
           </FormField>
           <FormField label="Precio" name="precio" required :error="errors.precio">
@@ -89,10 +89,10 @@ const handleSubmit = () => {
           <FormField label="Stock mínimo (alerta)" name="stockMinimo" :error="errors.stockMinimo">
             <UInput v-model.number="state.stockMinimo" type="number" min="0" class="w-full" />
           </FormField>
-          <div class="md:col-span-2">
+          <div class="md:col-span-2 xl:col-span-3">
             <UCheckbox v-model="state.activo" label="Activo (disponible en órdenes)" />
           </div>
-          <div class="md:col-span-2 flex gap-3">
+          <div class="md:col-span-2 xl:col-span-3 flex gap-3">
             <UButton type="submit" label="Actualizar" :loading="isLoading" />
             <UButton variant="ghost" color="neutral" label="Cancelar" :to="route('inventario.index')" />
           </div>

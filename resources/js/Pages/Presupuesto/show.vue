@@ -35,7 +35,7 @@ const estadoColor = (estado: string) => {
     </template>
 
     <template #body>
-      <div class="space-y-4 max-w-4xl">
+      <div class="w-full space-y-4">
         <UCard>
           <div class="flex flex-wrap items-center gap-2 mb-3">
             <UBadge :color="estadoColor(presupuesto?.estado) as any" variant="subtle">

@@ -112,7 +112,7 @@ const handleSubmit = () => {
     </template>
 
     <template #body>
-      <UCard v-if="cliente" class="max-w-2xl">
+      <UCard v-if="cliente" class="w-full">
         <UAlert
           v-if="esDocumentoTemporal"
           class="mb-4"
@@ -121,10 +121,10 @@ const handleSubmit = () => {
           title="Completa tu identificación"
           description="Estos datos se usarán en presupuestos y facturas. Ingresa tu documento real (cédula, RUC u otro)."
         />
-        <form class="grid grid-cols-1 md:grid-cols-2 gap-4" @submit.prevent="handleSubmit">
+        <form class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 w-full" @submit.prevent="handleSubmit">
           <UAlert
             v-if="Object.keys(errors).length"
-            class="md:col-span-2"
+            class="md:col-span-2 xl:col-span-3"
             color="error"
             variant="subtle"
             title="Revisa los datos"
@@ -156,11 +156,11 @@ const handleSubmit = () => {
           <FormField label="Correo" name="email" required :error="errors.email">
             <UInput v-model="state.email" type="email" class="w-full" />
           </FormField>
-          <FormField label="Dirección" name="direccion" required :error="errors.direccion" class="md:col-span-2">
+          <FormField label="Dirección" name="direccion" required :error="errors.direccion" class="md:col-span-2 xl:col-span-3">
             <UInput v-model="state.direccion" class="w-full" placeholder="Calle, número, ciudad" />
           </FormField>
 
-          <div class="md:col-span-2">
+          <div class="md:col-span-2 xl:col-span-3">
             <UButton type="submit" label="Guardar cambios" :loading="isLoading" />
           </div>
         </form>
