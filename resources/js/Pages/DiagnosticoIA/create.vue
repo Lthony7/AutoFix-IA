@@ -3,6 +3,7 @@ import { reactive, computed, ref, watch } from 'vue'
 import { router, usePage } from '@inertiajs/vue3'
 import { route } from 'ziggy-js'
 import FormField from '../../components/FormField.vue'
+import ModulePanel from '../../components/ModulePanel.vue'
 
 interface OrdenOption {
   id: string
@@ -147,8 +148,9 @@ const handleSubmit = () => {
       </UDashboardNavbar>
     </template>
     <template #body>
-      <div class="w-full space-y-4">
+      <div class="flex w-full min-w-0 flex-col gap-4">
         <UAlert
+          class="w-full"
           color="warning"
           variant="subtle"
           icon="i-lucide-triangle-alert"
@@ -156,45 +158,53 @@ const handleSubmit = () => {
           description="Al generar, la IA propondrá observaciones, mecánico, servicios y repuestos. El mecánico debe confirmar el diagnóstico final."
         />
 
-        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center text-xs sm:text-sm">
-          <div class="rounded-lg border border-default px-2 py-2.5 bg-elevated/30">
-            <p class="font-semibold text-highlighted">1. Vehículo</p>
-            <p class="text-muted mt-0.5">OT / placa</p>
+        <div class="grid w-full grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
+          <div class="rounded-xl border border-default bg-white px-3 py-3 text-center shadow-sm">
+            <p class="text-sm font-semibold text-highlighted">1. Vehículo</p>
+            <p class="mt-0.5 text-xs text-muted">OT / placa</p>
           </div>
-          <div class="rounded-lg border border-default px-2 py-2.5 bg-elevated/30">
-            <p class="font-semibold text-highlighted">2. Falla</p>
-            <p class="text-muted mt-0.5">Eléctrico, motor…</p>
+          <div class="rounded-xl border border-default bg-white px-3 py-3 text-center shadow-sm">
+            <p class="text-sm font-semibold text-highlighted">2. Falla</p>
+            <p class="mt-0.5 text-xs text-muted">Eléctrico, motor…</p>
           </div>
-          <div class="rounded-lg border border-default px-2 py-2.5 bg-elevated/30">
-            <p class="font-semibold text-highlighted">3. Prioridad</p>
-            <p class="text-muted mt-0.5">Baja / media / alta</p>
+          <div class="rounded-xl border border-default bg-white px-3 py-3 text-center shadow-sm">
+            <p class="text-sm font-semibold text-highlighted">3. Prioridad</p>
+            <p class="mt-0.5 text-xs text-muted">Baja / media / alta</p>
           </div>
-          <div class="rounded-lg border border-default px-2 py-2.5 bg-elevated/30">
-            <p class="font-semibold text-highlighted">4. Reporte</p>
-            <p class="text-muted mt-0.5">Y generar IA</p>
+          <div class="rounded-xl border border-default bg-white px-3 py-3 text-center shadow-sm">
+            <p class="text-sm font-semibold text-highlighted">4. Reporte</p>
+            <p class="mt-0.5 text-xs text-muted">Y generar IA</p>
           </div>
         </div>
 
-        <UCard v-if="!ordenes.length">
-          <div class="space-y-3 text-center py-4">
-            <p class="text-sm text-muted">
-              No hay vehículos con orden pendiente de diagnóstico. Crea una OT primero (cliente + vehículo + falla).
-            </p>
+        <ModulePanel v-if="!ordenes.length" title="Sin órdenes pendientes" class="w-full">
+          <div class="flex flex-col items-center justify-center gap-4 py-10 text-center sm:py-14">
+            <div class="flex size-14 items-center justify-center rounded-full bg-primary/10">
+              <UIcon name="i-lucide-clipboard-list" class="size-7 text-primary" />
+            </div>
+            <div class="max-w-lg space-y-1">
+              <p class="text-base font-medium text-highlighted">
+                No hay vehículos con orden pendiente de diagnóstico
+              </p>
+              <p class="text-sm text-muted">
+                Crea una OT primero (cliente + vehículo + falla) y vuelve aquí para generar la sugerencia de IA.
+              </p>
+            </div>
             <UButton
               icon="i-lucide-clipboard-plus"
+              color="success"
+              size="lg"
               label="Crear orden de trabajo"
               :to="route('ordenes.create')"
             />
           </div>
-        </UCard>
+        </ModulePanel>
 
-        <form v-else class="space-y-4" @submit.prevent="handleSubmit">
-          <UCard>
-            <h3 class="font-semibold mb-1 flex items-center gap-2">
-              <span class="inline-flex size-6 items-center justify-center rounded-full bg-primary/15 text-xs font-bold text-primary">1</span>
-              Escoger vehículo
-            </h3>
-            <p class="text-sm text-muted mb-4">Selecciona el vehículo (vinculado a su orden de trabajo pendiente).</p>
+        <form v-else class="grid w-full min-w-0 grid-cols-1 gap-4 xl:grid-cols-12" @submit.prevent="handleSubmit">
+          <ModulePanel title="1. Escoger vehículo" class="w-full xl:col-span-6">
+            <p class="mb-4 text-sm text-muted">
+              Selecciona el vehículo (vinculado a su orden de trabajo pendiente).
+            </p>
 
             <FormField label="Vehículo" name="ordenTrabajoId" required :error="errors.ordenTrabajoId || errors.orden_trabajo_id">
               <USelect
@@ -207,7 +217,7 @@ const handleSubmit = () => {
 
             <div
               v-if="ordenSeleccionada"
-              class="mt-4 rounded-lg border border-default/70 bg-elevated/40 p-4 grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm"
+              class="mt-4 grid grid-cols-1 gap-3 rounded-lg border border-default/70 bg-elevated/40 p-4 text-sm sm:grid-cols-2"
             >
               <div>
                 <p class="text-xs uppercase tracking-wide text-muted">Cliente</p>
@@ -234,43 +244,13 @@ const handleSubmit = () => {
                 <p class="mt-1 font-medium">{{ ordenSeleccionada.numero }}</p>
               </div>
             </div>
-          </UCard>
+          </ModulePanel>
 
-          <UCard>
-            <h3 class="font-semibold mb-1 flex items-center gap-2">
-              <span class="inline-flex size-6 items-center justify-center rounded-full bg-primary/15 text-xs font-bold text-primary">2</span>
-              ¿Qué falla presenta?
-            </h3>
-            <p class="text-sm text-muted mb-4">Elige el sistema o área donde se manifiesta el problema.</p>
-
-            <FormField label="Tipo de falla" name="tipoFalla" required :error="errors.tipoFalla || errors.tipo_falla">
-              <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                <button
-                  v-for="item in tipoFallaItems"
-                  :key="item.value"
-                  type="button"
-                  class="rounded-lg border px-3 py-3 text-left text-sm transition-colors"
-                  :class="state.tipoFalla === item.value
-                    ? 'border-primary bg-primary/10 ring-1 ring-primary/40'
-                    : 'border-default hover:bg-elevated/50'"
-                  @click="state.tipoFalla = item.value"
-                >
-                  <UIcon :name="item.icon" class="size-4 mb-1.5 opacity-80" />
-                  <span class="block font-medium leading-snug">{{ item.label }}</span>
-                </button>
-              </div>
-            </FormField>
-          </UCard>
-
-          <UCard>
-            <h3 class="font-semibold mb-1 flex items-center gap-2">
-              <span class="inline-flex size-6 items-center justify-center rounded-full bg-primary/15 text-xs font-bold text-primary">3</span>
-              Prioridad
-            </h3>
-            <p class="text-sm text-muted mb-4">Según urgencia y seguridad del caso.</p>
+          <ModulePanel title="3. Prioridad" class="w-full xl:col-span-6">
+            <p class="mb-4 text-sm text-muted">Según urgencia y seguridad del caso.</p>
 
             <FormField label="Prioridad" name="urgencia" required :error="errors.urgencia">
-              <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              <div class="grid grid-cols-1 gap-2 sm:grid-cols-3">
                 <button
                   v-for="item in prioridadItems"
                   :key="item.value"
@@ -282,27 +262,45 @@ const handleSubmit = () => {
                   @click="state.urgencia = item.value"
                 >
                   <span class="font-semibold capitalize">{{ item.label }}</span>
-                  <span class="block text-xs text-muted mt-0.5">{{ item.description }}</span>
+                  <span class="mt-0.5 block text-xs text-muted">{{ item.description }}</span>
                 </button>
               </div>
             </FormField>
-          </UCard>
+          </ModulePanel>
 
-          <UCard>
-            <h3 class="font-semibold mb-1 flex items-center gap-2">
-              <span class="inline-flex size-6 items-center justify-center rounded-full bg-primary/15 text-xs font-bold text-primary">4</span>
-              Detallar reporte
-            </h3>
-            <p class="text-sm text-muted mb-4">
+          <ModulePanel title="2. ¿Qué falla presenta?" class="w-full xl:col-span-12">
+            <p class="mb-4 text-sm text-muted">Elige el sistema o área donde se manifiesta el problema.</p>
+
+            <FormField label="Tipo de falla" name="tipoFalla" required :error="errors.tipoFalla || errors.tipo_falla">
+              <div class="grid grid-cols-2 gap-2 sm:grid-cols-4 xl:grid-cols-8">
+                <button
+                  v-for="item in tipoFallaItems"
+                  :key="item.value"
+                  type="button"
+                  class="rounded-lg border px-3 py-3 text-left text-sm transition-colors"
+                  :class="state.tipoFalla === item.value
+                    ? 'border-primary bg-primary/10 ring-1 ring-primary/40'
+                    : 'border-default hover:bg-elevated/50'"
+                  @click="state.tipoFalla = item.value"
+                >
+                  <UIcon :name="item.icon" class="mb-1.5 size-4 opacity-80" />
+                  <span class="block font-medium leading-snug">{{ item.label }}</span>
+                </button>
+              </div>
+            </FormField>
+          </ModulePanel>
+
+          <ModulePanel title="4. Detallar reporte" class="w-full xl:col-span-12">
+            <p class="mb-4 text-sm text-muted">
               Describe brevemente qué ocurre. Con eso la IA generará observaciones, mecánico sugerido, servicios y repuestos.
             </p>
 
-            <div class="space-y-4">
+            <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
               <FormField label="Reporte de la falla" name="descripcion" required :error="errors.descripcion">
                 <UTextarea
                   v-model="state.descripcion"
                   class="w-full"
-                  :rows="4"
+                  :rows="5"
                   placeholder="Ej: El vehículo no enciende, solo hace click al girar la llave. Luces del tablero débiles. Empezó ayer después de dejar las luces encendidas."
                 />
                 <p class="mt-1.5 text-xs text-muted">Mínimo ~10 caracteres. Sé concreto: síntoma, cuándo ocurre y desde cuándo.</p>
@@ -312,61 +310,66 @@ const handleSubmit = () => {
                 <UTextarea
                   v-model="state.observaciones"
                   class="w-full"
-                  :rows="2"
+                  :rows="5"
                   placeholder="Garantía, trabajos previos, piezas ya cambiadas, etc."
                 />
               </FormField>
+            </div>
 
-              <div>
-                <UButton
-                  type="button"
-                  variant="ghost"
-                  color="neutral"
-                  size="sm"
-                  :icon="detalleExtra ? 'i-lucide-chevron-up' : 'i-lucide-chevron-down'"
-                  :label="detalleExtra ? 'Ocultar detalle extra' : 'Agregar detalle extra (opcional)'"
-                  @click="detalleExtra = !detalleExtra"
-                />
-              </div>
+            <div class="mt-4">
+              <UButton
+                type="button"
+                variant="ghost"
+                color="neutral"
+                size="sm"
+                :icon="detalleExtra ? 'i-lucide-chevron-up' : 'i-lucide-chevron-down'"
+                :label="detalleExtra ? 'Ocultar detalle extra' : 'Agregar detalle extra (opcional)'"
+                @click="detalleExtra = !detalleExtra"
+              />
+            </div>
 
-              <div v-if="detalleExtra" class="grid grid-cols-1 md:grid-cols-2 gap-4 rounded-lg border border-default/60 p-4">
-                <FormField label="Momento en que ocurre" name="momento" :error="errors.momento">
-                  <UInput v-model="state.momento" placeholder="Ej: al arrancar, en marcha, al frenar" class="w-full" />
-                </FormField>
-                <FormField label="Luces en tablero" name="lucesTablero" :error="errors.lucesTablero || errors.luces_tablero">
-                  <UInput v-model="state.lucesTablero" placeholder="Ej: check engine, batería" class="w-full" />
-                </FormField>
-                <FormField label="Ruidos" name="ruidos" :error="errors.ruidos">
-                  <UInput v-model="state.ruidos" placeholder="Ej: chirrido, golpe metálico" class="w-full" />
-                </FormField>
-                <div class="flex items-center">
-                  <UCheckbox v-model="state.puedeCircular" label="El vehículo puede circular" />
-                </div>
+            <div
+              v-if="detalleExtra"
+              class="mt-3 grid grid-cols-1 gap-4 rounded-lg border border-default/60 p-4 md:grid-cols-2 xl:grid-cols-4"
+            >
+              <FormField label="Momento en que ocurre" name="momento" :error="errors.momento">
+                <UInput v-model="state.momento" placeholder="Ej: al arrancar, en marcha, al frenar" class="w-full" />
+              </FormField>
+              <FormField label="Luces en tablero" name="lucesTablero" :error="errors.lucesTablero || errors.luces_tablero">
+                <UInput v-model="state.lucesTablero" placeholder="Ej: check engine, batería" class="w-full" />
+              </FormField>
+              <FormField label="Ruidos" name="ruidos" :error="errors.ruidos">
+                <UInput v-model="state.ruidos" placeholder="Ej: chirrido, golpe metálico" class="w-full" />
+              </FormField>
+              <div class="flex items-end pb-2">
+                <UCheckbox v-model="state.puedeCircular" label="El vehículo puede circular" />
               </div>
             </div>
-          </UCard>
+          </ModulePanel>
 
-          <UCard>
-            <div class="flex flex-wrap items-center justify-between gap-3">
-              <div class="text-sm text-muted max-w-xl">
-                Al generar, la IA devolverá: <strong class="text-highlighted">observaciones</strong>,
+          <ModulePanel title="Generar" class="w-full xl:col-span-12">
+            <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <p class="text-sm text-muted">
+                Al generar, la IA devolverá:
+                <strong class="text-highlighted">observaciones</strong>,
                 <strong class="text-highlighted">mecánico</strong> sugerido,
                 <strong class="text-highlighted">servicios</strong> y
                 <strong class="text-highlighted">repuestos</strong>, y los aplicará a la orden para revisión.
-              </div>
-              <div class="flex gap-3">
+              </p>
+              <div class="flex shrink-0 flex-wrap gap-3">
                 <UButton variant="ghost" color="neutral" label="Cancelar" :to="route('diagnosticos-ia.index')" />
                 <UButton
                   type="submit"
                   label="Generar diagnóstico IA"
                   icon="i-lucide-sparkles"
+                  color="success"
                   size="lg"
                   :loading="isLoading"
                   :disabled="!puedeGenerar"
                 />
               </div>
             </div>
-          </UCard>
+          </ModulePanel>
         </form>
       </div>
     </template>
