@@ -3,6 +3,7 @@ import { reactive, computed, ref } from 'vue'
 import { router, usePage } from '@inertiajs/vue3'
 import { route } from 'ziggy-js'
 import FormField from '../../components/FormField.vue'
+import ModulePanel from '../../components/ModulePanel.vue'
 import MecanicoEspecialidadHorarioFields from '../../components/MecanicoEspecialidadHorarioFields.vue'
 import {
   mergeErrors,
@@ -70,7 +71,10 @@ const handleSubmit = () => {
   isLoading.value = true
   state.documento = soloDigitos(state.documento)
   if (state.telefono) state.telefono = soloDigitos(state.telefono)
-  router.post(route('mecanicos.store'), state, {
+  router.post(route('mecanicos.store'), {
+    ...state,
+    horarioDisponible: state.horarioDisponible || null
+  }, {
     onFinish: () => { isLoading.value = false }
   })
 }
@@ -86,57 +90,64 @@ const handleSubmit = () => {
       </UDashboardNavbar>
     </template>
     <template #body>
-      <UCard class="w-full">
+      <div class="flex w-full min-w-0 flex-col gap-4">
         <UAlert
           v-if="Object.keys(localErrors).length"
-          class="mb-4"
           color="error"
           variant="subtle"
           icon="i-lucide-circle-alert"
           title="Revisa los datos del formulario"
           description="Corrige los campos marcados antes de continuar."
         />
-        <form class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 w-full" @submit.prevent="handleSubmit">
-          <FormField label="Usuario vinculado (opcional)" name="userId" :error="errors.userId" class="md:col-span-2 xl:col-span-3">
-            <USelect
-              v-model="state.userId"
-              :items="[{ label: 'Sin usuario', value: '' }, ...usuarios.map(u => ({ label: u.label, value: u.id }))]"
-              class="w-full"
-            />
-          </FormField>
-          <FormField label="Nombres" name="nombres" required :error="errors.nombres" hint="Solo letras">
-            <UInput v-model="state.nombres" class="w-full" />
-          </FormField>
-          <FormField label="Apellidos" name="apellidos" required :error="errors.apellidos" hint="Solo letras">
-            <UInput v-model="state.apellidos" class="w-full" />
-          </FormField>
-          <FormField label="Documento" name="documento" required :error="errors.documento" hint="6–10 dígitos">
-            <UInput v-model="state.documento" inputmode="numeric" maxlength="10" class="w-full" />
-          </FormField>
-          <FormField label="Teléfono" name="telefono" :error="errors.telefono" hint="10 dígitos si se ingresa">
-            <UInput v-model="state.telefono" inputmode="numeric" maxlength="10" class="w-full" />
-          </FormField>
-          <FormField label="Email" name="email" :error="errors.email" class="md:col-span-2 xl:col-span-1">
-            <UInput v-model="state.email" type="email" class="w-full" />
-          </FormField>
 
-          <MecanicoEspecialidadHorarioFields
-            v-model:especialidad="state.especialidad"
-            v-model:horario-disponible="state.horarioDisponible"
-            :error-especialidad="errors.especialidad"
-            :error-horario="errors.horarioDisponible"
-            class="w-full"
+        <ModulePanel title="Datos del mecánico" class="w-full">
+          <form id="form-nuevo-mecanico" class="grid w-full grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3" @submit.prevent="handleSubmit">
+            <FormField label="Usuario vinculado (opcional)" name="userId" :error="errors.userId" class="md:col-span-2 xl:col-span-3">
+              <USelect
+                v-model="state.userId"
+                :items="[{ label: 'Sin usuario', value: '' }, ...usuarios.map(u => ({ label: u.label, value: u.id }))]"
+                class="w-full"
+              />
+            </FormField>
+            <FormField label="Nombres" name="nombres" required :error="errors.nombres" hint="Solo letras">
+              <UInput v-model="state.nombres" class="w-full" />
+            </FormField>
+            <FormField label="Apellidos" name="apellidos" required :error="errors.apellidos" hint="Solo letras">
+              <UInput v-model="state.apellidos" class="w-full" />
+            </FormField>
+            <FormField label="Documento" name="documento" required :error="errors.documento" hint="6–10 dígitos">
+              <UInput v-model="state.documento" inputmode="numeric" maxlength="10" class="w-full" />
+            </FormField>
+            <FormField label="Teléfono" name="telefono" :error="errors.telefono" hint="10 dígitos si se ingresa">
+              <UInput v-model="state.telefono" inputmode="numeric" maxlength="10" class="w-full" />
+            </FormField>
+            <FormField label="Email" name="email" :error="errors.email" class="md:col-span-2 xl:col-span-1">
+              <UInput v-model="state.email" type="email" class="w-full" />
+            </FormField>
+            <div class="md:col-span-2 xl:col-span-3">
+              <UCheckbox v-model="state.activo" label="Mecánico activo" />
+            </div>
+          </form>
+        </ModulePanel>
+
+        <MecanicoEspecialidadHorarioFields
+          v-model:especialidad="state.especialidad"
+          v-model:horario-disponible="state.horarioDisponible"
+          :error-especialidad="errors.especialidad"
+          :error-horario="errors.horarioDisponible"
+        />
+
+        <div class="flex flex-wrap gap-3">
+          <UButton
+            type="submit"
+            form="form-nuevo-mecanico"
+            color="success"
+            label="Guardar"
+            :loading="isLoading"
           />
-
-          <div class="md:col-span-2 xl:col-span-3">
-            <UCheckbox v-model="state.activo" label="Mecánico activo" />
-          </div>
-          <div class="md:col-span-2 xl:col-span-3 flex gap-3">
-            <UButton type="submit" label="Guardar" :loading="isLoading" />
-            <UButton variant="ghost" color="neutral" label="Cancelar" :to="route('mecanicos.index')" />
-          </div>
-        </form>
-      </UCard>
+          <UButton variant="ghost" color="neutral" label="Cancelar" :to="route('mecanicos.index')" />
+        </div>
+      </div>
     </template>
   </AppDashboardPanel>
 </template>

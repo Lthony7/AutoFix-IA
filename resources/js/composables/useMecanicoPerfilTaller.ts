@@ -1,13 +1,23 @@
+/** Especialidades del mercado laboral automotriz (taller / mecánico). */
 export const ESPECIALIDADES_MECANICO = [
-  'Aire acondicionado',
-  'Frenos',
-  'Motor',
-  'Sistema eléctrico',
+  'Mantenimiento general y lubricación',
+  'Motor (reparación y sincronización)',
+  'Inyección electrónica y sensores',
+  'Sistema eléctrico y baterías',
+  'Diagnóstico computarizado (scanner OBD)',
+  'Frenos (discos, pastillas, ABS)',
   'Suspensión y dirección',
-  'Transmisión',
-  'Diagnóstico computarizado',
-  'Mantenimiento general',
-  'Inyección electrónica'
+  'Transmisión manual y automática',
+  'Embrague y caja de cambios',
+  'Aire acondicionado y clima',
+  'Alineación, balanceo y llantas',
+  'Escape, catalizador y emisiones',
+  'Enfriamiento y radiador',
+  'Dirección hidráulica / eléctrica',
+  'Carrocería y chapa liviana',
+  'Soldadura y estructuras',
+  'Pintura automotriz',
+  'Sistemas híbridos / EV (básico)'
 ] as const
 
 export type EspecialidadMecanico = (typeof ESPECIALIDADES_MECANICO)[number]
@@ -45,10 +55,13 @@ const SHORT_TO_KEY: Record<string, DiaKey> = {
 
 const RANGE_ORDER: DiaKey[] = ['lun', 'mar', 'mie', 'jue', 'vie', 'sab', 'dom']
 
-export function diasHorarioDefault(activosLunVie = true): DiaHorario[] {
+const normKey = (value: string): string =>
+  value.toLowerCase().normalize('NFD').replace(/\p{M}/gu, '')
+
+export function diasHorarioDefault(preseleccionarLunVie = false): DiaHorario[] {
   return DIAS_SEMANA.map((d) => ({
     key: d.key,
-    activo: activosLunVie ? ['lun', 'mar', 'mie', 'jue', 'vie'].includes(d.key) : false,
+    activo: preseleccionarLunVie ? ['lun', 'mar', 'mie', 'jue', 'vie'].includes(d.key) : false,
     desde: '08:00',
     hasta: '17:00'
   }))
@@ -91,16 +104,14 @@ export function encodeHorarioSemanal(dias: DiaHorario[]): string {
 
 export function decodeHorarioSemanal(raw: string | null | undefined): DiaHorario[] {
   const base = diasHorarioDefault(false)
-  if (!raw?.trim()) return diasHorarioDefault(true)
+  if (!raw?.trim()) return base
 
   const text = raw.trim()
 
-  // Formato detallado: "Lun 08:00-17:00, Mar 09:00-18:00"
   const detalle = [...text.matchAll(/\b(Lun|Mar|Mié|Mie|Jue|Vie|Sáb|Sab|Dom)\s+(\d{1,2}:\d{2})\s*[-–]\s*(\d{1,2}:\d{2})/gi)]
   if (detalle.length) {
     for (const m of detalle) {
-      const key = SHORT_TO_KEY[m[1].toLowerCase().normalize('NFD').replace(/\p{M}/gu, '')]
-        ?? SHORT_TO_KEY[m[1].toLowerCase()]
+      const key = SHORT_TO_KEY[normKey(m[1])] ?? SHORT_TO_KEY[m[1].toLowerCase()]
       if (!key) continue
       const row = base.find(d => d.key === key)
       if (!row) continue
@@ -111,13 +122,10 @@ export function decodeHorarioSemanal(raw: string | null | undefined): DiaHorario
     return base
   }
 
-  // Formato compacto: "Lun-Vie 08:00-17:00" / "Lun-Sáb 08:00-13:00"
   const compact = text.match(/\b(Lun|Mar|Mié|Mie|Jue|Vie|Sáb|Sab|Dom)\s*[-–]\s*(Lun|Mar|Mié|Mie|Jue|Vie|Sáb|Sab|Dom)\s+(\d{1,2}:\d{2})\s*[-–]\s*(\d{1,2}:\d{2})/i)
   if (compact) {
-    const from = SHORT_TO_KEY[compact[1].toLowerCase().normalize('NFD').replace(/\p{M}/gu, '')]
-      ?? SHORT_TO_KEY[compact[1].toLowerCase()]
-    const to = SHORT_TO_KEY[compact[2].toLowerCase().normalize('NFD').replace(/\p{M}/gu, '')]
-      ?? SHORT_TO_KEY[compact[2].toLowerCase()]
+    const from = SHORT_TO_KEY[normKey(compact[1])] ?? SHORT_TO_KEY[compact[1].toLowerCase()]
+    const to = SHORT_TO_KEY[normKey(compact[2])] ?? SHORT_TO_KEY[compact[2].toLowerCase()]
     const desde = normalizeHora(compact[3])
     const hasta = normalizeHora(compact[4])
     if (from && to) {
@@ -130,12 +138,11 @@ export function decodeHorarioSemanal(raw: string | null | undefined): DiaHorario
           row.desde = desde
           row.hasta = hasta
         }
-        return base
       }
     }
   }
 
-  return diasHorarioDefault(true)
+  return base
 }
 
 export function normalizeHora(value: string): string {
@@ -146,6 +153,10 @@ export function normalizeHora(value: string): string {
   return `${String(h).padStart(2, '0')}:${String(min).padStart(2, '0')}`
 }
 
+/**
+ * Especialidad: al menos una.
+ * Horario: opcional; si hay días activos, validar franjas.
+ */
 export function validarEspecialidadesHorario(
   especialidades: string[],
   dias: DiaHorario[]
@@ -156,11 +167,6 @@ export function validarEspecialidadesHorario(
   }
 
   const activos = dias.filter(d => d.activo)
-  if (!activos.length) {
-    errors.horarioDisponible = 'Activa al menos un día de la semana'
-    return errors
-  }
-
   for (const d of activos) {
     const desde = normalizeHora(d.desde)
     const hasta = normalizeHora(d.hasta)
