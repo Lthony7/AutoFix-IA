@@ -89,6 +89,9 @@ const destroy = (id: string) => {
         <template #leading>
           <UDashboardSidebarCollapse />
         </template>
+        <template #right>
+          <AppCreateButton :to="route('pagos.create')" label="Nuevo pago" />
+        </template>
       </UDashboardNavbar>
     </template>
 
@@ -102,12 +105,6 @@ const destroy = (id: string) => {
 
         <ModulePanel title="Pagos">
           <template #actions>
-            <UButton
-              icon="i-lucide-plus"
-              label="Nuevo pago"
-              color="success"
-              :to="route('pagos.create')"
-            />
             <UButton
               v-if="filters.estado"
               size="sm"

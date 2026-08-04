@@ -75,6 +75,9 @@ const metricCards = computed((): MetricCard[] => [
         <template #leading>
           <UDashboardSidebarCollapse />
         </template>
+        <template #right>
+          <AppCreateButton :to="route('diagnosticos-ia.create')" label="Nuevo diagnóstico" />
+        </template>
       </UDashboardNavbar>
     </template>
 
@@ -99,15 +102,6 @@ const metricCards = computed((): MetricCard[] => [
         />
 
         <ModulePanel title="Diagnósticos IA">
-          <template #actions>
-            <UButton
-              icon="i-lucide-plus"
-              label="Nuevo diagnóstico"
-              color="success"
-              :to="route('diagnosticos-ia.create')"
-            />
-          </template>
-
           <div class="overflow-x-auto">
             <table class="w-full text-sm">
               <thead>

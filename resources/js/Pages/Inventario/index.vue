@@ -182,6 +182,9 @@ const saveStock = () => {
         <template #leading>
           <UDashboardSidebarCollapse />
         </template>
+        <template #right>
+          <AppCreateButton :to="route('inventario.create')" label="Nuevo" />
+        </template>
       </UDashboardNavbar>
     </template>
 
@@ -201,13 +204,6 @@ const saveStock = () => {
               color="neutral"
               size="sm"
               :to="route('reportes.index')"
-            />
-            <UButton
-              icon="i-lucide-plus"
-              label="Nuevo"
-              color="success"
-              size="sm"
-              :to="route('inventario.create')"
             />
           </template>
 

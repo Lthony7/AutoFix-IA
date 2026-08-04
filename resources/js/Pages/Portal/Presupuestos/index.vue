@@ -79,6 +79,9 @@ const cancelar = (p: Presupuesto) => {
         <template #leading>
           <UDashboardSidebarCollapse />
         </template>
+        <template #right>
+          <AppCreateButton :to="route('portal.presupuestos.create')" label="Nuevo presupuesto" />
+        </template>
       </UDashboardNavbar>
     </template>
 
@@ -87,15 +90,6 @@ const cancelar = (p: Presupuesto) => {
         <MetricStatCards :cards="metricCards" :columns="4" />
 
         <ModulePanel title="Mis presupuestos">
-          <template #actions>
-            <UButton
-              icon="i-lucide-plus"
-              label="Nuevo presupuesto"
-              color="success"
-              :to="route('portal.presupuestos.create')"
-            />
-          </template>
-
           <p class="text-sm text-muted mb-4">
             Arma un estimado con servicios del taller y repuestos del inventario. Luego puedes usarlo al agendar tu cita.
           </p>

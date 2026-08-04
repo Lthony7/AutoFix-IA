@@ -87,6 +87,9 @@ const destroy = (id: string) => {
         <template #leading>
           <UDashboardSidebarCollapse />
         </template>
+        <template #right>
+          <AppCreateButton :to="route('facturas.create')" label="Generar factura" />
+        </template>
       </UDashboardNavbar>
     </template>
 
@@ -100,12 +103,6 @@ const destroy = (id: string) => {
 
         <ModulePanel title="Facturas">
           <template #actions>
-            <UButton
-              icon="i-lucide-plus"
-              label="Generar factura"
-              color="success"
-              :to="route('facturas.create')"
-            />
             <UButton
               v-if="filters.estado"
               size="sm"

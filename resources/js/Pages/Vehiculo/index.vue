@@ -71,6 +71,9 @@ const metricCards = computed((): MetricCard[] => [
         <template #leading>
           <UDashboardSidebarCollapse />
         </template>
+        <template #right>
+          <AppCreateButton :to="route('vehiculos.create')" label="Nuevo vehículo" />
+        </template>
       </UDashboardNavbar>
     </template>
     <template #body>
@@ -78,15 +81,6 @@ const metricCards = computed((): MetricCard[] => [
         <MetricStatCards :cards="metricCards" :columns="4" />
 
         <ModulePanel title="Vehículos">
-          <template #actions>
-            <UButton
-              icon="i-lucide-plus"
-              label="Nuevo vehículo"
-              color="success"
-              :to="route('vehiculos.create')"
-            />
-          </template>
-
           <div class="overflow-x-auto">
             <table class="w-full text-sm">
               <thead>

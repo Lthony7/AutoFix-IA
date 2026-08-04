@@ -113,6 +113,9 @@ const destroy = (id: string) => {
         <template #leading>
           <UDashboardSidebarCollapse />
         </template>
+        <template #right>
+          <AppCreateButton :to="route('usuarios.create')" label="Nuevo usuario" />
+        </template>
       </UDashboardNavbar>
     </template>
 
@@ -125,15 +128,6 @@ const destroy = (id: string) => {
         />
 
         <ModulePanel title="Usuarios">
-          <template #actions>
-            <UButton
-              icon="i-lucide-plus"
-              label="Nuevo usuario"
-              color="success"
-              :to="route('usuarios.create')"
-            />
-          </template>
-
           <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
             <FormField label="Buscar" name="q" class="md:col-span-2">
               <UInput

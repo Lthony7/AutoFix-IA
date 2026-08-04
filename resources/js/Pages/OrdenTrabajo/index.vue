@@ -103,6 +103,9 @@ const semaforoCards = computed((): SemaforoCard[] => [
         <template #leading>
           <UDashboardSidebarCollapse />
         </template>
+        <template #right>
+          <AppCreateButton v-if="role !== 'mecanico'" :to="route('ordenes.create')" label="Nueva orden" />
+        </template>
       </UDashboardNavbar>
     </template>
 
@@ -114,17 +117,6 @@ const semaforoCards = computed((): SemaforoCard[] => [
         />
 
         <ModulePanel title="Órdenes">
-          <template #actions>
-            <UButton
-              v-if="role !== 'mecanico'"
-              icon="i-lucide-plus"
-              label="Nueva orden"
-              color="success"
-              size="sm"
-              :to="route('ordenes.create')"
-            />
-          </template>
-
           <div class="overflow-x-auto">
             <table class="w-full text-sm">
               <thead>
