@@ -88,7 +88,7 @@ const goTo = (page: number) => {
     v-if="show"
     class="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
   >
-    <p class="text-sm text-muted">
+    <p class="text-sm text-slate-500">
       {{ summary }}
     </p>
 
@@ -97,7 +97,7 @@ const goTo = (page: number) => {
         type="button"
         aria-label="Anterior"
         :disabled="meta.currentPage <= 1"
-        class="inline-flex h-8 w-8 flex-none items-center justify-center rounded-md text-sm text-default transition-colors hover:bg-default-500/10 disabled:opacity-40 disabled:cursor-not-allowed"
+        class="inline-flex h-8 w-8 flex-none items-center justify-center rounded-md text-slate-700 transition-colors hover:bg-slate-200 disabled:opacity-40 disabled:cursor-not-allowed"
         @click="goTo(meta.currentPage - 1)"
       >
         <svg
@@ -115,15 +115,15 @@ const goTo = (page: number) => {
       </button>
 
       <template v-for="(item, idx) in pageItems" :key="`${item}-${idx}`">
-        <span v-if="item === 'ellipsis'" class="px-2 text-sm text-muted">…</span>
+        <span v-if="item === 'ellipsis'" class="px-2 text-sm text-slate-500">…</span>
         <button
           v-else
           type="button"
           :class="[
             'inline-flex h-8 w-8 flex-none items-center justify-center rounded-md text-sm whitespace-nowrap transition-colors',
             item === meta.currentPage
-              ? 'bg-primary font-semibold text-white shadow-sm'
-              : 'text-default hover:bg-default-500/10',
+              ? 'bg-emerald-600 font-semibold text-white shadow-sm'
+              : 'text-slate-700 hover:bg-slate-200',
           ]"
           @click="goTo(item)"
         >
@@ -135,7 +135,7 @@ const goTo = (page: number) => {
         type="button"
         aria-label="Siguiente"
         :disabled="meta.currentPage >= meta.lastPage"
-        class="inline-flex h-8 w-8 flex-none items-center justify-center rounded-md text-sm text-default transition-colors hover:bg-default-500/10 disabled:opacity-40 disabled:cursor-not-allowed"
+        class="inline-flex h-8 w-8 flex-none items-center justify-center rounded-md text-slate-700 transition-colors hover:bg-slate-200 disabled:opacity-40 disabled:cursor-not-allowed"
         @click="goTo(meta.currentPage + 1)"
       >
         <svg
