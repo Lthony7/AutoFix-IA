@@ -209,7 +209,7 @@ class DiagnosticoIaWebController extends Controller
             ->where('orden_trabajo_id', $ordenTrabajoId)
             ->firstOrFail();
 
-        $this->authorizeDiagnosticoMecanico($request, $diagnostico->ordenTrabajo);
+        $this->authorizeDiagnosticoView($request, $diagnostico->ordenTrabajo);
 
         return Inertia::render('DiagnosticoIA/show', [
             'diagnostico' => $this->mapDiagnostico($diagnostico),
@@ -284,6 +284,26 @@ class DiagnosticoIaWebController extends Controller
         return redirect()
             ->route('ordenes.edit', $orden->id)
             ->with('success', $mensaje);
+    }
+
+    private function authorizeDiagnosticoView(Request $request, ?OrdenTrabajoEloquentModel $orden): void
+    {
+        if (!$orden) {
+            abort(404);
+        }
+
+        if ($request->user()->hasRole(UserRole::Administrador, UserRole::Recepcionista)) {
+            return;
+        }
+
+        if (!$request->user()->hasRole(UserRole::Mecanico)) {
+            abort(403, 'No autorizado para ver este diagnóstico.');
+        }
+
+        $mecanicoId = $request->user()->mecanico?->id;
+        if (!$mecanicoId || $orden->mecanico_id !== $mecanicoId) {
+            abort(403, 'Solo el mecánico asignado a esta orden puede ver este diagnóstico.');
+        }
     }
 
     private function authorizeDiagnosticoMecanico(Request $request, ?OrdenTrabajoEloquentModel $orden): void

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { usePage } from '@inertiajs/vue3'
+import { router, usePage } from '@inertiajs/vue3'
 import { route } from 'ziggy-js'
 import MetricStatCards, { type MetricCard } from '../../components/MetricStatCards.vue'
 import ModulePanel from '../../components/ModulePanel.vue'
@@ -23,6 +23,10 @@ interface Diagnostico {
 const page = usePage()
 const diagnosticos = computed(() => (page.props as any).diagnosticos)
 const stats = computed(() => (page.props as any).stats || {})
+
+const verDiagnostico = (ordenTrabajoId: string) => {
+  router.get(route('diagnosticos-ia.show', ordenTrabajoId))
+}
 
 const badgeClass = (estado: string) => {
   const map: Record<string, string> = {
@@ -120,7 +124,8 @@ const metricCards = computed((): MetricCard[] => [
                 <tr
                   v-for="item in (diagnosticos?.data || []) as Diagnostico[]"
                   :key="item.id"
-                  class="border-b border-default/60"
+                  class="border-b border-default/60 cursor-pointer transition-colors hover:bg-slate-100/70"
+                  @click="verDiagnostico(item.ordenTrabajoId)"
                 >
                   <td class="py-3 pr-3 font-medium">{{ item.ordenNumero || '—' }}</td>
                   <td class="py-3 pr-3">{{ item.clienteNombre || '—' }}</td>
@@ -138,7 +143,7 @@ const metricCards = computed((): MetricCard[] => [
                       </span>
                     </div>
                   </td>
-                  <td class="py-3 flex gap-2">
+                  <td class="py-3 flex gap-2" @click.stop>
                     <UButton
                       size="xs"
                       variant="ghost"

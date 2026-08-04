@@ -31,6 +31,8 @@ interface Diagnostico {
   estadoLabel: string
   esSimulado: boolean
   respuestaCompleta: string | null
+  observacionesRevision: string | null
+  coincideAnalisis: boolean | null
   orden: {
     numero: string
     clienteNombre: string | null
@@ -70,8 +72,16 @@ const prioridadColor = (prioridad: string) => {
   return map[prioridad] || 'neutral'
 }
 
+const role = computed(() => (page.props as any).auth?.user?.role as string | undefined)
+
 const puedeRevisar = computed(() =>
-  ['generada', 'en_revision'].includes(diagnostico.value.estado)
+  ['generada', 'en_revision'].includes(diagnostico.value.estado) &&
+  (role.value === 'administrador' || role.value === 'mecanico')
+)
+
+const tieneDiagnosticoMecanico = computed(() =>
+  diagnostico.value.observacionesRevision != null ||
+  diagnostico.value.coincideAnalisis != null
 )
 </script>
 
@@ -105,9 +115,9 @@ const puedeRevisar = computed(() =>
         <UAlert
           color="primary"
           variant="subtle"
-          icon="i-lucide-wrench"
-          title="Vista del mecánico"
-          description="Contrasta este diagnóstico con tu análisis, confirma o modifícalo y deja observaciones que el cliente podrá ver en su portal."
+          icon="i-lucide-eye"
+          title="Vista de solo lectura"
+          description="Consulta el diagnóstico generado por la IA y el análisis del mecánico. Para modificar o confirmar, usa la revisión desde el módulo correspondiente."
         />
 
         <div class="flex flex-wrap gap-2">
@@ -183,6 +193,27 @@ const puedeRevisar = computed(() =>
             Observaciones para el mecánico
           </h3>
           <p class="text-sm whitespace-pre-wrap">{{ diagnostico.observacionMecanico }}</p>
+        </UCard>
+
+        <UCard v-if="tieneDiagnosticoMecanico">
+          <h3 class="font-semibold mb-3 flex items-center gap-2">
+            <UIcon name="i-lucide-clipboard-check" class="size-4" />
+            Diagnóstico del mecánico
+          </h3>
+          <div class="flex flex-wrap items-center gap-2 mb-3">
+            <UBadge variant="subtle">{{ diagnostico.estadoLabel }}</UBadge>
+            <UBadge
+              :color="diagnostico.coincideAnalisis ? 'success' : 'warning'"
+              variant="subtle"
+            >
+              Coincide con el análisis del mecánico:
+              {{ diagnostico.coincideAnalisis == null ? '—' : (diagnostico.coincideAnalisis ? 'Sí' : 'No') }}
+            </UBadge>
+          </div>
+          <p v-if="diagnostico.observacionesRevision" class="text-sm whitespace-pre-wrap leading-relaxed">
+            {{ diagnostico.observacionesRevision }}
+          </p>
+          <p v-else class="text-sm text-muted">Sin observaciones registradas por el mecánico.</p>
         </UCard>
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
