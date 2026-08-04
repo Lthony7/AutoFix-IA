@@ -3,6 +3,7 @@ import { reactive, computed, ref } from 'vue'
 import { router, usePage } from '@inertiajs/vue3'
 import { route } from 'ziggy-js'
 import FormField from '../../components/FormField.vue'
+import ModulePanel from '../../components/ModulePanel.vue'
 
 interface MecanicoSugerido {
   id: string
@@ -107,15 +108,16 @@ const submitRevision = (accion: 'confirmar' | 'modificar' | 'descartar') => {
 <template>
   <AppDashboardPanel id="diagnostico-ia-review">
     <template #header>
-      <UDashboardNavbar :title="`Revisar diagnóstico — ${diagnostico.orden.numero}`">
+      <UDashboardNavbar :title="`Revisar — ${diagnostico.orden.numero}`">
         <template #leading>
           <UDashboardSidebarCollapse />
         </template>
       </UDashboardNavbar>
     </template>
     <template #body>
-      <div class="w-full space-y-4">
+      <div class="flex w-full min-w-0 flex-col gap-4">
         <UAlert
+          class="w-full"
           color="primary"
           variant="subtle"
           icon="i-lucide-wrench"
@@ -123,144 +125,178 @@ const submitRevision = (accion: 'confirmar' | 'modificar' | 'descartar') => {
           description="Contrasta el diagnóstico IA con tu propio análisis, registra observaciones (el cliente las verá) y confirma para continuar la reparación."
         />
 
-        <UCard>
-          <div class="flex flex-wrap gap-2 mb-4">
-            <UBadge variant="subtle">{{ diagnostico.estadoLabel }}</UBadge>
-            <UBadge v-if="diagnostico.esSimulado" color="warning" variant="subtle">Simulado</UBadge>
-          </div>
-          <dl class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
-            <div>
-              <dt class="text-muted">Cliente</dt>
-              <dd class="font-medium">{{ diagnostico.orden.clienteNombre || '—' }}</dd>
-            </div>
-            <div>
-              <dt class="text-muted">Vehículo</dt>
-              <dd class="font-medium">{{ diagnostico.orden.vehiculoPlaca || '—' }}</dd>
-            </div>
-            <div class="sm:col-span-2" v-if="diagnostico.diagnosticoDetalle">
-              <dt class="text-muted">Diagnóstico detallado (IA)</dt>
-              <dd class="mt-1 leading-relaxed whitespace-pre-wrap">{{ diagnostico.diagnosticoDetalle }}</dd>
-            </div>
-            <div class="sm:col-span-2" v-if="causas.length">
-              <dt class="text-muted">Posibles causas</dt>
-              <dd class="mt-1">
-                <ol class="list-decimal pl-5 space-y-1">
-                  <li v-for="(c, i) in causas" :key="i">{{ c }}</li>
-                </ol>
-              </dd>
-            </div>
-            <div class="sm:col-span-2" v-if="acciones.length">
-              <dt class="text-muted">Qué hacer</dt>
-              <dd class="mt-1">
-                <ol class="list-decimal pl-5 space-y-1">
-                  <li v-for="(a, i) in acciones" :key="i">{{ a }}</li>
-                </ol>
-              </dd>
-            </div>
-            <div class="sm:col-span-2">
-              <dt class="text-muted">Servicio recomendado (IA)</dt>
-              <dd class="font-medium">{{ diagnostico.servicioRecomendado || '—' }}</dd>
-            </div>
-            <div>
-              <dt class="text-muted">Prioridad (IA)</dt>
-              <dd class="font-medium capitalize">{{ diagnostico.prioridad }}</dd>
-            </div>
-            <div class="sm:col-span-2" v-if="diagnostico.observacionMecanico">
-              <dt class="text-muted">Notas internas de la IA para el mecánico</dt>
-              <dd class="mt-1 whitespace-pre-wrap">{{ diagnostico.observacionMecanico }}</dd>
-            </div>
-          </dl>
-        </UCard>
+        <div class="grid w-full min-w-0 grid-cols-1 gap-4 xl:grid-cols-12 xl:items-start">
+          <ModulePanel title="Diagnóstico IA" class="w-full xl:col-span-7">
+            <template #actions>
+              <span class="autofix-badge-solid autofix-badge-solid--ok">{{ diagnostico.estadoLabel }}</span>
+              <span
+                v-if="diagnostico.esSimulado"
+                class="autofix-badge-solid autofix-badge-solid--neutral"
+              >
+                Simulado
+              </span>
+            </template>
 
-        <UCard>
-          <form class="space-y-4" @submit.prevent>
-            <FormField
-              label="¿El diagnóstico IA coincide con tu análisis?"
-              name="coincideAnalisis"
-              required
-              :error="errors.coincide_analisis || errors.coincideAnalisis"
-            >
-              <div class="flex flex-wrap gap-3">
-                <UButton
-                  type="button"
-                  :variant="state.coincideAnalisis === true ? 'solid' : 'soft'"
-                  color="success"
-                  label="Sí, coincide"
-                  @click="state.coincideAnalisis = true"
-                />
-                <UButton
-                  type="button"
-                  :variant="state.coincideAnalisis === false ? 'solid' : 'soft'"
-                  color="warning"
-                  label="No, difiere"
-                  @click="state.coincideAnalisis = false"
-                />
+            <dl class="grid grid-cols-1 gap-4 text-sm sm:grid-cols-2 lg:grid-cols-3">
+              <div>
+                <dt class="text-muted">Cliente</dt>
+                <dd class="mt-0.5 font-medium">{{ diagnostico.orden.clienteNombre || '—' }}</dd>
               </div>
-            </FormField>
+              <div>
+                <dt class="text-muted">Vehículo</dt>
+                <dd class="mt-0.5 font-medium">{{ diagnostico.orden.vehiculoPlaca || '—' }}</dd>
+              </div>
+              <div>
+                <dt class="text-muted">Prioridad (IA)</dt>
+                <dd class="mt-0.5 font-medium capitalize">{{ diagnostico.prioridad }}</dd>
+              </div>
+              <div class="sm:col-span-2 lg:col-span-3">
+                <dt class="text-muted">Servicio recomendado (IA)</dt>
+                <dd class="mt-0.5 font-medium">{{ diagnostico.servicioRecomendado || '—' }}</dd>
+              </div>
+              <div v-if="diagnostico.especialidadRecomendada" class="sm:col-span-2 lg:col-span-3">
+                <dt class="text-muted">Especialidad</dt>
+                <dd class="mt-0.5 font-medium">{{ diagnostico.especialidadRecomendada }}</dd>
+              </div>
+              <div v-if="diagnostico.diagnosticoDetalle" class="sm:col-span-2 lg:col-span-3">
+                <dt class="text-muted">Diagnóstico detallado (IA)</dt>
+                <dd class="mt-1 leading-relaxed whitespace-pre-wrap">{{ diagnostico.diagnosticoDetalle }}</dd>
+              </div>
+              <div v-if="causas.length" class="sm:col-span-2 lg:col-span-3">
+                <dt class="text-muted">Posibles causas</dt>
+                <dd class="mt-1">
+                  <ol class="list-decimal space-y-1 pl-5">
+                    <li v-for="(c, i) in causas" :key="i">{{ c }}</li>
+                  </ol>
+                </dd>
+              </div>
+              <div v-if="acciones.length" class="sm:col-span-2 lg:col-span-3">
+                <dt class="text-muted">Qué hacer</dt>
+                <dd class="mt-1">
+                  <ol class="list-decimal space-y-1 pl-5">
+                    <li v-for="(a, i) in acciones" :key="i">{{ a }}</li>
+                  </ol>
+                </dd>
+              </div>
+              <div v-if="diagnostico.observacionMecanico" class="sm:col-span-2 lg:col-span-3">
+                <dt class="text-muted">Notas internas de la IA para el mecánico</dt>
+                <dd class="mt-1 whitespace-pre-wrap">{{ diagnostico.observacionMecanico }}</dd>
+              </div>
+              <div v-if="mecanicos.length" class="sm:col-span-2 lg:col-span-3">
+                <dt class="text-muted">Mecánicos sugeridos</dt>
+                <dd class="mt-2 grid gap-2 sm:grid-cols-2">
+                  <div
+                    v-for="m in mecanicos"
+                    :key="m.id"
+                    class="rounded-lg border border-default/70 bg-elevated/40 px-3 py-2"
+                  >
+                    <p class="font-medium">{{ m.nombre }}</p>
+                    <p class="text-xs text-muted">{{ m.especialidad }}</p>
+                  </div>
+                </dd>
+              </div>
+            </dl>
+          </ModulePanel>
 
-            <FormField
-              label="Tus observaciones (visibles para el cliente)"
-              name="observacionesRevision"
-              required
-              :error="errors.observaciones_revision || errors.observacionesRevision"
-            >
-              <UTextarea
-                v-model="state.observacionesRevision"
-                class="w-full"
-                :rows="4"
-                placeholder="Explica qué confirmaste, qué ajustaste y cómo procederás con la reparación."
-              />
-            </FormField>
-
-            <div class="border-t border-default pt-4 space-y-4">
-              <p class="text-sm font-medium">Ajustar sugerencia (solo al usar Modificar)</p>
-              <FormField label="Servicio recomendado" name="servicioRecomendado" :error="errors.servicioRecomendado">
-                <UInput v-model="state.servicioRecomendado" class="w-full" />
-              </FormField>
-              <FormField label="Prioridad" name="prioridad" :error="errors.prioridad">
-                <div translate="no">
-                  <USelect v-model="state.prioridad" :items="prioridadItems" class="w-full max-w-xs">
-                    <template #default="{ modelValue }">
-                      <span translate="no">{{ prioridadItems.find(i => i.value === modelValue)?.label || modelValue }}</span>
-                    </template>
-                    <template #item-label="{ item }">
-                      <span translate="no">{{ item.label }}</span>
-                    </template>
-                  </USelect>
+          <ModulePanel title="Tu revisión" class="w-full xl:col-span-5 xl:sticky xl:top-3">
+            <form class="space-y-4" @submit.prevent>
+              <FormField
+                label="¿El diagnóstico IA coincide con tu análisis?"
+                name="coincideAnalisis"
+                required
+                :error="errors.coincide_analisis || errors.coincideAnalisis"
+              >
+                <div class="flex flex-wrap gap-3">
+                  <UButton
+                    type="button"
+                    :variant="state.coincideAnalisis === true ? 'solid' : 'soft'"
+                    color="success"
+                    label="Sí, coincide"
+                    @click="state.coincideAnalisis = true"
+                  />
+                  <UButton
+                    type="button"
+                    :variant="state.coincideAnalisis === false ? 'solid' : 'soft'"
+                    color="warning"
+                    label="No, difiere"
+                    @click="state.coincideAnalisis = false"
+                  />
                 </div>
               </FormField>
-            </div>
 
-            <div class="flex flex-wrap gap-3 pt-2">
-              <UButton
-                type="button"
-                color="success"
-                icon="i-lucide-check"
-                label="Confirmar y reparar"
-                :loading="isLoading && accionSeleccionada === 'confirmar'"
-                @click="submitRevision('confirmar')"
-              />
-              <UButton
-                type="button"
-                color="primary"
-                icon="i-lucide-pencil"
-                label="Modificar y reparar"
-                :loading="isLoading && accionSeleccionada === 'modificar'"
-                @click="submitRevision('modificar')"
-              />
-              <UButton
-                type="button"
-                color="error"
-                variant="outline"
-                icon="i-lucide-x"
-                label="Descartar"
-                :loading="isLoading && accionSeleccionada === 'descartar'"
-                @click="submitRevision('descartar')"
-              />
-              <UButton variant="ghost" color="neutral" label="Ver diagnóstico" :to="route('diagnosticos-ia.show', diagnostico.ordenTrabajoId)" />
-            </div>
-          </form>
-        </UCard>
+              <FormField
+                label="Tus observaciones (visibles para el cliente)"
+                name="observacionesRevision"
+                required
+                :error="errors.observaciones_revision || errors.observacionesRevision"
+              >
+                <UTextarea
+                  v-model="state.observacionesRevision"
+                  class="w-full"
+                  :rows="5"
+                  placeholder="Explica qué confirmaste, qué ajustaste y cómo procederás con la reparación."
+                />
+              </FormField>
+
+              <div class="space-y-4 border-t border-default pt-4">
+                <p class="text-sm font-medium">Ajustar sugerencia (solo al usar Modificar)</p>
+                <FormField label="Servicio recomendado" name="servicioRecomendado" :error="errors.servicioRecomendado">
+                  <UInput v-model="state.servicioRecomendado" class="w-full" />
+                </FormField>
+                <FormField label="Prioridad" name="prioridad" :error="errors.prioridad">
+                  <div translate="no">
+                    <USelect v-model="state.prioridad" :items="prioridadItems" class="w-full">
+                      <template #default="{ modelValue }">
+                        <span translate="no">{{ prioridadItems.find(i => i.value === modelValue)?.label || modelValue }}</span>
+                      </template>
+                      <template #item-label="{ item }">
+                        <span translate="no">{{ item.label }}</span>
+                      </template>
+                    </USelect>
+                  </div>
+                </FormField>
+              </div>
+
+              <div class="flex flex-col gap-2 pt-2 sm:flex-row sm:flex-wrap">
+                <UButton
+                  type="button"
+                  color="success"
+                  icon="i-lucide-check"
+                  label="Confirmar y reparar"
+                  class="w-full sm:w-auto"
+                  :loading="isLoading && accionSeleccionada === 'confirmar'"
+                  @click="submitRevision('confirmar')"
+                />
+                <UButton
+                  type="button"
+                  color="primary"
+                  icon="i-lucide-pencil"
+                  label="Modificar y reparar"
+                  class="w-full sm:w-auto"
+                  :loading="isLoading && accionSeleccionada === 'modificar'"
+                  @click="submitRevision('modificar')"
+                />
+                <UButton
+                  type="button"
+                  color="error"
+                  variant="outline"
+                  icon="i-lucide-x"
+                  label="Descartar"
+                  class="w-full sm:w-auto"
+                  :loading="isLoading && accionSeleccionada === 'descartar'"
+                  @click="submitRevision('descartar')"
+                />
+                <UButton
+                  variant="ghost"
+                  color="neutral"
+                  label="Ver diagnóstico"
+                  class="w-full sm:w-auto"
+                  :to="route('diagnosticos-ia.show', diagnostico.ordenTrabajoId)"
+                />
+              </div>
+            </form>
+          </ModulePanel>
+        </div>
       </div>
     </template>
   </AppDashboardPanel>

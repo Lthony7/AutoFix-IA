@@ -101,16 +101,28 @@ body,
 #app .autofix-surface > .space-y-4,
 #app .autofix-surface > .space-y-6,
 #app .autofix-surface > form,
-#app .autofix-surface > .grid {
+#app .autofix-surface > .grid,
+#app .autofix-surface > .flex {
   width: 100%;
   max-width: 100%;
+  min-width: 0;
 }
 
 #app .autofix-surface .max-w-2xl,
 #app .autofix-surface .max-w-3xl,
-#app .autofix-surface .max-w-4xl {
+#app .autofix-surface .max-w-4xl,
+#app .autofix-surface .max-w-5xl,
+#app .autofix-surface .max-w-6xl,
+#app .autofix-surface .max-w-7xl {
   max-width: 100% !important;
   width: 100%;
+}
+
+/* UCard / paneles: forzar ancho completo dentro del área de trabajo */
+#app .autofix-surface [class*='ring'][class*='rounded'],
+#app .autofix-surface .autofix-module-panel {
+  width: 100% !important;
+  max-width: 100% !important;
 }
 
 #app .autofix-surface > .space-y-4 > [class*='ring'],

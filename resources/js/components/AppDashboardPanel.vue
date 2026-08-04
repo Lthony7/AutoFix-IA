@@ -17,7 +17,7 @@ defineProps<{
     :id="id"
     :ui="{
       root: 'relative flex h-full max-h-full min-h-0 min-w-0 w-full flex-1 flex-col overflow-hidden',
-      body: 'flex min-h-0 w-full flex-1 flex-col gap-3 overflow-y-auto overscroll-contain p-3 sm:gap-6 sm:p-6 lg:p-8 bg-transparent pb-[max(2.5rem,env(safe-area-inset-bottom))]'
+      body: 'flex min-h-0 w-full flex-1 flex-col gap-3 overflow-y-auto overscroll-contain p-3 sm:gap-5 sm:p-4 lg:p-5 bg-transparent pb-[max(2.5rem,env(safe-area-inset-bottom))]'
     }"
   >
     <template v-if="$slots.header" #header>

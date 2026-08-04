@@ -8,7 +8,7 @@ defineProps<{
 </script>
 
 <template>
-  <section class="autofix-module-panel">
+  <section class="autofix-module-panel w-full min-w-0">
     <header v-if="title || $slots.actions || $slots.header" class="autofix-module-panel__header">
       <div class="min-w-0">
         <h2 v-if="title" class="autofix-module-panel__title">{{ title }}</h2>
