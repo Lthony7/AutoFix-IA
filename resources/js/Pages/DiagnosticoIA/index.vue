@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { router, usePage } from '@inertiajs/vue3'
+import { router, usePage, Link } from '@inertiajs/vue3'
 import { route } from 'ziggy-js'
 import MetricStatCards, { type MetricCard } from '../../components/MetricStatCards.vue'
 import ModulePanel from '../../components/ModulePanel.vue'
@@ -89,22 +89,6 @@ const metricCards = computed((): MetricCard[] => [
       <div class="space-y-4">
         <MetricStatCards :cards="metricCards" :columns="4" />
 
-        <UAlert
-          color="info"
-          variant="subtle"
-          icon="i-lucide-sparkles"
-          title="Flujo del diagnóstico"
-          description="Escoge el vehículo → tipo de falla (eléctrico, motor, etc.) → prioridad → reporte breve → Generar. La IA responde con observaciones, mecánico, servicios y repuestos."
-        />
-
-        <UAlert
-          color="warning"
-          variant="subtle"
-          icon="i-lucide-triangle-alert"
-          title="Aviso importante"
-          description="La información generada por Inteligencia Artificial es únicamente una sugerencia inicial. El diagnóstico final debe ser realizado y confirmado por un mecánico autorizado."
-        />
-
         <ModulePanel title="Diagnósticos IA">
           <div class="overflow-x-auto">
             <table class="w-full text-sm">
@@ -115,7 +99,6 @@ const metricCards = computed((): MetricCard[] => [
                   <th class="py-3 pr-3">Placa</th>
                   <th class="py-3 pr-3">Prioridad</th>
                   <th class="py-3 pr-3">Especialidad</th>
-                  <th class="py-3 pr-3">Servicio</th>
                   <th class="py-3 pr-3">Estado</th>
                   <th class="py-3">Acciones</th>
                 </tr>
@@ -124,7 +107,7 @@ const metricCards = computed((): MetricCard[] => [
                 <tr
                   v-for="item in (diagnosticos?.data || []) as Diagnostico[]"
                   :key="item.id"
-                  class="border-b border-default/60 cursor-pointer transition-colors hover:bg-slate-100/70"
+                  class="border-b border-default/60 cursor-pointer hover:bg-elevated/40 transition-colors"
                   @click="verDiagnostico(item.ordenTrabajoId)"
                 >
                   <td class="py-3 pr-3 font-medium">{{ item.ordenNumero || '—' }}</td>
@@ -132,7 +115,6 @@ const metricCards = computed((): MetricCard[] => [
                   <td class="py-3 pr-3">{{ item.vehiculoPlaca || '—' }}</td>
                   <td class="py-3 pr-3 capitalize">{{ item.prioridad || '—' }}</td>
                   <td class="py-3 pr-3">{{ item.especialidadRecomendada || '—' }}</td>
-                  <td class="py-3 pr-3">{{ item.servicioRecomendado || '—' }}</td>
                   <td class="py-3 pr-3">
                     <div class="flex items-center gap-2">
                       <span class="autofix-badge-solid" :class="badgeClass(item.estado)">
@@ -143,28 +125,36 @@ const metricCards = computed((): MetricCard[] => [
                       </span>
                     </div>
                   </td>
-                  <td class="py-3 flex gap-2" @click.stop>
-                    <UButton
-                      size="xs"
-                      variant="ghost"
-                      icon="i-lucide-eye"
-                      :to="route('diagnosticos-ia.show', item.ordenTrabajoId)"
-                    />
-                    <UButton
-                      size="xs"
-                      variant="ghost"
-                      icon="i-lucide-check-circle"
-                      :to="route('diagnosticos-ia.review', item.ordenTrabajoId)"
-                    />
+                  <td class="py-3" @click.stop>
+                    <div class="flex gap-1.5">
+                      <button
+                        type="button"
+                        class="autofix-action-btn"
+                        title="Ver diagnóstico"
+                        @click="verDiagnostico(item.ordenTrabajoId)"
+                      >
+                        <UIcon name="i-lucide-eye" class="size-4" />
+                      </button>
+                      <Link
+                        :href="route('diagnosticos-ia.review', item.ordenTrabajoId)"
+                        class="autofix-action-btn"
+                        title="Revisar / confirmar"
+                      >
+                        <UIcon name="i-lucide-check-circle" class="size-4" />
+                      </Link>
+                    </div>
                   </td>
+                </tr>
+                <tr v-if="!(diagnosticos?.data || []).length">
+                  <td colspan="7" class="py-8 text-center text-muted">No hay diagnósticos IA registrados.</td>
                 </tr>
               </tbody>
             </table>
-            <p v-if="!(diagnosticos?.data || []).length" class="py-8 text-center text-muted">
-              No hay diagnósticos IA registrados.
-            </p>
           </div>
-          <AppPagination :meta="diagnosticos?.meta" />
+
+          <template #footer>
+            <AppPagination :meta="diagnosticos?.meta" />
+          </template>
         </ModulePanel>
       </div>
     </template>
