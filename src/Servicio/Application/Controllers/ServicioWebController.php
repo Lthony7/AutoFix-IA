@@ -30,7 +30,7 @@ class ServicioWebController extends Controller
                 'total' => ServicioEloquentModel::count(),
                 'active' => ServicioEloquentModel::where('activo', true)->count(),
                 'inactive' => ServicioEloquentModel::where('activo', false)->count(),
-                'avgPrice' => round((float) ServicioEloquentModel::avg('precio'), 2),
+                'avgPrice' => round((float) ServicioEloquentModel::avg('precio_base'), 2),
             ],
         ]);
     }
