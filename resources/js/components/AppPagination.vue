@@ -100,7 +100,18 @@ const goTo = (page: number) => {
         class="inline-flex h-8 w-8 flex-none items-center justify-center rounded-md text-sm text-default transition-colors hover:bg-default-500/10 disabled:opacity-40 disabled:cursor-not-allowed"
         @click="goTo(meta.currentPage - 1)"
       >
-        <span class="i-lucide-chevron-left" />
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          class="h-4 w-4"
+        >
+          <path d="m15 18-6-6 6-6" />
+        </svg>
       </button>
 
       <template v-for="(item, idx) in pageItems" :key="`${item}-${idx}`">
@@ -127,7 +138,18 @@ const goTo = (page: number) => {
         class="inline-flex h-8 w-8 flex-none items-center justify-center rounded-md text-sm text-default transition-colors hover:bg-default-500/10 disabled:opacity-40 disabled:cursor-not-allowed"
         @click="goTo(meta.currentPage + 1)"
       >
-        <span class="i-lucide-chevron-right" />
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          class="h-4 w-4"
+        >
+          <path d="m9 18 6-6-6-6" />
+        </svg>
       </button>
     </div>
   </div>
