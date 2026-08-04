@@ -3,6 +3,7 @@ import { computed, reactive, ref, watch } from 'vue'
 import { router, usePage } from '@inertiajs/vue3'
 import { route } from 'ziggy-js'
 import FormField from './FormField.vue'
+import MecanicoEspecialidadHorarioFields from './MecanicoEspecialidadHorarioFields.vue'
 import {
   mergeErrors,
   soloDigitos,
@@ -12,6 +13,11 @@ import {
   validarTelefono,
   type FormErrors
 } from '../composables/useFormValidation'
+import {
+  decodeEspecialidades,
+  decodeHorarioSemanal,
+  validarEspecialidadesHorario
+} from '../composables/useMecanicoPerfilTaller'
 
 export interface MecanicoFicha {
   id: string
@@ -89,9 +95,11 @@ const validate = (): boolean => {
   if (a) next.apellidos = a
   const d = validarDocumento(state.documento, 'CEDULA', true)
   if (d) next.documento = d
-  if (!state.especialidad.trim() || state.especialidad.trim().length < 2) {
-    next.especialidad = 'La especialidad es obligatoria'
-  }
+  const perfil = validarEspecialidadesHorario(
+    decodeEspecialidades(state.especialidad),
+    decodeHorarioSemanal(state.horarioDisponible)
+  )
+  Object.assign(next, perfil)
   if (state.telefono) {
     const t = validarTelefono(state.telefono, false)
     if (t) next.telefono = t
@@ -230,18 +238,20 @@ const cancelarEdicion = () => syncFromMecanico()
           <FormField label="Documento" name="documento" required :error="errors.documento">
             <UInput v-model="state.documento" inputmode="numeric" maxlength="10" class="w-full" />
           </FormField>
-          <FormField label="Especialidad" name="especialidad" required :error="errors.especialidad">
-            <UInput v-model="state.especialidad" class="w-full" />
-          </FormField>
           <FormField label="Teléfono" name="telefono" :error="errors.telefono">
             <UInput v-model="state.telefono" inputmode="numeric" maxlength="10" class="w-full" />
           </FormField>
           <FormField label="Email" name="email" :error="errors.email">
             <UInput v-model="state.email" type="email" class="w-full" />
           </FormField>
-          <FormField label="Horario disponible" name="horarioDisponible" :error="errors.horarioDisponible">
-            <UInput v-model="state.horarioDisponible" class="w-full" />
-          </FormField>
+
+          <MecanicoEspecialidadHorarioFields
+            v-model:especialidad="state.especialidad"
+            v-model:horario-disponible="state.horarioDisponible"
+            :error-especialidad="errors.especialidad"
+            :error-horario="errors.horarioDisponible"
+          />
+
           <UCheckbox v-model="state.activo" label="Mecánico activo" />
 
           <div class="flex flex-wrap gap-2 pt-2">
