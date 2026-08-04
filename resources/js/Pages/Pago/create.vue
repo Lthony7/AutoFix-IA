@@ -13,6 +13,8 @@ interface OrdenOption {
   total: number
   tieneFactura: boolean
   facturaNumero: string | null
+  pagoId?: string | null
+  pagoEstado?: string | null
 }
 
 const page = usePage()
@@ -54,6 +56,8 @@ const ordenSeleccionada = computed(() =>
   ordenes.value.find(o => o.id === state.ordenTrabajoId) || null
 )
 
+const esCompletarCobro = computed(() => Boolean(ordenSeleccionada.value?.pagoId))
+
 const valorServicios = computed(() => ordenSeleccionada.value?.valorServicios ?? 0)
 const valorRepuestos = computed(() => ordenSeleccionada.value?.valorRepuestos ?? 0)
 const subtotal = computed(() => valorServicios.value + valorRepuestos.value)
@@ -86,12 +90,26 @@ watch(
   () => state.ordenTrabajoId,
   (ordenId) => {
     const orden = ordenes.value.find(o => o.id === ordenId)
-    state.descuento = orden ? orden.descuento : 0
+    if (!orden) {
+      state.descuento = 0
+      return
+    }
+
+    // Si ya existe pago pendiente/anulado → completar cobro en edit
+    if (orden.pagoId) {
+      router.visit(route('pagos.edit', orden.pagoId), {
+        preserveScroll: true
+      })
+      return
+    }
+
+    state.descuento = orden.descuento
   },
   { immediate: true }
 )
 
 const handleSubmit = () => {
+  if (!state.ordenTrabajoId || esCompletarCobro.value) return
   isLoading.value = true
   const payload: Record<string, unknown> = {
     ordenTrabajoId: state.ordenTrabajoId,
@@ -117,17 +135,34 @@ const handleSubmit = () => {
     <template #body>
       <UCard class="w-full">
         <form class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 w-full" @submit.prevent="handleSubmit">
-          <FormField label="Orden de trabajo" name="ordenTrabajoId" required :error="errors.ordenTrabajoId || errors.orden_trabajo_id" class="md:col-span-2 xl:col-span-3">
+          <FormField
+            label="Orden por cobrar"
+            name="ordenTrabajoId"
+            required
+            :error="errors.ordenTrabajoId || errors.orden_trabajo_id"
+            class="md:col-span-2 xl:col-span-3"
+            hint="Incluye órdenes sin pago y cobros pendientes o anulados (completar cobro)."
+          >
             <USelect
               v-model="state.ordenTrabajoId"
               :items="ordenes.map(o => ({ label: o.label, value: o.id }))"
-              placeholder="Seleccionar orden sin pago"
+              placeholder="Seleccionar orden por cobrar"
               class="w-full"
             />
           </FormField>
 
           <UAlert
-            v-if="ordenSeleccionada"
+            v-if="esCompletarCobro"
+            class="md:col-span-2 xl:col-span-3"
+            color="warning"
+            variant="subtle"
+            icon="i-lucide-wallet"
+            title="Completar cobro"
+            description="Esta orden ya tiene un pago pendiente o anulado. Te estamos llevando a completar ese cobro."
+          />
+
+          <UAlert
+            v-else-if="ordenSeleccionada"
             class="md:col-span-2 xl:col-span-3"
             color="info"
             variant="subtle"
@@ -138,55 +173,57 @@ const handleSubmit = () => {
             description="Servicios, repuestos y total no se editan. Solo puedes aplicar un descuento según el caso."
           />
 
-          <div class="rounded-lg border border-default p-3">
-            <p class="text-xs uppercase tracking-wide text-muted">Valor servicios</p>
-            <p class="mt-1 text-sm font-semibold">{{ formatMoney(valorServicios) }}</p>
-          </div>
-          <div class="rounded-lg border border-default p-3">
-            <p class="text-xs uppercase tracking-wide text-muted">Valor repuestos</p>
-            <p class="mt-1 text-sm font-semibold">{{ formatMoney(valorRepuestos) }}</p>
-          </div>
+          <template v-if="!esCompletarCobro">
+            <div class="rounded-lg border border-default p-3">
+              <p class="text-xs uppercase tracking-wide text-muted">Valor servicios</p>
+              <p class="mt-1 text-sm font-semibold">{{ formatMoney(valorServicios) }}</p>
+            </div>
+            <div class="rounded-lg border border-default p-3">
+              <p class="text-xs uppercase tracking-wide text-muted">Valor repuestos</p>
+              <p class="mt-1 text-sm font-semibold">{{ formatMoney(valorRepuestos) }}</p>
+            </div>
 
-          <FormField label="Descuento" name="descuento" :error="errors.descuento" class="md:col-span-2 xl:col-span-3">
-            <UInput
-              v-model.number="state.descuento"
-              type="number"
-              min="0"
-              :max="subtotal"
-              step="0.01"
-              class="w-full"
-              :disabled="!ordenSeleccionada"
-              placeholder="Aplicar descuento si corresponde"
-            />
-            <p class="mt-1.5 text-xs text-muted">
-              Opcional. No puede superar el subtotal ({{ formatMoney(subtotal) }}).
-            </p>
-          </FormField>
+            <FormField label="Descuento" name="descuento" :error="errors.descuento" class="md:col-span-2 xl:col-span-3">
+              <UInput
+                v-model.number="state.descuento"
+                type="number"
+                min="0"
+                :max="subtotal"
+                step="0.01"
+                class="w-full"
+                :disabled="!ordenSeleccionada"
+                placeholder="Aplicar descuento si corresponde"
+              />
+              <p class="mt-1.5 text-xs text-muted">
+                Opcional. No puede superar el subtotal ({{ formatMoney(subtotal) }}).
+              </p>
+            </FormField>
 
-          <div v-if="ordenSeleccionada?.tieneFactura" class="rounded-lg border border-default p-3">
-            <p class="text-xs uppercase tracking-wide text-muted">IVA ({{ (ivaRate * 100).toFixed(0) }}%)</p>
-            <p class="mt-1 text-sm font-semibold">{{ formatMoney(ivaCalculado) }}</p>
-          </div>
-          <div class="rounded-lg border border-default bg-elevated/40 p-3" :class="ordenSeleccionada?.tieneFactura ? '' : 'md:col-span-2 xl:col-span-3'">
-            <p class="text-xs uppercase tracking-wide text-muted">Total a pagar</p>
-            <p class="mt-1 text-lg font-semibold">{{ formatMoney(totalCalculado) }}</p>
-          </div>
+            <div v-if="ordenSeleccionada?.tieneFactura" class="rounded-lg border border-default p-3">
+              <p class="text-xs uppercase tracking-wide text-muted">IVA ({{ (ivaRate * 100).toFixed(0) }}%)</p>
+              <p class="mt-1 text-sm font-semibold">{{ formatMoney(ivaCalculado) }}</p>
+            </div>
+            <div class="rounded-lg border border-default bg-elevated/40 p-3" :class="ordenSeleccionada?.tieneFactura ? '' : 'md:col-span-2 xl:col-span-3'">
+              <p class="text-xs uppercase tracking-wide text-muted">Total a pagar</p>
+              <p class="mt-1 text-lg font-semibold">{{ formatMoney(totalCalculado) }}</p>
+            </div>
 
-          <FormField label="Estado" name="estado" :error="errors.estado">
-            <USelect v-model="state.estado" :items="estadoItems" class="w-full" />
-          </FormField>
-          <FormField label="Método de pago" name="metodoPago" :error="errors.metodoPago || errors.metodo_pago">
-            <USelect
-              v-model="state.metodoPago"
-              :items="metodoItems"
-              placeholder="Opcional"
-              class="w-full"
-            />
-          </FormField>
-          <div class="md:col-span-2 xl:col-span-3 flex gap-3">
-            <UButton type="submit" label="Registrar pago" :loading="isLoading" :disabled="!state.ordenTrabajoId" />
-            <UButton variant="ghost" color="neutral" label="Cancelar" :to="route('pagos.index')" />
-          </div>
+            <FormField label="Estado" name="estado" :error="errors.estado">
+              <USelect v-model="state.estado" :items="estadoItems" class="w-full" />
+            </FormField>
+            <FormField label="Método de pago" name="metodoPago" :error="errors.metodoPago || errors.metodo_pago">
+              <USelect
+                v-model="state.metodoPago"
+                :items="metodoItems"
+                placeholder="Opcional"
+                class="w-full"
+              />
+            </FormField>
+            <div class="md:col-span-2 xl:col-span-3 flex gap-3">
+              <UButton type="submit" label="Registrar pago" :loading="isLoading" :disabled="!state.ordenTrabajoId" />
+              <UButton variant="ghost" color="neutral" label="Cancelar" :to="route('pagos.index')" />
+            </div>
+          </template>
         </form>
       </UCard>
     </template>

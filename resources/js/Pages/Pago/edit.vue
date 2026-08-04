@@ -33,6 +33,12 @@ const metodoItems = [
 ]
 
 const isLoading = ref(false)
+const esCompletarCobro = computed(() => pago.estado === 'pendiente' || pago.estado === 'anulado')
+const pageTitle = computed(() =>
+  esCompletarCobro.value
+    ? `Completar cobro — ${pago.ordenNumero || ''}`
+    : `Editar pago — ${pago.ordenNumero || ''}`
+)
 const state = reactive({
   descuento: pago.descuento,
   estado: pago.estado,
@@ -88,7 +94,7 @@ const handleSubmit = () => {
 <template>
   <AppDashboardPanel id="pago-edit">
     <template #header>
-      <UDashboardNavbar :title="`Editar pago — ${pago.ordenNumero || ''}`">
+      <UDashboardNavbar :title="pageTitle">
         <template #leading>
           <UDashboardSidebarCollapse />
         </template>
@@ -102,6 +108,16 @@ const handleSubmit = () => {
             · Cliente: {{ pago.clienteNombre || '—' }}
             · Placa: {{ pago.vehiculoPlaca || '—' }}
           </div>
+
+          <UAlert
+            v-if="esCompletarCobro"
+            class="md:col-span-2 xl:col-span-3"
+            color="warning"
+            variant="subtle"
+            icon="i-lucide-wallet"
+            title="Completar cobro"
+            description="Marca el pago como Pagado y confirma el método para cerrar el cobro. La factura volverá a Pagada."
+          />
 
           <UAlert
             class="md:col-span-2 xl:col-span-3"
@@ -151,7 +167,11 @@ const handleSubmit = () => {
             <USelect v-model="state.metodoPago" :items="metodoItems" placeholder="Opcional" class="w-full" />
           </FormField>
           <div class="md:col-span-2 xl:col-span-3 flex gap-3">
-            <UButton type="submit" label="Actualizar" :loading="isLoading" />
+            <UButton
+              type="submit"
+              :label="esCompletarCobro ? 'Guardar cobro' : 'Actualizar'"
+              :loading="isLoading"
+            />
             <UButton variant="ghost" color="neutral" label="Cancelar" :to="route('pagos.index')" />
           </div>
         </form>

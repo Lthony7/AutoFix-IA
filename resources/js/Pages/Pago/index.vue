@@ -146,7 +146,16 @@ const destroy = (id: string) => {
                     </span>
                   </td>
                   <td class="py-3 pr-3">{{ pago.metodoPago || '—' }}</td>
-                  <td class="py-3 flex gap-2">
+                  <td class="py-3 flex flex-wrap gap-2">
+                    <UButton
+                      v-if="pago.estado === 'pendiente' || pago.estado === 'anulado'"
+                      size="xs"
+                      color="success"
+                      variant="soft"
+                      icon="i-lucide-wallet"
+                      label="Cobrar"
+                      :to="route('pagos.edit', pago.id)"
+                    />
                     <UButton size="xs" variant="ghost" icon="i-lucide-pencil" :to="route('pagos.edit', pago.id)" />
                     <UButton size="xs" color="error" variant="ghost" icon="i-lucide-trash" @click="destroy(pago.id)" />
                   </td>

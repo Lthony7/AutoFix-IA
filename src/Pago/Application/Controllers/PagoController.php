@@ -2,9 +2,9 @@
 
 namespace Src\Pago\Application\Controllers;
 
-use App\Enums\FacturaEstado;
 use App\Enums\PagoEstado;
 use App\Http\Controllers\Controller;
+use App\Services\SincronizarPagoFacturaService;
 use Illuminate\Http\JsonResponse;
 use Src\Factura\Infrastructure\Models\FacturaEloquentModel;
 use Src\OrdenTrabajo\Infrastructure\Models\OrdenTrabajoEloquentModel;
@@ -15,6 +15,11 @@ use Src\Pago\Infrastructure\Resources\PagoResource;
 
 class PagoController extends Controller
 {
+    public function __construct(
+        private readonly SincronizarPagoFacturaService $syncFactura,
+    ) {
+    }
+
     public function index()
     {
         $pagos = PagoEloquentModel::with(['ordenTrabajo', 'factura'])
@@ -27,8 +32,16 @@ class PagoController extends Controller
     public function store(StorePagoRequest $request)
     {
         $data = $request->validated();
-        $orden = OrdenTrabajoEloquentModel::with(['ordenServicios', 'ordenRepuestos', 'factura'])
+        $orden = OrdenTrabajoEloquentModel::with(['ordenServicios', 'ordenRepuestos', 'factura', 'pago'])
             ->findOrFail($data['orden_trabajo_id']);
+
+        if ($orden->pago) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Esta orden ya tiene un pago. Actualízalo en lugar de crear otro.',
+                'pagoId' => $orden->pago->id,
+            ], 422);
+        }
 
         $calculado = PagoEloquentModel::calcularDesdeOrden($orden);
         $valorServicios = $data['valor_servicios'] ?? $calculado['valor_servicios'];
@@ -37,6 +50,21 @@ class PagoController extends Controller
         $total = $data['total'] ?? ($orden->factura
             ? (float) $orden->factura->total
             : ($valorServicios + $valorRepuestos - $descuento));
+
+        $subtotal = (float) $valorServicios + (float) $valorRepuestos;
+        $descuento = max(0, min((float) $descuento, $subtotal));
+        $iva = 0.0;
+        $subtotalFactura = $subtotal - $descuento;
+
+        if ($orden->factura) {
+            $facturaCalc = FacturaEloquentModel::calcularDesdeOrden($orden, $descuento);
+            $descuento = (float) $facturaCalc['descuento'];
+            $total = (float) $facturaCalc['total'];
+            $iva = (float) $facturaCalc['iva'];
+            $subtotalFactura = (float) $facturaCalc['subtotal'];
+        } else {
+            $total = max(0, $subtotal - $descuento);
+        }
 
         $pago = PagoEloquentModel::create([
             'orden_trabajo_id' => $orden->id,
@@ -50,7 +78,13 @@ class PagoController extends Controller
             'registrado_por' => $data['registrado_por'] ?? $request->user()?->id,
         ]);
 
-        $this->sincronizarEstadoFactura($pago);
+        $this->syncFactura->sincronizarMontos($pago, [
+            'descuento' => $descuento,
+            'subtotal' => $subtotalFactura,
+            'iva' => $iva,
+            'total' => max(0, (float) $total),
+        ]);
+        $this->syncFactura->sincronizarEstado($pago);
 
         return (new PagoResource($pago->load(['ordenTrabajo', 'factura'])))
             ->response()
@@ -83,44 +117,26 @@ class PagoController extends Controller
         }
 
         $pago->update($data);
-        $this->sincronizarEstadoFactura($pago->fresh('factura'));
+        $pago = $pago->fresh(['factura']);
+        $this->syncFactura->sincronizarEstado($pago);
 
         return new PagoResource($pago->fresh(['ordenTrabajo', 'factura']));
     }
 
     public function destroy(string $id): JsonResponse
     {
-        $pago = PagoEloquentModel::find($id);
+        $pago = PagoEloquentModel::with('factura')->find($id);
 
         if (!$pago) {
             return response()->json(['success' => false, 'message' => 'Pago no encontrado'], 404);
         }
 
-        $pago->delete();
-
-        return response()->json(['success' => true, 'message' => 'Pago eliminado exitosamente']);
-    }
-
-    private function sincronizarEstadoFactura(PagoEloquentModel $pago): void
-    {
         $factura = $pago->factura
             ?? ($pago->factura_id ? FacturaEloquentModel::find($pago->factura_id) : null);
 
-        if (!$factura || $factura->estado === FacturaEstado::Anulada) {
-            return;
-        }
+        $pago->delete();
+        $this->syncFactura->alEliminarPago($factura);
 
-        $estadoPago = $pago->estado instanceof PagoEstado
-            ? $pago->estado
-            : PagoEstado::tryFrom((string) $pago->estado);
-
-        if ($estadoPago === PagoEstado::Pagado) {
-            $factura->update(['estado' => FacturaEstado::Pagada]);
-        } elseif (
-            $estadoPago === PagoEstado::Pendiente
-            && $factura->estado === FacturaEstado::Pagada
-        ) {
-            $factura->update(['estado' => FacturaEstado::Emitida]);
-        }
+        return response()->json(['success' => true, 'message' => 'Pago eliminado exitosamente']);
     }
 }

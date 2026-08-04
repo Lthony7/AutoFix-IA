@@ -2,8 +2,8 @@
 import { computed } from 'vue'
 import { router, usePage } from '@inertiajs/vue3'
 import { route } from 'ziggy-js'
-import MetricStatCards, { type MetricCard } from '../../components/MetricStatCards.vue'
-import ModulePanel from '../../components/ModulePanel.vue'
+import MetricStatCards, { type MetricCard } from '../../../components/MetricStatCards.vue'
+import ModulePanel from '../../../components/ModulePanel.vue'
 
 interface Presupuesto {
   id: string

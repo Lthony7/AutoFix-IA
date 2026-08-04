@@ -108,16 +108,16 @@ const submitRevision = (accion: 'confirmar' | 'modificar' | 'descartar') => {
 <template>
   <AppDashboardPanel id="diagnostico-ia-review">
     <template #header>
-      <UDashboardNavbar :title="`Revisar — ${diagnostico.orden.numero}`">
+      <UDashboardNavbar :title="`Revisar diagnóstico — ${diagnostico.orden.numero}`">
         <template #leading>
           <UDashboardSidebarCollapse />
         </template>
       </UDashboardNavbar>
     </template>
     <template #body>
-      <div class="flex w-full min-w-0 flex-col gap-4">
+      <div class="autofix-full-bleed flex w-full min-w-0 max-w-none flex-1 flex-col gap-4">
         <UAlert
-          class="w-full"
+          class="w-full min-w-0"
           color="primary"
           variant="subtle"
           icon="i-lucide-wrench"
@@ -125,8 +125,8 @@ const submitRevision = (accion: 'confirmar' | 'modificar' | 'descartar') => {
           description="Contrasta el diagnóstico IA con tu propio análisis, registra observaciones (el cliente las verá) y confirma para continuar la reparación."
         />
 
-        <div class="grid w-full min-w-0 grid-cols-1 gap-4 xl:grid-cols-12 xl:items-start">
-          <ModulePanel title="Diagnóstico IA" class="w-full xl:col-span-7">
+        <div class="grid w-full min-w-0 max-w-none grid-cols-1 gap-4 lg:grid-cols-12 lg:items-start">
+          <ModulePanel title="Diagnóstico IA" class="w-full min-w-0 max-w-none lg:col-span-7">
             <template #actions>
               <span class="autofix-badge-solid autofix-badge-solid--ok">{{ diagnostico.estadoLabel }}</span>
               <span
@@ -137,7 +137,7 @@ const submitRevision = (accion: 'confirmar' | 'modificar' | 'descartar') => {
               </span>
             </template>
 
-            <dl class="grid grid-cols-1 gap-4 text-sm sm:grid-cols-2 lg:grid-cols-3">
+            <dl class="grid w-full grid-cols-1 gap-4 text-sm sm:grid-cols-2 xl:grid-cols-3">
               <div>
                 <dt class="text-muted">Cliente</dt>
                 <dd class="mt-0.5 font-medium">{{ diagnostico.orden.clienteNombre || '—' }}</dd>
@@ -150,19 +150,19 @@ const submitRevision = (accion: 'confirmar' | 'modificar' | 'descartar') => {
                 <dt class="text-muted">Prioridad (IA)</dt>
                 <dd class="mt-0.5 font-medium capitalize">{{ diagnostico.prioridad }}</dd>
               </div>
-              <div class="sm:col-span-2 lg:col-span-3">
+              <div class="sm:col-span-2 xl:col-span-3">
                 <dt class="text-muted">Servicio recomendado (IA)</dt>
                 <dd class="mt-0.5 font-medium">{{ diagnostico.servicioRecomendado || '—' }}</dd>
               </div>
-              <div v-if="diagnostico.especialidadRecomendada" class="sm:col-span-2 lg:col-span-3">
+              <div v-if="diagnostico.especialidadRecomendada" class="sm:col-span-2 xl:col-span-3">
                 <dt class="text-muted">Especialidad</dt>
                 <dd class="mt-0.5 font-medium">{{ diagnostico.especialidadRecomendada }}</dd>
               </div>
-              <div v-if="diagnostico.diagnosticoDetalle" class="sm:col-span-2 lg:col-span-3">
+              <div v-if="diagnostico.diagnosticoDetalle" class="sm:col-span-2 xl:col-span-3">
                 <dt class="text-muted">Diagnóstico detallado (IA)</dt>
                 <dd class="mt-1 leading-relaxed whitespace-pre-wrap">{{ diagnostico.diagnosticoDetalle }}</dd>
               </div>
-              <div v-if="causas.length" class="sm:col-span-2 lg:col-span-3">
+              <div v-if="causas.length" class="sm:col-span-2 xl:col-span-3">
                 <dt class="text-muted">Posibles causas</dt>
                 <dd class="mt-1">
                   <ol class="list-decimal space-y-1 pl-5">
@@ -170,7 +170,7 @@ const submitRevision = (accion: 'confirmar' | 'modificar' | 'descartar') => {
                   </ol>
                 </dd>
               </div>
-              <div v-if="acciones.length" class="sm:col-span-2 lg:col-span-3">
+              <div v-if="acciones.length" class="sm:col-span-2 xl:col-span-3">
                 <dt class="text-muted">Qué hacer</dt>
                 <dd class="mt-1">
                   <ol class="list-decimal space-y-1 pl-5">
@@ -178,11 +178,11 @@ const submitRevision = (accion: 'confirmar' | 'modificar' | 'descartar') => {
                   </ol>
                 </dd>
               </div>
-              <div v-if="diagnostico.observacionMecanico" class="sm:col-span-2 lg:col-span-3">
+              <div v-if="diagnostico.observacionMecanico" class="sm:col-span-2 xl:col-span-3">
                 <dt class="text-muted">Notas internas de la IA para el mecánico</dt>
                 <dd class="mt-1 whitespace-pre-wrap">{{ diagnostico.observacionMecanico }}</dd>
               </div>
-              <div v-if="mecanicos.length" class="sm:col-span-2 lg:col-span-3">
+              <div v-if="mecanicos.length" class="sm:col-span-2 xl:col-span-3">
                 <dt class="text-muted">Mecánicos sugeridos</dt>
                 <dd class="mt-2 grid gap-2 sm:grid-cols-2">
                   <div
@@ -198,8 +198,8 @@ const submitRevision = (accion: 'confirmar' | 'modificar' | 'descartar') => {
             </dl>
           </ModulePanel>
 
-          <ModulePanel title="Tu revisión" class="w-full xl:col-span-5 xl:sticky xl:top-3">
-            <form class="space-y-4" @submit.prevent>
+          <ModulePanel title="Tu revisión" class="w-full min-w-0 max-w-none lg:col-span-5 lg:sticky lg:top-3">
+            <form class="w-full space-y-4" @submit.prevent>
               <FormField
                 label="¿El diagnóstico IA coincide con tu análisis?"
                 name="coincideAnalisis"

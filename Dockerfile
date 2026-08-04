@@ -9,7 +9,9 @@ COPY package.json package-lock.json ./
 RUN npm ci
 
 COPY . .
-RUN npm run build
+# Forzar rebuild de assets cuando cambie el código fuente (evitar cache stale en Render)
+ARG FRONTEND_CACHEBUST=1
+RUN echo "frontend_cachebust=${FRONTEND_CACHEBUST}" && npm run build
 
 # ---------- PHP runtime ----------
 FROM php:8.4-cli-bookworm

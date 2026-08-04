@@ -2,9 +2,9 @@
 
 namespace Src\Pago\Application\Controllers;
 
-use App\Enums\FacturaEstado;
 use App\Enums\PagoEstado;
 use App\Http\Controllers\Controller;
+use App\Services\SincronizarPagoFacturaService;
 use App\Support\InertiaTablePaginator;
 use Exception;
 use Illuminate\Http\RedirectResponse;
@@ -19,6 +19,11 @@ use Src\Pago\Infrastructure\Requests\UpdatePagoRequest;
 
 class PagoWebController extends Controller
 {
+    public function __construct(
+        private readonly SincronizarPagoFacturaService $syncFactura,
+    ) {
+    }
+
     public function index(Request $request): Response
     {
         $estado = trim((string) $request->query('estado', ''));
@@ -59,7 +64,7 @@ class PagoWebController extends Controller
     public function create(Request $request): Response
     {
         return Inertia::render('Pago/create', [
-            'ordenes' => $this->ordenesSinPagoOptions(),
+            'ordenes' => $this->ordenesPorCobrarOptions(),
             'ivaRate' => (float) config('autofix.iva_rate', 0.15),
             'ordenTrabajoId' => $request->query('ordenTrabajoId'),
         ]);
@@ -69,8 +74,23 @@ class PagoWebController extends Controller
     {
         try {
             $data = $request->validated();
-            $orden = OrdenTrabajoEloquentModel::with(['ordenServicios', 'ordenRepuestos', 'factura'])
+            $orden = OrdenTrabajoEloquentModel::with(['ordenServicios', 'ordenRepuestos', 'factura', 'pago'])
                 ->findOrFail($data['orden_trabajo_id']);
+
+            // Si ya hay pago pendiente/anulado, completar ese cobro en lugar de crear otro
+            $pagoExistente = $orden->pago;
+            if ($pagoExistente && $pagoExistente->estado !== PagoEstado::Pagado) {
+                return redirect()
+                    ->route('pagos.edit', $pagoExistente->id)
+                    ->with('info', 'Esta orden ya tiene un pago por completar. Continúa el cobro desde aquí.');
+            }
+
+            if ($pagoExistente && $pagoExistente->estado === PagoEstado::Pagado) {
+                return redirect()
+                    ->back()
+                    ->withInput()
+                    ->with('error', 'Esta orden ya tiene un pago registrado como pagado.');
+            }
 
             $montos = $this->resolverMontosPago(
                 $orden,
@@ -91,8 +111,8 @@ class PagoWebController extends Controller
                 'registrado_por' => $data['registrado_por'] ?? $request->user()?->id,
             ]);
 
-            $this->sincronizarMontosFactura($pago, $montos);
-            $this->sincronizarEstadoFactura($pago);
+            $this->syncFactura->sincronizarMontos($pago, $montos);
+            $this->syncFactura->sincronizarEstado($pago);
 
             return redirect()->route('pagos.index')->with('success', 'Pago registrado exitosamente');
         } catch (Exception $e) {
@@ -138,8 +158,8 @@ class PagoWebController extends Controller
             ]));
 
             $pago = $pago->fresh(['factura']);
-            $this->sincronizarMontosFactura($pago, $montos);
-            $this->sincronizarEstadoFactura($pago);
+            $this->syncFactura->sincronizarMontos($pago, $montos);
+            $this->syncFactura->sincronizarEstado($pago);
 
             return redirect()->route('pagos.index')->with('success', 'Pago actualizado exitosamente');
         } catch (Exception $e) {
@@ -149,13 +169,17 @@ class PagoWebController extends Controller
 
     public function destroy(string $id): RedirectResponse
     {
-        $pago = PagoEloquentModel::find($id);
+        $pago = PagoEloquentModel::with('factura')->find($id);
 
         if (!$pago) {
             return redirect()->back()->with('error', 'Pago no encontrado');
         }
 
+        $factura = $pago->factura
+            ?? ($pago->factura_id ? FacturaEloquentModel::find($pago->factura_id) : null);
+
         $pago->delete();
+        $this->syncFactura->alEliminarPago($factura);
 
         return redirect()->route('pagos.index')->with('success', 'Pago eliminado exitosamente');
     }
@@ -198,49 +222,6 @@ class PagoWebController extends Controller
         ];
     }
 
-    /**
-     * @param  array{descuento: float, total: float, iva: float, subtotal: float}  $montos
-     */
-    private function sincronizarMontosFactura(PagoEloquentModel $pago, array $montos): void
-    {
-        $factura = $pago->factura
-            ?? ($pago->factura_id ? FacturaEloquentModel::find($pago->factura_id) : null);
-
-        if (!$factura || $factura->estado === FacturaEstado::Anulada) {
-            return;
-        }
-
-        $factura->update([
-            'descuento' => $montos['descuento'],
-            'subtotal' => $montos['subtotal'],
-            'iva' => $montos['iva'],
-            'total' => $montos['total'],
-        ]);
-    }
-
-    private function sincronizarEstadoFactura(PagoEloquentModel $pago): void
-    {
-        $factura = $pago->factura
-            ?? ($pago->factura_id ? FacturaEloquentModel::find($pago->factura_id) : null);
-
-        if (!$factura || $factura->estado === FacturaEstado::Anulada) {
-            return;
-        }
-
-        $estadoPago = $pago->estado instanceof PagoEstado
-            ? $pago->estado
-            : PagoEstado::tryFrom((string) $pago->estado);
-
-        if ($estadoPago === PagoEstado::Pagado) {
-            $factura->update(['estado' => FacturaEstado::Pagada]);
-        } elseif (
-            $estadoPago === PagoEstado::Pendiente
-            && $factura->estado === FacturaEstado::Pagada
-        ) {
-            $factura->update(['estado' => FacturaEstado::Emitida]);
-        }
-    }
-
     private function mapPago(PagoEloquentModel $pago): array
     {
         return [
@@ -262,7 +243,13 @@ class PagoWebController extends Controller
         ];
     }
 
-    private function ordenesSinPagoOptions(): array
+    /**
+     * OTs sin pago, o con pago pendiente/anulado (para completar cobro).
+     * Excluye pagos ya pagados.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function ordenesPorCobrarOptions(): array
     {
         return OrdenTrabajoEloquentModel::with([
             'cliente',
@@ -270,26 +257,50 @@ class PagoWebController extends Controller
             'ordenServicios',
             'ordenRepuestos',
             'factura',
+            'pago',
         ])
-            ->whereDoesntHave('pago')
+            ->where(function ($q) {
+                $q->whereDoesntHave('pago')
+                    ->orWhereHas('pago', function ($pago) {
+                        $pago->whereIn('estado', [
+                            PagoEstado::Pendiente->value,
+                            PagoEstado::Anulado->value,
+                        ]);
+                    });
+            })
             ->orderByDesc('created_at')
             ->get()
             ->map(function ($o) {
                 $calculado = PagoEloquentModel::calcularDesdeOrden($o);
-                $descuento = (float) ($o->factura?->descuento ?? 0);
+                $descuento = (float) ($o->factura?->descuento ?? $o->pago?->descuento ?? 0);
                 $total = $o->factura
                     ? (float) $o->factura->total
-                    : max(0, $calculado['valor_servicios'] + $calculado['valor_repuestos'] - $descuento);
+                    : ($o->pago
+                        ? (float) $o->pago->total
+                        : max(0, $calculado['valor_servicios'] + $calculado['valor_repuestos'] - $descuento));
+
+                $pago = $o->pago;
+                $pagoEstado = $pago?->estado instanceof PagoEstado
+                    ? $pago->estado->value
+                    : ($pago?->estado ? (string) $pago->estado : null);
+
+                $sufijo = match ($pagoEstado) {
+                    PagoEstado::Pendiente->value => ' · Completar cobro',
+                    PagoEstado::Anulado->value => ' · Reabrir cobro',
+                    default => '',
+                };
 
                 return [
                     'id' => $o->id,
-                    'label' => $o->numero . ' — ' . ($o->vehiculo?->placa ?? '') . ' (' . ($o->cliente?->razon_social ?? '') . ')',
+                    'label' => $o->numero . ' — ' . ($o->vehiculo?->placa ?? '') . ' (' . ($o->cliente?->razon_social ?? '') . ')' . $sufijo,
                     'valorServicios' => $calculado['valor_servicios'],
                     'valorRepuestos' => $calculado['valor_repuestos'],
                     'descuento' => $descuento,
                     'total' => round($total, 2),
                     'tieneFactura' => (bool) $o->factura,
                     'facturaNumero' => $o->factura?->numero,
+                    'pagoId' => $pago?->id,
+                    'pagoEstado' => $pagoEstado,
                 ];
             })->values()->toArray();
     }

@@ -614,6 +614,22 @@ a.autofix-metric-card:active {
   width: 100%;
 }
 
+/* Pantallas de trabajo a ancho completo (sin caja centrada) */
+#app .autofix-surface > .autofix-full-bleed,
+#app .autofix-full-bleed {
+  width: 100% !important;
+  max-width: none !important;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+#app .autofix-full-bleed .autofix-module-panel,
+#app .autofix-full-bleed > .grid,
+#app .autofix-full-bleed > [class*='alert'] {
+  width: 100% !important;
+  max-width: none !important;
+}
+
 /* Formularios y paneles: ocupar el ancho útil según viewport */
 #app .autofix-surface form.grid {
   width: 100%;
