@@ -587,10 +587,21 @@ a.autofix-metric-card:active {
 }
 
 .autofix-action-btn--danger:hover {
-  border-color: #fca5a5;
-  color: #dc2626;
-  background: #fef2f2;
-}
+    border-color: #fca5a5;
+    color: #dc2626;
+    background: #fef2f2;
+  }
+
+.autofix-action-btn--primary {
+    border-color: #86efac;
+    color: #15803d;
+  }
+
+.autofix-action-btn--primary:hover {
+    border-color: #16a34a;
+    color: #15803d;
+    background: #f0fdf4;
+  }
 
 /* CTA principal verde (captura) */
 .autofix-cta-primary {

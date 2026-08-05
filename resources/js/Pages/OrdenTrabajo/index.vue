@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { usePage } from '@inertiajs/vue3'
+import { usePage, Link } from '@inertiajs/vue3'
 import { route } from 'ziggy-js'
 import ModulePanel from '../../components/ModulePanel.vue'
 import OrdenFichaSlideover, { type OrdenFicha } from '../../components/OrdenFichaSlideover.vue'
@@ -131,7 +131,7 @@ const semaforoCards = computed((): SemaforoCard[] => [
               </thead>
               <tbody>
                 <tr
-                  v-for="orden in (ordenes?.data || []) as OrdenFicha[]"
+                  v-for="orden in (ordenes?.data || []) as Array<OrdenFicha & { tieneDiagnostico?: boolean }>"
                   :key="orden.id"
                   class="border-b border-default/60 cursor-pointer hover:bg-elevated/40 transition-colors"
                   @click="abrirFicha(orden)"
@@ -146,14 +146,24 @@ const semaforoCards = computed((): SemaforoCard[] => [
                   </td>
                   <td class="py-3 pr-3">{{ orden.mecanicoNombre || '—' }}</td>
                   <td class="py-3" @click.stop>
-                    <button
-                      type="button"
-                      class="autofix-action-btn"
-                      title="Gestionar"
-                      @click="abrirFicha(orden)"
-                    >
-                      <UIcon name="i-lucide-panel-right-open" class="size-4" />
-                    </button>
+                    <div class="flex gap-1.5">
+                      <Link
+                        v-if="!orden.tieneDiagnostico"
+                        :href="route('diagnosticos-ia.create', { ordenTrabajoId: orden.id })"
+                        class="autofix-action-btn autofix-action-btn--primary"
+                        title="Diagnosticar con IA"
+                      >
+                        <UIcon name="i-lucide-sparkles" class="size-4" />
+                      </Link>
+                      <button
+                        type="button"
+                        class="autofix-action-btn"
+                        title="Gestionar"
+                        @click="abrirFicha(orden)"
+                      >
+                        <UIcon name="i-lucide-panel-right-open" class="size-4" />
+                      </button>
+                    </div>
                   </td>
                 </tr>
                 <tr v-if="!(ordenes?.data || []).length">

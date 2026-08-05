@@ -50,6 +50,7 @@ class OrdenTrabajoWebController extends Controller
             'ordenRepuestos',
             'creator',
             'updater',
+            'sugerenciaIa',
         ])->orderByDesc('created_at');
 
         if ($user->hasRole(UserRole::Mecanico)) {
@@ -123,8 +124,9 @@ class OrdenTrabajoWebController extends Controller
     {
         try {
             $ordenId = null;
+            $ordenNumero = null;
 
-            DB::transaction(function () use ($request, &$ordenId) {
+            DB::transaction(function () use ($request, &$ordenId, &$ordenNumero) {
                 $data = $request->validated();
                 $fechaCita = $data['fecha_cita'] ?? null;
                 $tipoCita = $data['tipo_cita'] ?? CitaTipo::Reparacion->value;
@@ -151,11 +153,12 @@ class OrdenTrabajoWebController extends Controller
                 }
 
                 $ordenId = $orden->id;
+                $ordenNumero = $orden->numero;
             });
 
             return redirect()
-                ->route('diagnosticos-ia.create', ['ordenTrabajoId' => $ordenId])
-                ->with('success', 'Orden creada. Ahora genera el diagnóstico IA para asignar especialista, servicios y repuestos.');
+                ->route('ordenes.index')
+                ->with('success', "Orden $ordenNumero creada correctamente. Cuando estés listo, usa el botón 'Diagnosticar' para generar la sugerencia de IA y pasarla al mecánico.");
         } catch (Exception $e) {
             return redirect()->back()->withInput()->with('error', 'Error al crear la orden: ' . $e->getMessage());
         }
@@ -376,6 +379,7 @@ class OrdenTrabajoWebController extends Controller
                 ? trim(($orden->mecanico->nombres ?? '') . ' ' . ($orden->mecanico->apellidos ?? ''))
                 : null,
             'facturaId' => $orden->factura?->id,
+            'tieneDiagnostico' => $orden->sugerenciaIa !== null,
             'puedeFacturar' => !$orden->factura
                 && ($orden->ordenServicios->isNotEmpty() || $orden->ordenRepuestos->isNotEmpty()),
             'createdByNombre' => $orden->creator?->name,
