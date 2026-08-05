@@ -32,11 +32,30 @@ interface OrdenOption {
   cliente: ClienteFactura | null
 }
 
+interface FacturaAnulada {
+  id: string
+  ordenTrabajoId: string
+  serie: string
+  fechaEmision: string
+  descuento: number
+  observaciones: string | null
+  clienteTipoDocumento: string
+  clienteNumeroDocumento: string
+  clienteNombres: string
+  clienteApellidos: string
+  clienteDireccion: string
+  clienteTelefono: string
+  clienteEmail: string
+}
+
 const page = usePage()
 const ordenes = computed(() => ((page.props as any).ordenes || []) as OrdenOption[])
 const ivaRate = computed(() => Number((page.props as any).ivaRate ?? 0.15))
 const serieDefault = computed(() => String((page.props as any).serieDefault || 'F001'))
-const ordenPreseleccionada = computed(() => String((page.props as any).ordenTrabajoId || ''))
+const facturaAnulada = computed(() => ((page.props as any).facturaAnulada || null) as FacturaAnulada | null)
+const ordenPreseleccionada = computed(() =>
+  String(facturaAnulada.value?.ordenTrabajoId || (page.props as any).ordenTrabajoId || '')
+)
 
 const backendErrors = computed(() => page.props.errors || {})
 const errors = computed(() => {
@@ -51,18 +70,18 @@ const errors = computed(() => {
 const isLoading = ref(false)
 const state = reactive({
   ordenTrabajoId: ordenPreseleccionada.value,
-  serie: serieDefault.value,
-  fechaEmision: new Date().toISOString().slice(0, 10),
-  descuento: 0,
-  observaciones: '',
+  serie: facturaAnulada.value?.serie || serieDefault.value,
+  fechaEmision: facturaAnulada.value?.fechaEmision || new Date().toISOString().slice(0, 10),
+  descuento: facturaAnulada.value?.descuento ?? 0,
+  observaciones: facturaAnulada.value?.observaciones || '',
   estado: 'emitida',
-  clienteTipoDocumento: 'CEDULA',
-  clienteNumeroDocumento: '',
-  clienteNombres: '',
-  clienteApellidos: '',
-  clienteDireccion: '',
-  clienteTelefono: '',
-  clienteEmail: '',
+  clienteTipoDocumento: facturaAnulada.value?.clienteTipoDocumento || 'CEDULA',
+  clienteNumeroDocumento: facturaAnulada.value?.clienteNumeroDocumento || '',
+  clienteNombres: facturaAnulada.value?.clienteNombres || '',
+  clienteApellidos: facturaAnulada.value?.clienteApellidos || '',
+  clienteDireccion: facturaAnulada.value?.clienteDireccion || '',
+  clienteTelefono: facturaAnulada.value?.clienteTelefono || '',
+  clienteEmail: facturaAnulada.value?.clienteEmail || '',
   actualizarCliente: false
 })
 
@@ -114,6 +133,24 @@ const preview = computed(() => {
 watch(
   () => state.ordenTrabajoId,
   () => {
+    // Al re-emitir una factura anulada se conservan los datos que ya tenía
+    // (descuento, observaciones, cliente) para poder editarlos antes de generar.
+    if (facturaAnulada.value && state.ordenTrabajoId === facturaAnulada.value.ordenTrabajoId) {
+      state.descuento = facturaAnulada.value.descuento ?? 0
+      state.observaciones = facturaAnulada.value.observaciones || ''
+      state.serie = facturaAnulada.value.serie || serieDefault.value
+      state.fechaEmision = facturaAnulada.value.fechaEmision || state.fechaEmision
+      state.clienteTipoDocumento = facturaAnulada.value.clienteTipoDocumento || 'CEDULA'
+      state.clienteNumeroDocumento = facturaAnulada.value.clienteNumeroDocumento || ''
+      state.clienteNombres = facturaAnulada.value.clienteNombres || ''
+      state.clienteApellidos = facturaAnulada.value.clienteApellidos || ''
+      state.clienteDireccion = facturaAnulada.value.clienteDireccion || ''
+      state.clienteTelefono = facturaAnulada.value.clienteTelefono || ''
+      state.clienteEmail = facturaAnulada.value.clienteEmail || ''
+      state.actualizarCliente = false
+      return
+    }
+
     state.descuento = 0
     cargarClienteDeOrden(ordenSeleccionada.value)
   },
@@ -157,6 +194,15 @@ const handleSubmit = () => {
     </template>
     <template #body>
       <form class="space-y-4" @submit.prevent="handleSubmit">
+        <UAlert
+          v-if="facturaAnulada"
+          class="mb-4"
+          color="warning"
+          variant="subtle"
+          icon="i-lucide-refresh-ccw"
+          title="Reemitiendo factura anulada"
+          description="Se precargaron los datos de la factura anterior. Revisa y edita los campos antes de generar la nueva factura."
+        />
         <UAlert
           v-if="Object.keys(errors).length"
           color="error"

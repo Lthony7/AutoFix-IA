@@ -87,6 +87,12 @@ const puedeExportarImprimir = computed(() => !esEmitida.value)
                 <UButton icon="i-lucide-file-down" label="Exportar PDF" variant="soft" color="error" />
               </a>
             </template>
+            <UButton
+              v-if="factura.estado === 'anulada'"
+              icon="i-lucide-refresh-ccw"
+              label="Reemitir factura"
+              :to="route('facturas.create', { facturaAnulada: factura.id, ordenTrabajoId: factura.ordenTrabajoId })"
+            />
             <UButton v-if="factura.estado === 'borrador'" icon="i-lucide-pencil" label="Editar" :to="route('facturas.edit', factura.id)" />
             <UButton variant="ghost" color="neutral" label="Volver" :to="route('facturas.index')" />
           </div>

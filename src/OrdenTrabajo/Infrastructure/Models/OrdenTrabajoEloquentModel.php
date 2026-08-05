@@ -15,6 +15,7 @@ use Src\Factura\Infrastructure\Models\FacturaEloquentModel;
 use Src\Mecanico\Infrastructure\Models\MecanicoEloquentModel;
 use Src\Pago\Infrastructure\Models\PagoEloquentModel;
 use Src\Vehiculo\Infrastructure\Models\VehiculoEloquentModel;
+use App\Enums\FacturaEstado;
 
 class OrdenTrabajoEloquentModel extends Model
 {
@@ -91,9 +92,26 @@ class OrdenTrabajoEloquentModel extends Model
         return $this->hasOne(PagoEloquentModel::class, 'orden_trabajo_id');
     }
 
+    public function facturas(): HasMany
+    {
+        return $this->hasMany(FacturaEloquentModel::class, 'orden_trabajo_id');
+    }
+
+    /**
+     * Factura vigente de la OT: la más reciente que NO esté anulada.
+     * Si la única factura fue anulada, devuelve null para permitir re-emitir.
+     *
+     * Nota: el filtro por estado se pasa como callback de ofMany para que
+     * aplique TAMBIÉN en la subconsulta (si no, latestOfMany elegiría la
+     * última factura anulada y luego la filtraría, devolviendo null).
+     */
     public function factura(): HasOne
     {
-        return $this->hasOne(FacturaEloquentModel::class, 'orden_trabajo_id');
+        return $this->hasOne(FacturaEloquentModel::class, 'orden_trabajo_id')
+            ->ofMany(
+                ['id' => 'max'],
+                fn ($query) => $query->where('estado', '!=', FacturaEstado::Anulada->value)
+            );
     }
 
     public function avances(): HasMany

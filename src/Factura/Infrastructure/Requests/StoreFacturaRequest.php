@@ -2,10 +2,11 @@
 
 namespace Src\Factura\Infrastructure\Requests;
 
+use App\Enums\FacturaEstado;
 use App\Support\FieldValidation;
 use Closure;
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Rule;
+use Src\Factura\Infrastructure\Models\FacturaEloquentModel;
 use Src\OrdenTrabajo\Infrastructure\Models\OrdenTrabajoEloquentModel;
 
 class StoreFacturaRequest extends FormRequest
@@ -50,7 +51,19 @@ class StoreFacturaRequest extends FormRequest
                 'required',
                 'uuid',
                 'exists:ordenes_trabajo,id',
-                Rule::unique('facturas', 'orden_trabajo_id'),
+                function (string $attribute, mixed $value, Closure $fail): void {
+                    // Solo puede existir UNA factura NO anulada por OT.
+                    // Si la única factura de la OT está anulada, se permite
+                    // generar una nueva (re-emisión).
+                    $tieneVigente = FacturaEloquentModel::query()
+                        ->where('orden_trabajo_id', $value)
+                        ->where('estado', '!=', FacturaEstado::Anulada->value)
+                        ->exists();
+
+                    if ($tieneVigente) {
+                        $fail('La orden de trabajo ya tiene una factura vigente. Anula la factura actual antes de generar otra.');
+                    }
+                },
             ],
             'serie' => 'nullable|string|max:20',
             'fecha_emision' => 'required|date',

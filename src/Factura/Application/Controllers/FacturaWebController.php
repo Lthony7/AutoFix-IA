@@ -62,11 +62,35 @@ class FacturaWebController extends Controller
 
     public function create(Request $request): Response
     {
+        $facturaAnulada = null;
+        $facturaAnuladaId = $request->query('facturaAnulada');
+        if ($facturaAnuladaId) {
+            $anulada = FacturaEloquentModel::find($facturaAnuladaId);
+            if ($anulada && $anulada->estado === FacturaEstado::Anulada) {
+                $facturaAnulada = [
+                    'id' => $anulada->id,
+                    'ordenTrabajoId' => $anulada->orden_trabajo_id,
+                    'serie' => $anulada->serie,
+                    'fechaEmision' => $anulada->fecha_emision?->format('Y-m-d'),
+                    'descuento' => (float) $anulada->descuento,
+                    'observaciones' => $anulada->observaciones,
+                    'clienteTipoDocumento' => $anulada->cliente_tipo_documento,
+                    'clienteNumeroDocumento' => $anulada->cliente_numero_documento,
+                    'clienteNombres' => $anulada->cliente_nombres,
+                    'clienteApellidos' => $anulada->cliente_apellidos,
+                    'clienteDireccion' => $anulada->cliente_direccion,
+                    'clienteTelefono' => $anulada->cliente_telefono,
+                    'clienteEmail' => $anulada->cliente_email,
+                ];
+            }
+        }
+
         return Inertia::render('Factura/create', [
             'ordenes' => $this->ordenesSinFacturaOptions(),
             'ivaRate' => (float) config('autofix.iva_rate', 0.15),
             'serieDefault' => config('autofix.serie_default', 'F001'),
-            'ordenTrabajoId' => $request->query('ordenTrabajoId'),
+            'ordenTrabajoId' => $facturaAnulada['ordenTrabajoId'] ?? $request->query('ordenTrabajoId'),
+            'facturaAnulada' => $facturaAnulada,
         ]);
     }
 
@@ -351,7 +375,7 @@ class FacturaWebController extends Controller
     private function ordenesSinFacturaOptions(): array
     {
         return OrdenTrabajoEloquentModel::with(['cliente', 'vehiculo', 'ordenServicios', 'ordenRepuestos'])
-            ->whereDoesntHave('factura')
+            ->whereDoesntHave('facturas', fn ($q) => $q->where('estado', '!=', FacturaEstado::Anulada->value))
             ->orderByDesc('created_at')
             ->get()
             ->filter(fn ($o) => $o->ordenServicios->isNotEmpty() || $o->ordenRepuestos->isNotEmpty())
