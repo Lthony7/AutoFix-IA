@@ -58,6 +58,9 @@ const ordenSeleccionada = computed(() =>
 
 const esCompletarCobro = computed(() => Boolean(ordenSeleccionada.value?.pagoId))
 
+// Llegó con la OT preseleccionada desde el detalle de la factura → datos fijos de esa factura
+const vieneDeFactura = computed(() => Boolean(state.ordenTrabajoId && ordenSeleccionada.value))
+
 const valorServicios = computed(() => ordenSeleccionada.value?.valorServicios ?? 0)
 const valorRepuestos = computed(() => ordenSeleccionada.value?.valorRepuestos ?? 0)
 const subtotal = computed(() => valorServicios.value + valorRepuestos.value)
@@ -148,6 +151,7 @@ const handleSubmit = () => {
               :items="ordenes.map(o => ({ label: o.label, value: o.id }))"
               placeholder="Seleccionar orden por cobrar"
               class="w-full"
+              :disabled="vieneDeFactura"
             />
           </FormField>
 
@@ -167,10 +171,14 @@ const handleSubmit = () => {
             color="info"
             variant="subtle"
             icon="i-lucide-lock"
-            :title="ordenSeleccionada.tieneFactura
-              ? `Valores fijos de la factura ${ordenSeleccionada.facturaNumero || ''}`
-              : 'Valores fijos desde servicios y repuestos de la OT'"
-            description="Servicios, repuestos y total no se editan. Solo puedes aplicar un descuento según el caso."
+            :title="vieneDeFactura
+              ? `Datos de la factura ${ordenSeleccionada.facturaNumero || ''} aplicados automáticamente`
+              : (ordenSeleccionada.tieneFactura
+                  ? `Valores fijos de la factura ${ordenSeleccionada.facturaNumero || ''}`
+                  : 'Valores fijos desde servicios y repuestos de la OT')"
+            :description="vieneDeFactura
+              ? 'La orden está seleccionada y bloqueada; el total es el de la factura. Elige el método de pago y confirma el cobro.'
+              : 'Servicios, repuestos y total no se editan. Solo puedes aplicar un descuento según el caso.'"
           />
 
           <template v-if="!esCompletarCobro">
@@ -191,11 +199,11 @@ const handleSubmit = () => {
                 :max="subtotal"
                 step="0.01"
                 class="w-full"
-                :disabled="!ordenSeleccionada"
+                :disabled="!ordenSeleccionada || vieneDeFactura"
                 placeholder="Aplicar descuento si corresponde"
               />
               <p class="mt-1.5 text-xs text-muted">
-                Opcional. No puede superar el subtotal ({{ formatMoney(subtotal) }}).
+                {{ vieneDeFactura ? 'Descuento fijo tomado de la factura.' : 'Opcional. No puede superar el subtotal (' + formatMoney(subtotal) + ').' }}
               </p>
             </FormField>
 
