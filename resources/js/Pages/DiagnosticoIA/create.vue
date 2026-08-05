@@ -358,15 +358,18 @@ const handleSubmit = () => {
               </p>
               <div class="flex shrink-0 flex-wrap gap-3">
                 <UButton variant="ghost" color="neutral" label="Cancelar" :to="route('diagnosticos-ia.index')" />
-                <UButton
+                <button
                   type="submit"
-                  label="Generar diagnóstico IA"
-                  icon="i-lucide-sparkles"
-                  color="success"
-                  size="lg"
-                  :loading="isLoading"
-                  :disabled="!puedeGenerar"
-                />
+                  class="inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
+                  :disabled="isLoading || !puedeGenerar"
+                >
+                  <span
+                    v-if="isLoading"
+                    class="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white"
+                  />
+                  <UIcon v-else name="i-lucide-sparkles" class="size-4" />
+                  {{ isLoading ? 'Generando…' : 'Generar diagnóstico IA' }}
+                </button>
               </div>
             </div>
           </ModulePanel>
