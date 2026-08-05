@@ -372,14 +372,7 @@ const registrarAvance = () => {
               :to="route('diagnosticos-ia.show', orden.id)"
             />
             <UButton
-              v-if="orden.puedeFacturar"
-              color="primary"
-              icon="i-lucide-file-text"
-              label="Facturar"
-              :to="route('facturas.create', { ordenTrabajoId: orden.id })"
-            />
-            <UButton
-              v-else-if="orden.facturaId"
+              v-if="orden.facturaId"
               variant="soft"
               icon="i-lucide-wallet"
               label="Ver factura"

@@ -57,6 +57,10 @@ const estadoColor = (estado: string) => {
   }
   return map[estado] || 'neutral'
 }
+
+const esEmitida = computed(() => factura.value.estado === 'emitida')
+const puedePagar = computed(() => esEmitida.value)
+const puedeExportarImprimir = computed(() => !esEmitida.value)
 </script>
 
 <template>
@@ -69,19 +73,21 @@ const estadoColor = (estado: string) => {
         <template #right>
           <div class="flex gap-2">
             <UButton
-              v-if="!factura.tienePago && ['finalizada', 'entregada'].includes(factura.ordenEstado)"
+              v-if="puedePagar"
               icon="i-lucide-wallet"
-              label="Registrar pago"
+              label="Ir al pago"
               :to="route('pagos.create', { ordenTrabajoId: factura.ordenTrabajoId })"
               variant="soft"
             />
-            <a :href="route('facturas.imprimir', factura.id)">
-              <UButton icon="i-lucide-printer" label="Imprimir" variant="soft" />
-            </a>
-            <a :href="route('facturas.pdf', factura.id)">
-              <UButton icon="i-lucide-file-down" label="Exportar PDF" variant="soft" color="error" />
-            </a>
-            <UButton icon="i-lucide-pencil" label="Editar" :to="route('facturas.edit', factura.id)" />
+            <template v-if="puedeExportarImprimir">
+              <a :href="route('facturas.imprimir', factura.id)">
+                <UButton icon="i-lucide-printer" label="Imprimir" variant="soft" />
+              </a>
+              <a :href="route('facturas.pdf', factura.id)">
+                <UButton icon="i-lucide-file-down" label="Exportar PDF" variant="soft" color="error" />
+              </a>
+            </template>
+            <UButton v-if="factura.estado === 'borrador'" icon="i-lucide-pencil" label="Editar" :to="route('facturas.edit', factura.id)" />
             <UButton variant="ghost" color="neutral" label="Volver" :to="route('facturas.index')" />
           </div>
         </template>
@@ -89,6 +95,15 @@ const estadoColor = (estado: string) => {
     </template>
 
     <template #body>
+      <UAlert
+        v-if="esEmitida"
+        class="mb-4"
+        color="info"
+        variant="subtle"
+        icon="i-lucide-info"
+        title="Factura emitida pendiente de cobro"
+        description="La impresión y la exportación a PDF se habilitan cuando el pago quede registrado como pagado."
+      />
       <UCard class="w-full">
         <div class="flex flex-wrap items-start justify-between gap-4 mb-6">
           <div>

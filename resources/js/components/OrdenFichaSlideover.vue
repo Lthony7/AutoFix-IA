@@ -266,16 +266,7 @@ const cancelarEdicion = () => syncFromOrden()
               @click="open = false"
             />
             <UButton
-              v-if="canFacturar && orden.puedeFacturar"
-              color="success"
-              variant="soft"
-              icon="i-lucide-file-plus"
-              label="Facturar"
-              :to="route('facturas.create', { ordenTrabajoId: orden.id })"
-              @click="open = false"
-            />
-            <UButton
-              v-else-if="canFacturar && orden.facturaId"
+              v-if="canFacturar && orden.facturaId"
               color="success"
               variant="soft"
               icon="i-lucide-file-text"

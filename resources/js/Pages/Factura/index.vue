@@ -87,9 +87,6 @@ const destroy = (id: string) => {
         <template #leading>
           <UDashboardSidebarCollapse />
         </template>
-        <template #right>
-          <AppCreateButton :to="route('facturas.create')" label="Generar factura" />
-        </template>
       </UDashboardNavbar>
     </template>
 

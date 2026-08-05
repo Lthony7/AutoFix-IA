@@ -6,6 +6,7 @@ use App\Enums\OrdenEstado;
 use App\Enums\UserRole;
 use App\Enums\CitaEstado;
 use App\Enums\CitaTipo;
+use App\Enums\FacturaEstado;
 use App\Http\Controllers\Controller;
 use App\Services\OrdenEstadoNotifier;
 use App\Services\OrdenRepuestoStockService;
@@ -18,6 +19,7 @@ use Inertia\Inertia;
 use Inertia\Response;
 use Src\Cita\Infrastructure\Models\CitaEloquentModel;
 use Src\Cliente\Infrastructure\Models\ClienteEloquentModel;
+use Src\Factura\Infrastructure\Models\FacturaEloquentModel;
 use Src\Mecanico\Infrastructure\Models\MecanicoEloquentModel;
 use Src\OrdenTrabajo\Infrastructure\Models\OrdenAvanceEloquentModel;
 use Src\OrdenTrabajo\Infrastructure\Models\OrdenServicioEloquentModel;
@@ -152,13 +154,15 @@ class OrdenTrabajoWebController extends Controller
                     ]);
                 }
 
+                $this->crearFacturaAutomatica($orden, $request->user()?->id);
+
                 $ordenId = $orden->id;
                 $ordenNumero = $orden->numero;
             });
 
             return redirect()
                 ->route('ordenes.index')
-                ->with('success', "Orden $ordenNumero creada correctamente. Cuando estés listo, usa el botón 'Diagnosticar' para generar la sugerencia de IA y pasarla al mecánico.");
+                ->with('success', "Orden $ordenNumero creada correctamente. Se generó su factura en estado emitida; cuando la OT esté Finalizada podrás cobrarla desde la factura.");
         } catch (Exception $e) {
             return redirect()->back()->withInput()->with('error', 'Error al crear la orden: ' . $e->getMessage());
         }
@@ -286,9 +290,11 @@ class OrdenTrabajoWebController extends Controller
                 )) {
                     $this->stockService->reemplazar($orden, $repuestos);
                 }
+
+                $this->sincronizarFacturaTotales($orden);
             });
 
-            return redirect()->route('ordenes.edit', $orden->id)->with('success', 'Orden actualizada. Si ya está lista, genera la factura.');
+            return redirect()->route('ordenes.edit', $orden->id)->with('success', 'Orden actualizada. Los totales de la factura se actualizaron automáticamente.');
         } catch (Exception $e) {
             return redirect()->back()->withInput()->with('error', 'Error al actualizar la orden: ' . $e->getMessage());
         }
@@ -512,5 +518,65 @@ class OrdenTrabajoWebController extends Controller
             ])
             ->values()
             ->toArray();
+    }
+
+    /**
+     * Genera la factura automática de la OT en estado emitida (totales en $0).
+     * Los totales se sincronizan después al agregar/quitar ítems a la OT.
+     */
+    private function crearFacturaAutomatica(OrdenTrabajoEloquentModel $orden, ?string $usuarioId): void
+    {
+        $orden->loadMissing('cliente');
+        $cliente = $orden->cliente;
+
+        FacturaEloquentModel::create([
+            'numero' => FacturaEloquentModel::generarNumero(),
+            'serie' => config('autofix.serie_default', 'F001'),
+            'orden_trabajo_id' => $orden->id,
+            'cliente_id' => $orden->cliente_id,
+            'cliente_tipo_documento' => $cliente?->tipo_documento,
+            'cliente_numero_documento' => $cliente?->numero_documento,
+            'cliente_nombres' => $cliente?->nombres,
+            'cliente_apellidos' => $cliente?->apellidos,
+            'cliente_razon_social' => $cliente?->razon_social,
+            'cliente_direccion' => $cliente?->direccion,
+            'cliente_telefono' => $cliente?->telefono,
+            'cliente_email' => $cliente?->email,
+            'usuario_id' => $usuarioId,
+            'fecha_emision' => now()->toDateString(),
+            'subtotal' => 0,
+            'iva' => 0,
+            'descuento' => 0,
+            'total' => 0,
+            'estado' => FacturaEstado::Emitida,
+            'observaciones' => null,
+        ]);
+    }
+
+    /**
+     * Mantiene los totales de la factura emitida sincronizados con los ítems de la OT.
+     * No toca facturas pagadas o anuladas (documentos cerrados).
+     */
+    private function sincronizarFacturaTotales(OrdenTrabajoEloquentModel $orden): void
+    {
+        $factura = $orden->factura()->first();
+
+        if (!$factura) {
+            return;
+        }
+
+        if ($factura->estado === FacturaEstado::Pagada || $factura->estado === FacturaEstado::Anulada) {
+            return;
+        }
+
+        $orden->load(['ordenServicios', 'ordenRepuestos']);
+        $calculado = FacturaEloquentModel::calcularDesdeOrden($orden, (float) $factura->descuento);
+
+        $factura->update([
+            'subtotal' => $calculado['subtotal'],
+            'iva' => $calculado['iva'],
+            'descuento' => $calculado['descuento'],
+            'total' => $calculado['total'],
+        ]);
     }
 }

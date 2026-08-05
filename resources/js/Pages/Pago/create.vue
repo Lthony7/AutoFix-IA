@@ -20,6 +20,7 @@ interface OrdenOption {
 const page = usePage()
 const ordenes = computed(() => ((page.props as any).ordenes || []) as OrdenOption[])
 const ivaRate = computed(() => Number((page.props as any).ivaRate ?? 0.15))
+const aviso = computed(() => String((page.props as any).aviso || ''))
 
 const backendErrors = computed(() => page.props.errors || {})
 const errors = computed(() => {
@@ -112,7 +113,7 @@ watch(
 )
 
 const handleSubmit = () => {
-  if (!state.ordenTrabajoId || esCompletarCobro.value) return
+  if (!state.ordenTrabajoId || esCompletarCobro.value || aviso.value) return
   isLoading.value = true
   const payload: Record<string, unknown> = {
     ordenTrabajoId: state.ordenTrabajoId,
@@ -138,6 +139,16 @@ const handleSubmit = () => {
     <template #body>
       <UCard class="w-full">
         <form class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 w-full" @submit.prevent="handleSubmit">
+          <UAlert
+            v-if="aviso"
+            class="md:col-span-2 xl:col-span-3"
+            color="warning"
+            variant="subtle"
+            icon="i-lucide-clock"
+            title="La orden aún no está lista para cobrar"
+            :description="aviso"
+          />
+
           <FormField
             label="Orden por cobrar"
             name="ordenTrabajoId"
@@ -228,7 +239,7 @@ const handleSubmit = () => {
               />
             </FormField>
             <div class="md:col-span-2 xl:col-span-3 flex gap-3">
-              <UButton type="submit" label="Registrar pago" :loading="isLoading" :disabled="!state.ordenTrabajoId" />
+              <UButton type="submit" label="Registrar pago" :loading="isLoading" :disabled="!state.ordenTrabajoId || Boolean(aviso)" />
               <UButton variant="ghost" color="neutral" label="Cancelar" :to="route('pagos.index')" />
             </div>
           </template>

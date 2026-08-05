@@ -66,10 +66,24 @@ class PagoWebController extends Controller
 
     public function create(Request $request): Response
     {
+        $ordenTrabajoId = $request->query('ordenTrabajoId');
+        $aviso = null;
+
+        if ($ordenTrabajoId) {
+            $orden = OrdenTrabajoEloquentModel::find($ordenTrabajoId);
+            if ($orden && !$this->esEstadoCobrable($orden)) {
+                $label = $orden->estado instanceof OrdenEstado
+                    ? $orden->estado->label()
+                    : (string) $orden->estado;
+                $aviso = "La orden {$orden->numero} aún no está lista para cobrar (estado: {$label}). El pago se habilita cuando la orden esté Finalizada o Entregada.";
+            }
+        }
+
         return Inertia::render('Pago/create', [
             'ordenes' => $this->ordenesPorCobrarOptions(),
             'ivaRate' => (float) config('autofix.iva_rate', 0.15),
-            'ordenTrabajoId' => $request->query('ordenTrabajoId'),
+            'ordenTrabajoId' => $ordenTrabajoId,
+            'aviso' => $aviso,
         ]);
     }
 
