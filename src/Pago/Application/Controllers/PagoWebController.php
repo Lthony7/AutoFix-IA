@@ -2,8 +2,10 @@
 
 namespace Src\Pago\Application\Controllers;
 
+use App\Enums\OrdenEstado;
 use App\Enums\PagoEstado;
 use App\Http\Controllers\Controller;
+use App\Services\OrdenEstadoNotifier;
 use App\Services\SincronizarPagoFacturaService;
 use App\Support\InertiaTablePaginator;
 use Exception;
@@ -21,6 +23,7 @@ class PagoWebController extends Controller
 {
     public function __construct(
         private readonly SincronizarPagoFacturaService $syncFactura,
+        private readonly OrdenEstadoNotifier $estadoNotifier,
     ) {
     }
 
@@ -77,6 +80,15 @@ class PagoWebController extends Controller
             $orden = OrdenTrabajoEloquentModel::with(['ordenServicios', 'ordenRepuestos', 'factura', 'pago'])
                 ->findOrFail($data['orden_trabajo_id']);
 
+            if (!$this->esEstadoCobrable($orden)) {
+                $label = $orden->estado instanceof OrdenEstado
+                    ? $orden->estado->label()
+                    : (string) $orden->estado;
+
+                return redirect()->back()->withInput()
+                    ->with('error', 'Solo se puede registrar el pago cuando la orden está Finalizada o Entregada. Estado actual: ' . $label . '.');
+            }
+
             // Si ya hay pago pendiente/anulado, completar ese cobro en lugar de crear otro
             $pagoExistente = $orden->pago;
             if ($pagoExistente && $pagoExistente->estado !== PagoEstado::Pagado) {
@@ -114,6 +126,10 @@ class PagoWebController extends Controller
             $this->syncFactura->sincronizarMontos($pago, $montos);
             $this->syncFactura->sincronizarEstado($pago);
 
+            if ($pago->estado === PagoEstado::Pagado) {
+                $this->marcarEntregadaAlCobrar($orden);
+            }
+
             return redirect()->route('pagos.index')->with('success', 'Pago registrado exitosamente');
         } catch (Exception $e) {
             return redirect()->back()->withInput()->with('error', 'Error al registrar pago: ' . $e->getMessage());
@@ -141,6 +157,15 @@ class PagoWebController extends Controller
             ])->findOrFail($id);
 
             $data = $request->validated();
+
+            if (
+                ($data['estado'] ?? $pago->estado->value) === PagoEstado::Pagado->value
+                && $pago->ordenTrabajo?->estado === OrdenEstado::Cancelada
+            ) {
+                return redirect()->back()->withInput()
+                    ->with('error', 'No se puede cobrar una orden cancelada.');
+            }
+
             $montos = $this->resolverMontosPago(
                 $pago->ordenTrabajo,
                 array_key_exists('descuento', $data) ? (float) $data['descuento'] : (float) $pago->descuento
@@ -160,6 +185,10 @@ class PagoWebController extends Controller
             $pago = $pago->fresh(['factura']);
             $this->syncFactura->sincronizarMontos($pago, $montos);
             $this->syncFactura->sincronizarEstado($pago);
+
+            if ($pago->estado === PagoEstado::Pagado && $pago->ordenTrabajo) {
+                $this->marcarEntregadaAlCobrar($pago->ordenTrabajo);
+            }
 
             return redirect()->route('pagos.index')->with('success', 'Pago actualizado exitosamente');
         } catch (Exception $e) {
@@ -245,6 +274,7 @@ class PagoWebController extends Controller
 
     /**
      * OTs sin pago, o con pago pendiente/anulado (para completar cobro).
+     * Solo se cobra cuando el trabajo terminó (finalizada) o el vehículo ya se entregó (entregada).
      * Excluye pagos ya pagados.
      *
      * @return list<array<string, mixed>>
@@ -259,6 +289,10 @@ class PagoWebController extends Controller
             'factura',
             'pago',
         ])
+            ->whereIn('estado', [
+                OrdenEstado::Finalizada->value,
+                OrdenEstado::Entregada->value,
+            ])
             ->where(function ($q) {
                 $q->whereDoesntHave('pago')
                     ->orWhereHas('pago', function ($pago) {
@@ -303,5 +337,28 @@ class PagoWebController extends Controller
                     'pagoEstado' => $pagoEstado,
                 ];
             })->values()->toArray();
+    }
+
+    private function esEstadoCobrable(OrdenTrabajoEloquentModel $orden): bool
+    {
+        if ($orden->estado instanceof OrdenEstado) {
+            return in_array($orden->estado, [OrdenEstado::Finalizada, OrdenEstado::Entregada], true);
+        }
+
+        return in_array((string) $orden->estado, [
+            OrdenEstado::Finalizada->value,
+            OrdenEstado::Entregada->value,
+        ], true);
+    }
+
+    private function marcarEntregadaAlCobrar(OrdenTrabajoEloquentModel $orden): void
+    {
+        if (!$this->esEstadoCobrable($orden) || $orden->estado === OrdenEstado::Entregada) {
+            return;
+        }
+
+        $estadoAnterior = $orden->estado instanceof \BackedEnum ? $orden->estado->value : (string) $orden->estado;
+        $orden->update(['estado' => OrdenEstado::Entregada]);
+        $this->estadoNotifier->notifyIfChanged($orden->fresh(['cliente', 'vehiculo']), $estadoAnterior);
     }
 }

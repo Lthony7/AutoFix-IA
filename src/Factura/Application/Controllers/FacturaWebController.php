@@ -296,6 +296,7 @@ class FacturaWebController extends Controller
             'serie' => $factura->serie,
             'ordenTrabajoId' => $factura->orden_trabajo_id,
             'ordenNumero' => $factura->ordenTrabajo?->numero,
+            'ordenEstado' => $factura->ordenTrabajo?->estado?->value,
             'clienteId' => $factura->cliente_id,
             'clienteNombre' => $nombreCliente,
             'clienteTipoDocumento' => $factura->cliente_tipo_documento ?? $cliente?->tipo_documento,

@@ -141,7 +141,7 @@ const handleSubmit = () => {
             required
             :error="errors.ordenTrabajoId || errors.orden_trabajo_id"
             class="md:col-span-2 xl:col-span-3"
-            hint="Incluye órdenes sin pago y cobros pendientes o anulados (completar cobro)."
+            hint="Solo órdenes Finalizadas o Entregadas, sin pago o con cobro pendiente/anulado."
           >
             <USelect
               v-model="state.ordenTrabajoId"

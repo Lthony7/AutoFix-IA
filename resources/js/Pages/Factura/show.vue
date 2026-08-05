@@ -7,6 +7,8 @@ interface Factura {
   id: string
   numero: string
   serie: string
+  ordenTrabajoId: string | null
+  ordenEstado: string | null
   ordenNumero: string | null
   clienteNombre: string | null
   clienteTipoDocumento?: string | null
@@ -67,10 +69,10 @@ const estadoColor = (estado: string) => {
         <template #right>
           <div class="flex gap-2">
             <UButton
-              v-if="!factura.tienePago"
+              v-if="!factura.tienePago && ['finalizada', 'entregada'].includes(factura.ordenEstado)"
               icon="i-lucide-wallet"
               label="Registrar pago"
-              :to="route('pagos.create')"
+              :to="route('pagos.create', { ordenTrabajoId: factura.ordenTrabajoId })"
               variant="soft"
             />
             <a :href="route('facturas.imprimir', factura.id)">
