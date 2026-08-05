@@ -73,6 +73,12 @@ const estadoColor = (estado: string) => {
               :to="route('pagos.create')"
               variant="soft"
             />
+            <a :href="route('facturas.imprimir', factura.id)">
+              <UButton icon="i-lucide-printer" label="Imprimir" variant="soft" />
+            </a>
+            <a :href="route('facturas.pdf', factura.id)">
+              <UButton icon="i-lucide-file-down" label="Exportar PDF" variant="soft" color="error" />
+            </a>
             <UButton icon="i-lucide-pencil" label="Editar" :to="route('facturas.edit', factura.id)" />
             <UButton variant="ghost" color="neutral" label="Volver" :to="route('facturas.index')" />
           </div>

@@ -6,9 +6,11 @@ use App\Enums\FacturaEstado;
 use App\Http\Controllers\Controller;
 use App\Services\FacturaClienteNotifier;
 use App\Support\InertiaTablePaginator;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Exception;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response as HttpResponse;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -166,6 +168,31 @@ class FacturaWebController extends Controller
         return Inertia::render('Factura/show', [
             'factura' => $this->mapFactura($factura, true),
             'ivaRate' => (float) config('autofix.iva_rate', 0.15),
+        ]);
+    }
+
+    public function exportPdf(string $id): HttpResponse
+    {
+        $factura = FacturaEloquentModel::with(['cliente', 'ordenTrabajo.vehiculo', 'detalles', 'pago'])
+            ->findOrFail($id);
+
+        $pdf = Pdf::loadView('pdf.factura', [
+            'f' => $this->mapFactura($factura, true),
+            'ivaRate' => (float) config('autofix.iva_rate', 0.15),
+        ])->setPaper('a4', 'portrait');
+
+        return $pdf->download('Factura-' . $factura->numero . '.pdf');
+    }
+
+    public function imprimir(string $id): HttpResponse
+    {
+        $factura = FacturaEloquentModel::with(['cliente', 'ordenTrabajo.vehiculo', 'detalles', 'pago'])
+            ->findOrFail($id);
+
+        return response()->view('pdf.factura', [
+            'f' => $this->mapFactura($factura, true),
+            'ivaRate' => (float) config('autofix.iva_rate', 0.15),
+            'autoPrint' => true,
         ]);
     }
 
