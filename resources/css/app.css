@@ -11,6 +11,43 @@
   --color-autofix-card: #ffffff;
 }
 
+/*
+ * Tokens Nuxt UI estáticos (fallback).
+ * Los botones (UButton) resuelven bg-primary/bg-inverted/text-default a
+ * var(--ui-primary) y var(--ui-color-neutral-*). Esas variables solo las
+ * escribe el JS runtime (useAppConfig); si ese JS no corre, los botones
+ * quedan transparentes/invisibles. Aquí se definen fijos para que TODOS
+ * los botones siempre tengan color, sin depender del runtime.
+ * El runtime usa green/zinc, así que coincide cuando sí corre.
+ */
+:root {
+  --ui-primary: #16a34a;
+
+  --ui-color-primary-50: #f0fdf4;
+  --ui-color-primary-100: #dcfce7;
+  --ui-color-primary-200: #bbf7d0;
+  --ui-color-primary-300: #86efac;
+  --ui-color-primary-400: #4ade80;
+  --ui-color-primary-500: #22c55e;
+  --ui-color-primary-600: #16a34a;
+  --ui-color-primary-700: #15803d;
+  --ui-color-primary-800: #166534;
+  --ui-color-primary-900: #14532d;
+  --ui-color-primary-950: #052e16;
+
+  --ui-color-neutral-50: #fafafa;
+  --ui-color-neutral-100: #f4f4f5;
+  --ui-color-neutral-200: #e4e4e7;
+  --ui-color-neutral-300: #d4d4d8;
+  --ui-color-neutral-400: #a1a1aa;
+  --ui-color-neutral-500: #71717a;
+  --ui-color-neutral-600: #52525b;
+  --ui-color-neutral-700: #3f3f46;
+  --ui-color-neutral-800: #27272a;
+  --ui-color-neutral-900: #18181b;
+  --ui-color-neutral-950: #09090b;
+}
+
 /* Ensure full height for the app */
 html,
 body,
