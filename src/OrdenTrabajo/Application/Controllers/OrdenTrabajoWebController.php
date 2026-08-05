@@ -8,6 +8,7 @@ use App\Enums\CitaEstado;
 use App\Enums\CitaTipo;
 use App\Enums\FacturaEstado;
 use App\Http\Controllers\Controller;
+use App\Services\GenerarDiagnosticoIaService;
 use App\Services\OrdenEstadoNotifier;
 use App\Services\OrdenRepuestoStockService;
 use App\Support\InertiaTablePaginator;
@@ -39,6 +40,7 @@ class OrdenTrabajoWebController extends Controller
     public function __construct(
         private readonly OrdenRepuestoStockService $stockService,
         private readonly OrdenEstadoNotifier $estadoNotifier,
+        private readonly GenerarDiagnosticoIaService $generarDiagnostico,
     ) {
     }
     public function index(Request $request): Response
@@ -126,10 +128,10 @@ class OrdenTrabajoWebController extends Controller
     public function store(StoreOrdenTrabajoRequest $request): RedirectResponse
     {
         try {
-            $ordenId = null;
-            $ordenNumero = null;
+            $orden = null;
+            $diagnosticoError = null;
 
-            DB::transaction(function () use ($request, &$ordenId, &$ordenNumero) {
+            DB::transaction(function () use ($request, &$orden) {
                 $data = $request->validated();
                 $fechaCita = $data['fecha_cita'] ?? null;
                 $tipoCita = $data['tipo_cita'] ?? CitaTipo::Reparacion->value;
@@ -154,16 +156,28 @@ class OrdenTrabajoWebController extends Controller
                         'notas' => 'Cita vinculada a ' . $orden->numero,
                     ]);
                 }
-
-                $this->crearFacturaAutomatica($orden, $request->user()?->id);
-
-                $ordenId = $orden->id;
-                $ordenNumero = $orden->numero;
             });
+
+            try {
+                $this->generarDiagnostico->generar($orden, [
+                    'tipo_falla' => $request->validated('tipo_falla'),
+                    'descripcion' => $request->validated('falla_reportada'),
+                    'urgencia' => $request->validated('prioridad') ?? 'media',
+                    'observaciones' => $request->validated('observaciones'),
+                ]);
+            } catch (Exception $e) {
+                $diagnosticoError = $e->getMessage();
+            }
+
+            if ($diagnosticoError) {
+                return redirect()
+                    ->route('ordenes.index')
+                    ->with('warning', "Orden {$orden->numero} creada correctamente, pero el diagnóstico IA no pudo generarse: $diagnosticoError");
+            }
 
             return redirect()
                 ->route('ordenes.index')
-                ->with('success', "Orden $ordenNumero creada correctamente. Se generó su factura en estado emitida; cuando la OT esté Finalizada podrás cobrarla desde la factura.");
+                ->with('success', "Orden {$orden->numero} creada correctamente. El diagnóstico IA se generó automáticamente y está pendiente de revisión.");
         } catch (Exception $e) {
             return redirect()->back()->withInput()->with('error', 'Error al crear la orden: ' . $e->getMessage());
         }
@@ -295,7 +309,12 @@ class OrdenTrabajoWebController extends Controller
                 $this->sincronizarFacturaTotales($orden);
             });
 
-            return redirect()->route('ordenes.edit', $orden->id)->with('success', 'Orden actualizada. Los totales de la factura se actualizaron automáticamente.');
+            return redirect()->route('ordenes.edit', $orden->id)->with(
+                'success',
+                $orden->factura
+                    ? 'Orden actualizada. Los totales de la factura se actualizaron automáticamente.'
+                    : 'Orden actualizada. La factura se emitirá al finalizar la orden.'
+            );
         } catch (Exception $e) {
             return redirect()->back()->withInput()->with('error', 'Error al actualizar la orden: ' . $e->getMessage());
         }
@@ -341,13 +360,28 @@ class OrdenTrabajoWebController extends Controller
         $orden = $this->findOrdenForUser($request, $id);
         $orden->load(['cliente', 'vehiculo']);
         $estadoAnterior = $orden->estado instanceof \BackedEnum ? $orden->estado->value : (string) $orden->estado;
+        $nuevoEstado = $request->validated('estado');
         $orden->update([
-            'estado' => $request->validated('estado'),
+            'estado' => $nuevoEstado,
             'updated_by' => $request->user()?->id,
         ]);
         $this->estadoNotifier->notifyIfChanged($orden->fresh(['cliente', 'vehiculo']), $estadoAnterior);
 
-        return redirect()->back()->with('success', 'Estado de la orden actualizado');
+        $facturaEmitida = false;
+        if (
+            in_array($nuevoEstado, [OrdenEstado::Finalizada->value, OrdenEstado::Entregada->value], true)
+            && $orden->factura === null
+        ) {
+            $this->emitirFacturaDeOrden($orden, $request->user()?->id);
+            $facturaEmitida = true;
+        }
+
+        return redirect()->back()->with(
+            'success',
+            $facturaEmitida
+                ? 'Estado de la orden actualizado y factura emitida. Disponible para cobro en el módulo de Pagos.'
+                : 'Estado de la orden actualizado'
+        );
     }
 
     private function findOrdenForUser(Request $request, string $id): OrdenTrabajoEloquentModel
@@ -525,12 +559,13 @@ class OrdenTrabajoWebController extends Controller
      * Genera la factura automática de la OT en estado emitida (totales en $0).
      * Los totales se sincronizan después al agregar/quitar ítems a la OT.
      */
-    private function crearFacturaAutomatica(OrdenTrabajoEloquentModel $orden, ?string $usuarioId): void
+    private function emitirFacturaDeOrden(OrdenTrabajoEloquentModel $orden, ?string $usuarioId): void
     {
-        $orden->loadMissing('cliente');
+        $orden->loadMissing(['cliente', 'ordenServicios.servicio', 'ordenRepuestos.producto']);
         $cliente = $orden->cliente;
+        $calculado = FacturaEloquentModel::calcularDesdeOrden($orden);
 
-        FacturaEloquentModel::create([
+        $factura = FacturaEloquentModel::create([
             'numero' => FacturaEloquentModel::generarNumero(),
             'serie' => config('autofix.serie_default', 'F001'),
             'orden_trabajo_id' => $orden->id,
@@ -545,13 +580,20 @@ class OrdenTrabajoWebController extends Controller
             'cliente_email' => $cliente?->email,
             'usuario_id' => $usuarioId,
             'fecha_emision' => now()->toDateString(),
-            'subtotal' => 0,
-            'iva' => 0,
-            'descuento' => 0,
-            'total' => 0,
+            'subtotal' => $calculado['subtotal'],
+            'iva' => $calculado['iva'],
+            'descuento' => $calculado['descuento'],
+            'total' => $calculado['total'],
             'estado' => FacturaEstado::Emitida,
             'observaciones' => null,
         ]);
+
+        foreach ($calculado['detalles'] as $detalle) {
+            DetalleFacturaEloquentModel::create([
+                'factura_id' => $factura->id,
+                ...$detalle,
+            ]);
+        }
     }
 
     /**

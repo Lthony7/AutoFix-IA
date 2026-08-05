@@ -4,6 +4,7 @@ namespace Src\Pago\Application\Controllers;
 
 use App\Enums\OrdenEstado;
 use App\Enums\PagoEstado;
+use App\Enums\FacturaEstado;
 use App\Http\Controllers\Controller;
 use App\Services\OrdenEstadoNotifier;
 use App\Services\SincronizarPagoFacturaService;
@@ -30,19 +31,21 @@ class PagoWebController extends Controller
     public function index(Request $request): Response
     {
         $estado = trim((string) $request->query('estado', ''));
-        $query = PagoEloquentModel::with(['ordenTrabajo.cliente', 'ordenTrabajo.vehiculo'])
+        $facturaEstados = FacturaEstado::values();
+
+        $query = FacturaEloquentModel::with(['ordenTrabajo.cliente', 'ordenTrabajo.vehiculo', 'pago'])
             ->orderByDesc('created_at');
 
-        if ($estado !== '' && in_array($estado, PagoEstado::values(), true)) {
+        if ($estado !== '' && in_array($estado, $facturaEstados, true)) {
             $query->where('estado', $estado);
         }
 
         $paginator = $query
             ->paginate(InertiaTablePaginator::PER_PAGE)
             ->withQueryString()
-            ->through(fn (PagoEloquentModel $p) => $this->mapPago($p));
+            ->through(fn (FacturaEloquentModel $f) => $this->mapFactura($f));
 
-        $counts = PagoEloquentModel::query()
+        $counts = FacturaEloquentModel::query()
             ->selectRaw('estado, COUNT(*) as total')
             ->groupBy('estado')
             ->pluck('total', 'estado');
@@ -53,12 +56,12 @@ class PagoWebController extends Controller
             ->sum('total');
 
         return Inertia::render('Pago/index', [
-            'pagos' => InertiaTablePaginator::make($paginator),
+            'facturas' => InertiaTablePaginator::make($paginator),
             'filters' => ['estado' => $estado],
             'stats' => [
-                'pagado' => (int) ($counts[PagoEstado::Pagado->value] ?? 0),
-                'pendiente' => (int) ($counts[PagoEstado::Pendiente->value] ?? 0),
-                'anulado' => (int) ($counts[PagoEstado::Anulado->value] ?? 0),
+                'emitida' => (int) ($counts[FacturaEstado::Emitida->value] ?? 0),
+                'pagada' => (int) ($counts[FacturaEstado::Pagada->value] ?? 0),
+                'anulada' => (int) ($counts[FacturaEstado::Anulada->value] ?? 0),
                 'ingresosMes' => $ingresosMes,
             ],
         ]);
@@ -283,6 +286,35 @@ class PagoWebController extends Controller
             'estadoLabel' => $pago->estado->label(),
             'metodoPago' => $pago->metodo_pago,
             'createdAt' => $pago->created_at?->format('Y-m-d H:i:s'),
+        ];
+    }
+
+    private function mapFactura(FacturaEloquentModel $factura): array
+    {
+        $pago = $factura->pago;
+
+        return [
+            'id' => $factura->id,
+            'numero' => $factura->numero,
+            'ordenTrabajoId' => $factura->orden_trabajo_id,
+            'ordenNumero' => $factura->ordenTrabajo?->numero,
+            'clienteNombre' => $factura->cliente_razon_social
+                ?? trim(($factura->cliente_nombres ?? '') . ' ' . ($factura->cliente_apellidos ?? '')),
+            'vehiculoPlaca' => $factura->ordenTrabajo?->vehiculo?->placa,
+            'subtotal' => (float) $factura->subtotal,
+            'iva' => (float) $factura->iva,
+            'descuento' => (float) $factura->descuento,
+            'total' => (float) $factura->total,
+            'estado' => $factura->estado instanceof \BackedEnum ? $factura->estado->value : (string) $factura->estado,
+            'estadoLabel' => $factura->estado instanceof \BackedEnum ? $factura->estado->label() : (string) $factura->estado,
+            'pagoId' => $pago?->id,
+            'pagoEstado' => $pago
+                ? ($pago->estado instanceof \BackedEnum ? $pago->estado->value : (string) $pago->estado)
+                : null,
+            'pagoEstadoLabel' => $pago
+                ? ($pago->estado instanceof \BackedEnum ? $pago->estado->label() : (string) $pago->estado)
+                : null,
+            'createdAt' => $factura->created_at?->format('Y-m-d H:i:s'),
         ];
     }
 

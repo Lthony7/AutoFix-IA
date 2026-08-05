@@ -6,29 +6,22 @@ use App\Enums\OrdenEstado;
 use App\Enums\SugerenciaIaEstado;
 use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
-use App\Services\AplicarSugerenciaIaAOrdenService;
-use App\Services\GroqDiagnosticService;
-use App\Services\OrdenRepuestoStockService;
+use App\Services\GenerarDiagnosticoIaService;
 use App\Support\InertiaTablePaginator;
 use Exception;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
 use Src\DiagnosticoIA\Infrastructure\Models\DiagnosticoIaEloquentModel;
 use Src\DiagnosticoIA\Infrastructure\Requests\RevisarDiagnosticoIaRequest;
 use Src\DiagnosticoIA\Infrastructure\Requests\StoreDiagnosticoIaRequest;
 use Src\OrdenTrabajo\Infrastructure\Models\OrdenTrabajoEloquentModel;
-use Src\Producto\Infrastructure\Models\ProductoEloquentModel;
-use Src\Servicio\Infrastructure\Models\ServicioEloquentModel;
 
 class DiagnosticoIaWebController extends Controller
 {
     public function __construct(
-        private readonly GroqDiagnosticService $groqService,
-        private readonly AplicarSugerenciaIaAOrdenService $aplicarSugerencia,
-        private readonly OrdenRepuestoStockService $stockService,
+        private readonly GenerarDiagnosticoIaService $generarDiagnostico,
     ) {
     }
 
@@ -115,87 +108,9 @@ class DiagnosticoIaWebController extends Controller
     {
         try {
             $validated = $request->validated();
-            $orden = OrdenTrabajoEloquentModel::with(['cliente', 'vehiculo'])->findOrFail($validated['orden_trabajo_id']);
+            $orden = OrdenTrabajoEloquentModel::findOrFail($validated['orden_trabajo_id']);
 
-            $vehiculo = $orden->vehiculo;
-            $kilometraje = $orden->kilometraje_ingreso ?? $vehiculo?->kilometraje;
-
-            $catalogoServicios = ServicioEloquentModel::query()
-                ->where('activo', true)
-                ->orderBy('nombre')
-                ->limit(80)
-                ->pluck('nombre')
-                ->values()
-                ->all();
-
-            $catalogoRepuestos = ProductoEloquentModel::query()
-                ->where('activo', true)
-                ->where(function ($q) {
-                    $q->where('tipo_producto', 'repuesto')
-                        ->orWhereNull('tipo_producto');
-                })
-                ->orderBy('nombre')
-                ->limit(120)
-                ->pluck('nombre')
-                ->values()
-                ->all();
-
-            $inputData = [
-                'orden_trabajo_id' => $orden->id,
-                'orden_numero' => $orden->numero,
-                'cliente' => $orden->cliente?->razon_social,
-                'vehiculo_placa' => $vehiculo?->placa,
-                'vehiculo_marca' => $vehiculo?->marca,
-                'vehiculo_modelo' => $vehiculo?->modelo,
-                'vehiculo_anio' => $vehiculo?->anio,
-                'vehiculo_combustible' => $vehiculo?->tipo_combustible,
-                'kilometraje' => $kilometraje,
-                'tipo_falla' => $validated['tipo_falla'],
-                'descripcion' => $validated['descripcion'],
-                'momento' => $validated['momento'] ?? 'No especificado',
-                'luces_tablero' => $validated['luces_tablero'] ?? null,
-                'ruidos' => $validated['ruidos'] ?? null,
-                'puede_circular' => $validated['puede_circular'] ?? true,
-                'urgencia' => $validated['urgencia'],
-                'observaciones' => $validated['observaciones'] ?? null,
-                'falla_reportada' => $validated['descripcion'],
-                'catalogo_servicios' => $catalogoServicios,
-                'catalogo_repuestos' => $catalogoRepuestos,
-            ];
-
-            $resultado = $this->groqService->analyze($inputData);
-
-            DB::transaction(function () use ($orden, $inputData, $resultado, $validated) {
-                DiagnosticoIaEloquentModel::create([
-                    'orden_trabajo_id' => $orden->id,
-                    'input_data' => array_merge($inputData, [
-                        'servicios_sugeridos' => $resultado['servicios_sugeridos'] ?? [],
-                        'repuestos_sugeridos' => $resultado['repuestos_sugeridos'] ?? [],
-                    ]),
-                    'respuesta_completa' => $resultado['respuesta_completa'],
-                    'diagnostico_detalle' => $resultado['diagnostico_detalle'] ?? null,
-                    'posibles_causas' => $resultado['posibles_causas'],
-                    'servicio_recomendado' => $resultado['servicio_recomendado'],
-                    'especialidad_recomendada' => $resultado['especialidad_recomendada'] ?? null,
-                    'acciones_recomendadas' => $resultado['acciones_recomendadas'] ?? [],
-                    'mecanicos_sugeridos' => $resultado['mecanicos_sugeridos'] ?? [],
-                    'prioridad' => $resultado['prioridad'],
-                    'observacion_mecanico' => $resultado['observacion_mecanico'],
-                    'advertencia' => $resultado['advertencia'],
-                    'estado' => SugerenciaIaEstado::Generada,
-                    'es_simulado' => $resultado['es_simulado'],
-                ]);
-
-                $orden->update([
-                    'estado' => OrdenEstado::EnDiagnostico,
-                    'tipo_falla' => $validated['tipo_falla'],
-                    'falla_reportada' => $validated['descripcion'],
-                    'prioridad' => $resultado['prioridad'] ?? $validated['urgencia'],
-                    'observaciones' => $validated['observaciones'] ?? $orden->observaciones,
-                ]);
-
-                $this->aplicarSugerencia->aplicar($orden->fresh(), $resultado, $this->stockService);
-            });
+            $this->generarDiagnostico->generar($orden, $validated);
 
             return $this->redirectTrasGenerar($request, $orden);
         } catch (Exception $e) {

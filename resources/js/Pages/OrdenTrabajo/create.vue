@@ -127,7 +127,7 @@ const handleSubmit = () => {
           variant="subtle"
           icon="i-lucide-brain"
           title="Flujo recomendado"
-          description="Guarda la orden con la falla reportada. En el siguiente paso la IA generará el diagnóstico, asignará especialista, servicios y repuestos para que el mecánico los revise."
+          description="Al guardar, la IA generará automáticamente el diagnóstico, asignará especialista, servicios y repuestos para que el mecánico los revise. La factura se emitirá al finalizar la orden."
         />
 
         <form class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 w-full" @submit.prevent="handleSubmit">
@@ -209,7 +209,7 @@ const handleSubmit = () => {
           </FormField>
 
           <div class="md:col-span-2 xl:col-span-3 flex gap-3">
-            <UButton type="submit" label="Guardar y diagnosticar con IA" icon="i-lucide-brain" :loading="isLoading" />
+            <UButton type="submit" label="Crear orden y diagnosticar con IA" icon="i-lucide-brain" :loading="isLoading" />
             <UButton variant="ghost" color="neutral" label="Cancelar" :to="route('ordenes.index')" />
           </div>
         </form>

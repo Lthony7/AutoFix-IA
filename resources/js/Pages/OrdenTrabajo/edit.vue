@@ -394,7 +394,7 @@ const registrarAvance = () => {
             sugerenciaIa.diagnosticoDetalle,
             sugerenciaIa.especialidadRecomendada ? `Especialista: ${sugerenciaIa.especialidadRecomendada}` : null,
             sugerenciaIa.servicioRecomendado ? `Servicio: ${sugerenciaIa.servicioRecomendado}` : null,
-            'Revisa mecánico, servicios y repuestos cargados automáticamente y corrige si hace falta. Luego facturación → pago.'
+            'Revisa mecánico, servicios y repuestos cargados automáticamente y corrige si hace falta. Al finalizar la orden se emitirá la factura y quedará disponible en Pagos.'
           ].filter(Boolean).join(' · ')"
         />
 
