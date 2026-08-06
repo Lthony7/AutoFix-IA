@@ -109,7 +109,7 @@ class OrdenTrabajoEloquentModel extends Model
     {
         return $this->hasOne(FacturaEloquentModel::class, 'orden_trabajo_id')
             ->ofMany(
-                ['id' => 'max'],
+                ['created_at' => 'max'],
                 fn ($query) => $query->where('estado', '!=', FacturaEstado::Anulada->value)
             );
     }
