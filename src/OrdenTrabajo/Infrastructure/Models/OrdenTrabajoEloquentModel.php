@@ -101,17 +101,21 @@ class OrdenTrabajoEloquentModel extends Model
      * Factura vigente de la OT: la más reciente que NO esté anulada.
      * Si la única factura fue anulada, devuelve null para permitir re-emitir.
      *
-     * Nota: el filtro por estado se pasa como callback de ofMany para que
-     * aplique TAMBIÉN en la subconsulta (si no, latestOfMany elegiría la
-     * última factura anulada y luego la filtraría, devolviendo null).
+     * No se usa ofMany/latestOfMany porque Laravel agrega MAX(id) como
+     * tie-breaker y el id es uuid (Postgres no soporta max(uuid)).
+     * En su lugar se usa DISTINCT ON (sintaxis Postgres): el id de la
+     * factura no anulada más reciente, ordenada por created_at desc.
      */
     public function factura(): HasOne
     {
+        $ultima = FacturaEloquentModel::query()
+            ->selectRaw('DISTINCT ON (orden_trabajo_id) id')
+            ->where('estado', '!=', FacturaEstado::Anulada->value)
+            ->orderBy('orden_trabajo_id')
+            ->orderByDesc('created_at');
+
         return $this->hasOne(FacturaEloquentModel::class, 'orden_trabajo_id')
-            ->ofMany(
-                ['created_at' => 'max'],
-                fn ($query) => $query->where('estado', '!=', FacturaEstado::Anulada->value)
-            );
+            ->whereIn('id', $ultima);
     }
 
     public function avances(): HasMany
